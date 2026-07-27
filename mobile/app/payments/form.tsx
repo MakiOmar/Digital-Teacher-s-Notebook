@@ -1,0 +1,403 @@
+import { useEffect, useState } from "react";
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
+import {
+  FormField,
+  PrimaryButton,
+  Screen,
+} from "@/src/components/ui";
+import { DateField } from "@/src/components/DateFields";
+import { t } from "@/src/i18n/ar";
+import {
+  createPayment,
+  deletePayment,
+  getActiveEnrollment,
+  getPayment,
+  listActiveStudentsInGroup,
+  listGroups,
+  updatePayment,
+} from "@/src/repositories";
+import { listPayableRoundsForStudent } from "@/src/services/rounds";
+import type { PaymentMethod, Student, StudyGroup } from "@/src/db/types";
+import { formatMoney, formatRoundTitle, todayDateOnly } from "@/src/utils/date";
+import { colors, spacing } from "@/src/theme/colors";
+import { rtlChipRow, rtlText } from "@/src/theme/rtl";
+import { useAppData } from "@/src/contexts/AppDataContext";
+
+const METHODS: { key: PaymentMethod; label: string }[] = [
+  { key: "cash", label: t("cash") },
+  { key: "transfer", label: t("transfer") },
+  { key: "other", label: t("other") },
+];
+
+type PayableRound = Awaited<
+  ReturnType<typeof listPayableRoundsForStudent>
+>[number];
+
+export default function PaymentFormScreen() {
+  const {
+    id,
+    studentId: studentIdParam,
+    groupId: groupIdParam,
+  } = useLocalSearchParams<{
+    id?: string;
+    studentId?: string;
+    groupId?: string;
+  }>();
+  const editId = id ? Number(id) : null;
+  const router = useRouter();
+  const navigation = useNavigation();
+  const { bump } = useAppData();
+
+  const [groups, setGroups] = useState<StudyGroup[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [rounds, setRounds] = useState<PayableRound[]>([]);
+  const [groupId, setGroupId] = useState<number | null>(
+    groupIdParam ? Number(groupIdParam) : null
+  );
+  const [studentId, setStudentId] = useState<number | null>(
+    studentIdParam ? Number(studentIdParam) : null
+  );
+  const [roundId, setRoundId] = useState<number | null>(null);
+  const [amount, setAmount] = useState("");
+  const [paidAt, setPaidAt] = useState(todayDateOnly());
+  const [method, setMethod] = useState<PaymentMethod>("cash");
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    navigation.setOptions({
+      title: editId ? t("edit") : t("addPayment"),
+    });
+  }, [editId, navigation]);
+
+  useEffect(() => {
+    void (async () => {
+      setGroups(await listGroups());
+      if (!editId) return;
+      const p = await getPayment(editId);
+      if (!p) return;
+      setStudentId(p.student_id);
+      setRoundId(p.billing_round_id);
+      setGroupId(p.group_id);
+      setAmount(String(p.amount));
+      setPaidAt(p.paid_at);
+      setMethod(p.method);
+      setNote(p.note ?? "");
+      if (!p.group_id) {
+        const en = await getActiveEnrollment(p.student_id);
+        if (en) setGroupId(en.group_id);
+      }
+    })();
+  }, [editId]);
+
+  // When opened with studentId only, resolve their group
+  useEffect(() => {
+    if (editId || groupId || !studentId) return;
+    void (async () => {
+      const en = await getActiveEnrollment(studentId);
+      if (en) setGroupId(en.group_id);
+    })();
+  }, [editId, groupId, studentId]);
+
+  useEffect(() => {
+    if (!groupId || editId) return;
+    void (async () => {
+      const list = await listActiveStudentsInGroup(groupId);
+      setStudents(list);
+      setStudentId((prev) => {
+        if (prev && list.some((s) => s.id === prev)) return prev;
+        return null;
+      });
+      setRounds([]);
+      setRoundId(null);
+    })();
+  }, [groupId, editId]);
+
+  useEffect(() => {
+    if (!studentId || !groupId || editId) return;
+    void (async () => {
+      const list = (await listPayableRoundsForStudent(studentId)).filter(
+        (r) => r.group_id === groupId
+      );
+      setRounds(list);
+      const preferred =
+        list.find((r) => r.status === "open") ?? list[0] ?? null;
+      setRoundId(preferred?.id ?? null);
+      if (preferred && preferred.remaining > 0) {
+        setAmount(String(preferred.remaining));
+      } else if (preferred) {
+        setAmount(String(preferred.due));
+      } else {
+        setAmount("");
+      }
+    })();
+  }, [studentId, groupId, editId]);
+
+  function onSelectGroup(nextGroupId: number) {
+    setGroupId(nextGroupId);
+    setStudentId(null);
+    setRoundId(null);
+    setRounds([]);
+    setAmount("");
+  }
+
+  async function onSave() {
+    if (!studentId || (!editId && !roundId)) {
+      Alert.alert(t("error"), t("required"));
+      return;
+    }
+    const amountNum = Number(amount.replace(",", "."));
+    if (Number.isNaN(amountNum) || amountNum <= 0) {
+      Alert.alert(t("error"), t("amount"));
+      return;
+    }
+    setSaving(true);
+    try {
+      if (editId) {
+        await updatePayment(editId, {
+          amount: amountNum,
+          paid_at: paidAt,
+          method,
+          note: note.trim() || null,
+        });
+      } else {
+        const round = rounds.find((r) => r.id === roundId);
+        await createPayment({
+          student_id: studentId,
+          billing_round_id: roundId!,
+          group_id: round?.group_id ?? groupId,
+          amount: amountNum,
+          paid_at: paidAt,
+          method,
+          note: note.trim() || null,
+        });
+      }
+      bump();
+      router.back();
+    } catch (e) {
+      Alert.alert(t("error"), e instanceof Error ? e.message : t("error"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Screen padded={false} style={{ flex: 1 }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40 }}
+          keyboardShouldPersistTaps="handled"
+        >
+          {!editId ? (
+            <>
+              {/* Step 1: group */}
+              <Text style={styles.label}>{t("selectGroup")}</Text>
+              <View style={styles.wrap}>
+                {groups.map((g) => (
+                  <Pressable
+                    key={g.id}
+                    onPress={() => onSelectGroup(g.id)}
+                    style={[styles.chip, groupId === g.id && styles.chipOn]}
+                  >
+                    <Text
+                      style={[
+                        styles.chipText,
+                        groupId === g.id && styles.chipTextOn,
+                      ]}
+                    >
+                      {g.name}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              {/* Step 2: students of selected group */}
+              <Text style={styles.label}>{t("students")}</Text>
+              {!groupId ? (
+                <Text style={styles.hint}>{t("selectGroup")}</Text>
+              ) : !students.length ? (
+                <Text style={styles.hint}>{t("noStudentsInGroup")}</Text>
+              ) : (
+                <View style={styles.wrap}>
+                  {students.map((s) => (
+                    <Pressable
+                      key={s.id}
+                      onPress={() => setStudentId(s.id)}
+                      style={[styles.chip, studentId === s.id && styles.chipOn]}
+                    >
+                      <Text
+                        style={[
+                          styles.chipText,
+                          studentId === s.id && styles.chipTextOn,
+                        ]}
+                      >
+                        {s.name}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+
+              {/* Step 3: round for that student in the group */}
+              <Text style={styles.label}>{t("selectRound")}</Text>
+              {!studentId ? (
+                <Text style={styles.hint}>{t("required")}</Text>
+              ) : !rounds.length ? (
+                <Text style={styles.hint}>{t("noOpenRound")}</Text>
+              ) : (
+                <View style={styles.wrap}>
+                  {rounds.map((r) => (
+                    <Pressable
+                      key={r.id}
+                      onPress={() => {
+                        setRoundId(r.id);
+                        if (r.remaining > 0) setAmount(String(r.remaining));
+                        else setAmount(String(r.due));
+                      }}
+                      style={[styles.chip, roundId === r.id && styles.chipOn]}
+                    >
+                      <Text
+                        style={[
+                          styles.chipText,
+                          roundId === r.id && styles.chipTextOn,
+                        ]}
+                      >
+                        {formatRoundTitle(
+                          r.round_number,
+                          r.started_at,
+                          r.closed_at,
+                          t("roundUntilOngoing")
+                        )}{" "}
+                        · {formatMoney(r.remaining)}
+                        {r.status === "closed" ? ` (${t("unpaid")})` : ""}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+            </>
+          ) : null}
+
+          <FormField
+            label={t("amount")}
+            value={amount}
+            onChangeText={setAmount}
+            keyboardType="numeric"
+          />
+          <DateField
+            label={t("paidAt")}
+            value={paidAt}
+            onChange={setPaidAt}
+          />
+
+          <Text style={styles.label}>{t("method")}</Text>
+          <View style={styles.wrap}>
+            {METHODS.map((m) => (
+              <Pressable
+                key={m.key}
+                onPress={() => setMethod(m.key)}
+                style={[styles.chip, method === m.key && styles.chipOn]}
+              >
+                <Text
+                  style={[
+                    styles.chipText,
+                    method === m.key && styles.chipTextOn,
+                  ]}
+                >
+                  {m.label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
+          <FormField
+            label={t("notes")}
+            value={note}
+            onChangeText={setNote}
+            multiline
+          />
+
+          <PrimaryButton
+            label={saving ? t("loading") : t("save")}
+            onPress={() => void onSave()}
+            disabled={saving}
+          />
+
+          {editId ? (
+            <View style={{ marginTop: 12 }}>
+              <PrimaryButton
+                label={t("delete")}
+                variant="danger"
+                onPress={() => {
+                  Alert.alert(t("delete"), t("deleteConfirm"), [
+                    { text: t("cancel"), style: "cancel" },
+                    {
+                      text: t("delete"),
+                      style: "destructive",
+                      onPress: () => {
+                        void deletePayment(editId).then(() => {
+                          bump();
+                          router.back();
+                        });
+                      },
+                    },
+                  ]);
+                }}
+              />
+            </View>
+          ) : null}
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </Screen>
+  );
+}
+
+const styles = StyleSheet.create({
+  label: {
+    ...rtlText,
+    width: "100%",
+    fontWeight: "600",
+    marginBottom: 8,
+    color: colors.text,
+  },
+  hint: {
+    ...rtlText,
+    width: "100%",
+    color: colors.textMuted,
+    marginBottom: spacing.lg,
+  },
+  wrap: {
+    ...rtlChipRow(),
+    gap: 8,
+    marginBottom: spacing.lg,
+    width: "100%",
+  },
+  chip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  chipOn: { backgroundColor: colors.primary, borderColor: colors.primary },
+  chipText: {
+    color: colors.text,
+    fontWeight: "600",
+    ...rtlText,
+  },
+  chipTextOn: { color: "#fff" },
+});

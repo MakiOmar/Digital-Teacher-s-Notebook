@@ -34,27 +34,39 @@ export function SplashBackground({
 }
 
 /**
- * Decorative brand watermark behind page content (does not wrap children).
+ * Brand image behind pages, with a white veil at 0.8 opacity.
  * Place once behind a navigator; keep Screen content free of image layers.
  */
 export function BrandWatermark() {
   const { width, height } = useWindowDimensions();
   return (
-    <Image
-      source={APP_BACKGROUND}
+    <View
       pointerEvents="none"
-      resizeMode="contain"
       style={{
         position: "absolute",
         top: 0,
         left: 0,
         width,
         height,
-        opacity: 0.3,
         zIndex: 0,
         elevation: 0,
+        backgroundColor: SPLASH_LETTERBOX,
+        alignItems: "center",
+        justifyContent: "center",
       }}
-    />
+    >
+      <Image
+        source={APP_BACKGROUND}
+        resizeMode="contain"
+        style={{ width, height }}
+      />
+      <View
+        style={{
+          ...StyleSheet.absoluteFillObject,
+          backgroundColor: "rgba(255,255,255,0.8)",
+        }}
+      />
+    </View>
   );
 }
 

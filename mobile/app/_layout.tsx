@@ -169,7 +169,7 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#FFFFFF" },
   bootPlaceholder: { flex: 1 },
-  stackShell: { flex: 1, backgroundColor: "#FFFFFF" },
+  stackShell: { flex: 1, backgroundColor: "transparent" },
   stackContent: { flex: 1, zIndex: 1, elevation: 1 },
   errorWrap: {
     flex: 1,

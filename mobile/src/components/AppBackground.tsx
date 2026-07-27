@@ -2,6 +2,7 @@ import React from "react";
 import {
   Image,
   StyleSheet,
+  useWindowDimensions,
   View,
   ViewStyle,
   StyleProp,
@@ -12,7 +13,6 @@ export const SPLASH_LETTERBOX = "#423226";
 
 /**
  * Launch splash: image centered with correct aspect ratio (no stretch).
- * Letterbox color fills the rest of the screen.
  */
 export function SplashBackground({
   onLoadEnd,
@@ -22,7 +22,7 @@ export function SplashBackground({
   style?: StyleProp<ViewStyle>;
 }) {
   return (
-    <View style={[styles.splashRoot, style]} pointerEvents="none">
+    <View style={[styles.splashRoot, style]}>
       <Image
         source={APP_BACKGROUND}
         style={styles.splashImage}
@@ -34,31 +34,33 @@ export function SplashBackground({
 }
 
 /**
- * App pages: white base; brand image centered underneath at 0.3 opacity
- * (contain keeps aspect ratio — no stretch). Content always paints above.
+ * Decorative brand watermark behind page content (does not wrap children).
+ * Place once behind a navigator; keep Screen content free of image layers.
  */
-export function AppBackground({ children }: { children: React.ReactNode }) {
+export function BrandWatermark() {
+  const { width, height } = useWindowDimensions();
   return (
-    <View style={styles.appRoot}>
-      <View style={styles.imageLayer} pointerEvents="none">
-        <Image
-          source={APP_BACKGROUND}
-          style={styles.underImage}
-          resizeMode="contain"
-        />
-      </View>
-      <View style={styles.content} collapsable={false}>
-        {children}
-      </View>
-    </View>
+    <Image
+      source={APP_BACKGROUND}
+      pointerEvents="none"
+      resizeMode="contain"
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width,
+        height,
+        opacity: 0.3,
+        zIndex: 0,
+        elevation: 0,
+      }}
+    />
   );
 }
 
 const styles = StyleSheet.create({
   splashRoot: {
     flex: 1,
-    width: "100%",
-    height: "100%",
     backgroundColor: SPLASH_LETTERBOX,
     alignItems: "center",
     justifyContent: "center",
@@ -66,27 +68,5 @@ const styles = StyleSheet.create({
   splashImage: {
     width: "100%",
     height: "100%",
-  },
-  appRoot: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-  },
-  imageLayer: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 0,
-    elevation: 0,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  underImage: {
-    width: "100%",
-    height: "100%",
-    opacity: 0.3,
-  },
-  content: {
-    flex: 1,
-    zIndex: 1,
-    elevation: 1,
-    backgroundColor: "transparent",
   },
 });

@@ -10,10 +10,8 @@ import {
   TextStyle,
   StyleProp,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, spacing } from "../theme/colors";
 import { rtlRow, rtlText, rtlBlock, rtlChipRow, inputShell, inputTextAlign } from "../theme/rtl";
-import { AppBackground } from "./AppBackground";
 
 export function Screen({
   children,
@@ -24,23 +22,20 @@ export function Screen({
   style?: StyleProp<ViewStyle>;
   padded?: boolean;
 }) {
-  const insets = useSafeAreaInsets();
   return (
-    <AppBackground>
-      <View
-        style={[
-          styles.screen,
-          {
-            paddingTop: spacing.sm,
-            paddingBottom: Math.max(insets.bottom, spacing.sm),
-            paddingHorizontal: padded ? spacing.lg : 0,
-          },
-          style,
-        ]}
-      >
-        {children}
-      </View>
-    </AppBackground>
+    <View
+      style={[
+        styles.screen,
+        {
+          paddingTop: spacing.sm,
+          paddingBottom: spacing.sm,
+          paddingHorizontal: padded ? spacing.lg : 0,
+        },
+        style,
+      ]}
+    >
+      {children}
+    </View>
   );
 }
 

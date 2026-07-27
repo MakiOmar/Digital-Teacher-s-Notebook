@@ -1,13 +1,10 @@
-const {
-  withMainActivity,
-  withAndroidStyles,
-  AndroidConfig,
-} = require("expo/config-plugins");
+const { withMainActivity, withAndroidStyles } = require("expo/config-plugins");
 
 /**
- * Full-bleed splash on Android:
- * - windowBackground = brand image (fills the screen)
- * - skip AndroidX SplashScreen (API 31+ forces a centered icon on a solid color)
+ * Android splash / theme:
+ * - Skip AndroidX SplashScreen (API 31+ centered icon)
+ * - Splash theme: letterbox color
+ * - App theme: solid white window (transparent RN screens must not show a raw image)
  */
 function withFullBleedSplash(config) {
   config = withAndroidStyles(config, (cfg) => {
@@ -30,14 +27,14 @@ function withFullBleedSplash(config) {
       },
       {
         $: { name: "android:windowBackground" },
-        _: "@drawable/splashscreen_full",
+        _: "@android:color/white",
       },
     ];
 
     const splashThemeItems = [
       {
         $: { name: "android:windowBackground" },
-        _: "@drawable/splashscreen_full",
+        _: "@color/splashscreen_background",
       },
       {
         $: { name: "android:statusBarColor" },
@@ -79,7 +76,6 @@ function withFullBleedSplash(config) {
   config = withMainActivity(config, (cfg) => {
     let src = cfg.modResults.contents;
 
-    // Drop AndroidX splash registration (centered icon).
     src = src.replace(
       /import\s+expo\.modules\.splashscreen\.SplashScreenManager\s*\n?/g,
       ""
@@ -97,7 +93,7 @@ function withFullBleedSplash(config) {
       src = src.replace(
         /override fun onCreate\(savedInstanceState: Bundle\?\) \{\s*/,
         `override fun onCreate(savedInstanceState: Bundle?) {
-    // Full-bleed brand image via windowBackground (not Android 12 icon splash).
+    // White app window; JS draws splash image then page watermark.
     setTheme(R.style.AppTheme)
     `
       );

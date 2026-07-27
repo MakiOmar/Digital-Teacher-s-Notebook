@@ -119,7 +119,7 @@ export default function RootLayout() {
         <Bootstrap onAppReady={onAppReady}>
           <View style={styles.stackShell}>
             <BrandWatermark />
-            <View style={styles.stackContent}>
+            <View style={styles.stackContent} pointerEvents="box-none">
               <Stack
                 screenOptions={{
                   headerShown: true,
@@ -169,8 +169,10 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#FFFFFF" },
   bootPlaceholder: { flex: 1 },
-  stackShell: { flex: 1, backgroundColor: "transparent" },
-  stackContent: { flex: 1, zIndex: 1, elevation: 1 },
+  stackShell: { flex: 1, backgroundColor: "#FFFFFF" },
+  // Transparent so BrandWatermark (white + faint image) shows through.
+  // Do not use elevation — it makes Android skip siblings and show the window bg.
+  stackContent: { flex: 1, backgroundColor: "transparent" },
   errorWrap: {
     flex: 1,
     alignItems: "center",

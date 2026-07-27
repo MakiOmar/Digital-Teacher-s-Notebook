@@ -2,7 +2,6 @@ import React from "react";
 import {
   Image,
   StyleSheet,
-  useWindowDimensions,
   View,
   ViewStyle,
   StyleProp,
@@ -10,6 +9,9 @@ import {
 
 export const APP_BACKGROUND = require("../../assets/images/background.png");
 export const SPLASH_LETTERBOX = "#423226";
+
+/** White veil strength over the brand image (0.8 = barely visible image). */
+export const PAGE_WHITE_OPACITY = 0.8;
 
 /**
  * Launch splash: image centered with correct aspect ratio (no stretch).
@@ -34,37 +36,16 @@ export function SplashBackground({
 }
 
 /**
- * Brand image behind pages, with a white veil at 0.8 opacity.
- * Place once behind a navigator; keep Screen content free of image layers.
+ * White page background with the brand image barely visible underneath.
+ * Image opacity = 1 - white veil (0.8) so only 20% of the image shows through.
  */
 export function BrandWatermark() {
-  const { width, height } = useWindowDimensions();
   return (
-    <View
-      pointerEvents="none"
-      style={{
-        position: "absolute",
-        top: 0,
-        left: 0,
-        width,
-        height,
-        zIndex: 0,
-        elevation: 0,
-        backgroundColor: SPLASH_LETTERBOX,
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
+    <View style={styles.watermark} pointerEvents="none">
       <Image
         source={APP_BACKGROUND}
         resizeMode="contain"
-        style={{ width, height }}
-      />
-      <View
-        style={{
-          ...StyleSheet.absoluteFillObject,
-          backgroundColor: "rgba(255,255,255,0.8)",
-        }}
+        style={styles.watermarkImage}
       />
     </View>
   );
@@ -80,5 +61,15 @@ const styles = StyleSheet.create({
   splashImage: {
     width: "100%",
     height: "100%",
+  },
+  watermark: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#FFFFFF",
+    zIndex: 0,
+  },
+  watermarkImage: {
+    ...StyleSheet.absoluteFillObject,
+    // Barely visible under white: equivalent to white overlay at 0.8
+    opacity: 1 - PAGE_WHITE_OPACITY,
   },
 });

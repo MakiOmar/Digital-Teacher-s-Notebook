@@ -41,6 +41,7 @@ function Bootstrap({
 }) {
   const { ready, error } = useAppData();
   const [rtlReady, setRtlReady] = useState(I18nManager.isRTL);
+  const [forceShow, setForceShow] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -74,23 +75,24 @@ function Bootstrap({
     }
   }, [ready, rtlReady, onAppReady]);
 
-  // Fail-safe: if DB/RTL init hangs, still show the app after a few seconds.
+  // Fail-safe: never stay on splash if init hangs.
   useEffect(() => {
     const id = setTimeout(() => {
       setRtlReady(true);
+      setForceShow(true);
       onAppReady();
     }, 5000);
     return () => clearTimeout(id);
   }, [onAppReady]);
 
-  if (!ready || !rtlReady) {
+  if ((!ready || !rtlReady) && !forceShow) {
     return (
       <View style={styles.bootPlaceholder}>
         <SplashBackground />
       </View>
     );
   }
-  if (error) {
+  if (error && !forceShow) {
     return (
       <View style={styles.errorWrap}>
         <Text style={styles.errorText}>{error}</Text>

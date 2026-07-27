@@ -15,13 +15,13 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: true,
-        headerStyle: { backgroundColor: "rgba(255,255,255,0.72)" },
+        headerStyle: { backgroundColor: "rgba(255,255,255,0.92)" },
         headerShadowVisible: false,
         headerTitleAlign: "center",
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: {
-          backgroundColor: "rgba(255,255,255,0.92)",
+          backgroundColor: "rgba(255,255,255,0.95)",
           borderTopColor: colors.border,
         },
         sceneStyle: { backgroundColor: "transparent" },

@@ -34,10 +34,10 @@ export const unstable_settings = {
 
 function Bootstrap({
   children,
-  bgReady,
+  onAppReady,
 }: {
   children: React.ReactNode;
-  bgReady: boolean;
+  onAppReady: () => void;
 }) {
   const { ready, error } = useAppData();
   const [rtlReady, setRtlReady] = useState(I18nManager.isRTL);
@@ -69,17 +69,13 @@ function Bootstrap({
   }, []);
 
   useEffect(() => {
-    if (ready && rtlReady && bgReady) {
-      // Hide native (often solid-color) splash only after the real image is painted.
-      const t = setTimeout(() => {
-        void SplashScreen.hideAsync().catch(() => undefined);
-      }, 50);
-      return () => clearTimeout(t);
+    if (ready && rtlReady) {
+      onAppReady();
     }
-  }, [ready, rtlReady, bgReady]);
+  }, [ready, rtlReady, onAppReady]);
 
   if (!ready || !rtlReady) {
-    return null; // BrandBackground already fills the screen behind us
+    return null;
   }
   if (error) {
     return (
@@ -92,74 +88,97 @@ function Bootstrap({
 }
 
 export default function RootLayout() {
-  const [bgReady, setBgReady] = useState(false);
-  const onBgReady = useCallback(() => setBgReady(true), []);
+  const [splashImageReady, setSplashImageReady] = useState(false);
+  const [appReady, setAppReady] = useState(false);
+  const [showSplashOverlay, setShowSplashOverlay] = useState(true);
+
+  const onSplashImageReady = useCallback(() => setSplashImageReady(true), []);
+  const onAppReady = useCallback(() => setAppReady(true), []);
 
   useEffect(() => {
-    // Fail-safe: never leave the user stuck on the native splash.
-    const id = setTimeout(() => setBgReady(true), 2500);
+    // Fail-safe so we never block forever if the image load event is missed.
+    const id = setTimeout(() => setSplashImageReady(true), 2500);
     return () => clearTimeout(id);
   }, []);
+
+  useEffect(() => {
+    if (!(appReady && splashImageReady)) return;
+    const id = setTimeout(() => {
+      setShowSplashOverlay(false);
+      void SplashScreen.hideAsync().catch(() => undefined);
+    }, 40);
+    return () => clearTimeout(id);
+  }, [appReady, splashImageReady]);
 
   return (
     <SafeAreaProvider style={styles.root}>
       <StatusBar style="dark" />
-      <BrandBackground onLoadEnd={onBgReady}>
-        <AppDataProvider>
-          <Bootstrap bgReady={bgReady}>
-            <Stack
-              screenOptions={{
-                headerShown: true,
-                headerStyle: { backgroundColor: "rgba(255,255,255,0.72)" },
-                headerShadowVisible: false,
-                headerTintColor: colors.text,
-                headerTitleAlign: "center",
-                headerTitleStyle: {
-                  fontWeight: "700",
-                },
-                contentStyle: { backgroundColor: "transparent" },
-              }}
-            >
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen name="groups/form" options={{ title: t("addGroup") }} />
-              <Stack.Screen name="groups/[id]" options={{ title: t("groupDetails") }} />
-              <Stack.Screen
-                name="groups/add-students"
-                options={{ title: t("addStudentsToGroup") }}
-              />
-              <Stack.Screen
-                name="groups/round-payments"
-                options={{ title: t("roundPayments") }}
-              />
-              <Stack.Screen name="groups/sessions" options={{ title: t("sessions") }} />
-              <Stack.Screen
-                name="attendance/[sessionId]"
-                options={{ title: t("attendance") }}
-              />
-              <Stack.Screen name="students/form" options={{ title: t("addStudent") }} />
-              <Stack.Screen name="students/[id]" options={{ title: t("studentDetails") }} />
-              <Stack.Screen name="payments/form" options={{ title: t("addPayment") }} />
-              <Stack.Screen name="payments/dues" options={{ title: t("dues") }} />
-              <Stack.Screen name="years/index" options={{ title: t("academicYears") }} />
-              <Stack.Screen name="years/form" options={{ title: t("addYear") }} />
-              <Stack.Screen name="backup" options={{ title: t("backup") }} />
-              <Stack.Screen name="about" options={{ title: t("about") }} />
-            </Stack>
-          </Bootstrap>
-        </AppDataProvider>
-      </BrandBackground>
+      <AppDataProvider>
+        <Bootstrap onAppReady={onAppReady}>
+          <Stack
+            screenOptions={{
+              headerShown: true,
+              headerStyle: { backgroundColor: "rgba(255,255,255,0.92)" },
+              headerShadowVisible: false,
+              headerTintColor: colors.text,
+              headerTitleAlign: "center",
+              headerTitleStyle: {
+                fontWeight: "700",
+              },
+              contentStyle: { backgroundColor: "transparent" },
+            }}
+          >
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="groups/form" options={{ title: t("addGroup") }} />
+            <Stack.Screen name="groups/[id]" options={{ title: t("groupDetails") }} />
+            <Stack.Screen
+              name="groups/add-students"
+              options={{ title: t("addStudentsToGroup") }}
+            />
+            <Stack.Screen
+              name="groups/round-payments"
+              options={{ title: t("roundPayments") }}
+            />
+            <Stack.Screen name="groups/sessions" options={{ title: t("sessions") }} />
+            <Stack.Screen
+              name="attendance/[sessionId]"
+              options={{ title: t("attendance") }}
+            />
+            <Stack.Screen name="students/form" options={{ title: t("addStudent") }} />
+            <Stack.Screen name="students/[id]" options={{ title: t("studentDetails") }} />
+            <Stack.Screen name="payments/form" options={{ title: t("addPayment") }} />
+            <Stack.Screen name="payments/dues" options={{ title: t("dues") }} />
+            <Stack.Screen name="years/index" options={{ title: t("academicYears") }} />
+            <Stack.Screen name="years/form" options={{ title: t("addYear") }} />
+            <Stack.Screen name="backup" options={{ title: t("backup") }} />
+            <Stack.Screen name="about" options={{ title: t("about") }} />
+          </Stack>
+        </Bootstrap>
+      </AppDataProvider>
+
+      {/* Full-bleed splash image until the app is ready (covers Android 12 icon splash). */}
+      {showSplashOverlay ? (
+        <BrandBackground
+          onLoadEnd={onSplashImageReady}
+          style={styles.splashOverlay}
+        />
+      ) : null}
     </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#423226" },
+  root: { flex: 1, backgroundColor: "#FFFFFF" },
+  splashOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 100,
+  },
   errorWrap: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
     padding: 24,
-    backgroundColor: "rgba(255,255,255,0.3)",
+    backgroundColor: "#FFFFFF",
   },
   errorText: {
     color: colors.danger,

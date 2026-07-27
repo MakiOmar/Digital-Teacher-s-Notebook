@@ -50,6 +50,7 @@
           "imageWidth": 200
         }
       ],
+      "./plugins/withFullBleedSplash.js",
       [
         "expo-build-properties",
         {

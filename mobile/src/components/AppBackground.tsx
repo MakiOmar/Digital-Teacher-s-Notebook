@@ -1,5 +1,6 @@
 import React from "react";
 import {
+  Image,
   ImageBackground,
   StyleSheet,
   View,
@@ -9,7 +10,7 @@ import {
 
 export const APP_BACKGROUND = require("../../assets/images/background.png");
 
-/** Full-bleed brand image (no white veil) — splash / root shell. */
+/** Full-bleed brand image — used only for the launch/splash phase. */
 export function BrandBackground({
   children,
   onLoadEnd,
@@ -32,13 +33,17 @@ export function BrandBackground({
 }
 
 /**
- * App pages: white overlay at 30% opacity over the root brand image.
- * (Root `_layout` already paints BrandBackground — do not nest another image.)
+ * App pages: white is the main background; brand image sits underneath at 0.3 opacity.
  */
 export function AppBackground({ children }: { children: React.ReactNode }) {
   return (
-    <View style={styles.fill}>
-      <View style={styles.whiteVeil} pointerEvents="none" />
+    <View style={styles.appRoot}>
+      <Image
+        source={APP_BACKGROUND}
+        style={styles.underImage}
+        resizeMode="cover"
+        pointerEvents="none"
+      />
       <View style={styles.content}>{children}</View>
     </View>
   );
@@ -50,9 +55,13 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
   },
-  whiteVeil: {
+  appRoot: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
+  underImage: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(255,255,255,0.3)",
+    opacity: 0.3,
   },
   content: {
     flex: 1,

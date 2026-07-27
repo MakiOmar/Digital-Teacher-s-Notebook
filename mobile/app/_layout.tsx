@@ -9,7 +9,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { AppDataProvider, useAppData } from "@/src/contexts/AppDataContext";
-import { BrandBackground } from "@/src/components/AppBackground";
+import { SplashBackground } from "@/src/components/AppBackground";
 import { colors } from "@/src/theme/colors";
 import { t } from "@/src/i18n/ar";
 
@@ -75,7 +75,11 @@ function Bootstrap({
   }, [ready, rtlReady, onAppReady]);
 
   if (!ready || !rtlReady) {
-    return null;
+    return (
+      <View style={styles.bootPlaceholder}>
+        <SplashBackground />
+      </View>
+    );
   }
   if (error) {
     return (
@@ -88,27 +92,25 @@ function Bootstrap({
 }
 
 export default function RootLayout() {
-  const [splashImageReady, setSplashImageReady] = useState(false);
   const [appReady, setAppReady] = useState(false);
-  const [showSplashOverlay, setShowSplashOverlay] = useState(true);
-
-  const onSplashImageReady = useCallback(() => setSplashImageReady(true), []);
   const onAppReady = useCallback(() => setAppReady(true), []);
 
   useEffect(() => {
-    // Fail-safe so we never block forever if the image load event is missed.
-    const id = setTimeout(() => setSplashImageReady(true), 2500);
+    if (!appReady) return;
+    // Drop native splash as soon as the real UI is mounted (no overlay on top of tabs).
+    const id = setTimeout(() => {
+      void SplashScreen.hideAsync().catch(() => undefined);
+    }, 16);
+    return () => clearTimeout(id);
+  }, [appReady]);
+
+  // Fail-safe: never leave the OS splash forever.
+  useEffect(() => {
+    const id = setTimeout(() => {
+      void SplashScreen.hideAsync().catch(() => undefined);
+    }, 4000);
     return () => clearTimeout(id);
   }, []);
-
-  useEffect(() => {
-    if (!(appReady && splashImageReady)) return;
-    const id = setTimeout(() => {
-      setShowSplashOverlay(false);
-      void SplashScreen.hideAsync().catch(() => undefined);
-    }, 40);
-    return () => clearTimeout(id);
-  }, [appReady, splashImageReady]);
 
   return (
     <SafeAreaProvider style={styles.root}>
@@ -155,24 +157,13 @@ export default function RootLayout() {
           </Stack>
         </Bootstrap>
       </AppDataProvider>
-
-      {/* Full-bleed splash image until the app is ready (covers Android 12 icon splash). */}
-      {showSplashOverlay ? (
-        <BrandBackground
-          onLoadEnd={onSplashImageReady}
-          style={styles.splashOverlay}
-        />
-      ) : null}
     </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#FFFFFF" },
-  splashOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 100,
-  },
+  bootPlaceholder: { flex: 1 },
   errorWrap: {
     flex: 1,
     alignItems: "center",

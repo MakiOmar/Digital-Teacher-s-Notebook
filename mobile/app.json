@@ -10,7 +10,7 @@
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/background.png",
-      "resizeMode": "cover",
+      "resizeMode": "contain",
       "backgroundColor": "#423226"
     },
     "locales": {
@@ -44,7 +44,7 @@
         "expo-splash-screen",
         {
           "image": "./assets/images/background.png",
-          "resizeMode": "cover",
+          "resizeMode": "contain",
           "backgroundColor": "#423226",
           "enableFullScreenImage_legacy": true,
           "imageWidth": 200

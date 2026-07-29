@@ -47,6 +47,7 @@ export interface StudyGroup {
   subject: string | null;
   default_monthly_fee: number;
   classes_per_round: number;
+  accent_color: string | null;
   status: string;
   created_at: string;
 }
@@ -87,6 +88,7 @@ export interface GroupSession {
   session_index: number;
   status: SessionStatus;
   source: "auto" | "manual";
+  star_student_id: number | null;
 }
 
 export interface Attendance {

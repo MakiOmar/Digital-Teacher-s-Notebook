@@ -631,17 +631,70 @@ export async function getSessionAttendanceCoverage(
 export async function listUpcomingSessions(
   limit = 8
 ): Promise<
-  (GroupSession & { group_name: string })[]
+  (GroupSession & { group_name: string; accent_color: string | null })[]
 > {
   const db = await getDb();
-  return db.getAllAsync<GroupSession & { group_name: string }>(
-    `SELECT gs.*, g.name as group_name
+  return db.getAllAsync<
+    GroupSession & { group_name: string; accent_color: string | null }
+  >(
+    `SELECT gs.*, g.name as group_name, g.accent_color as accent_color
      FROM group_sessions gs
      JOIN groups g ON g.id = gs.group_id
      WHERE gs.status = 'scheduled' AND gs.starts_at >= datetime('now', 'localtime')
      ORDER BY gs.starts_at
      LIMIT ?`,
     [limit]
+  );
+}
+
+/** Sessions for local calendar today, nearest time first. */
+export async function listTodaysSessions(): Promise<
+  (GroupSession & { group_name: string; accent_color: string | null })[]
+> {
+  const db = await getDb();
+  return db.getAllAsync<
+    GroupSession & { group_name: string; accent_color: string | null }
+  >(
+    `SELECT gs.*, g.name as group_name, g.accent_color as accent_color
+     FROM group_sessions gs
+     JOIN groups g ON g.id = gs.group_id
+     WHERE date(gs.starts_at) = date('now', 'localtime')
+       AND gs.status != 'cancelled'
+     ORDER BY gs.starts_at ASC`
+  );
+}
+
+/** Sessions in the week containing today (Sat–Fri), for weekly grid. */
+export async function listWeekSessions(): Promise<
+  (GroupSession & { group_name: string; accent_color: string | null })[]
+> {
+  const db = await getDb();
+  // SQLite: weekday 0=Sun … 6=Sat. Arabic week Sat→Fri.
+  // Start = today - ((dow+1)%7) days to land on Saturday.
+  return db.getAllAsync<
+    GroupSession & { group_name: string; accent_color: string | null }
+  >(
+    `SELECT gs.*, g.name as group_name, g.accent_color as accent_color
+     FROM group_sessions gs
+     JOIN groups g ON g.id = gs.group_id
+     WHERE gs.status != 'cancelled'
+       AND date(gs.starts_at) >= date('now', 'localtime',
+         printf('-%d days', (CAST(strftime('%w', 'now', 'localtime') AS INTEGER) + 1) % 7))
+       AND date(gs.starts_at) < date('now', 'localtime',
+         printf('-%d days', (CAST(strftime('%w', 'now', 'localtime') AS INTEGER) + 1) % 7),
+         '+7 days')
+     ORDER BY gs.starts_at ASC`
+  );
+}
+
+export async function setSessionStarStudent(
+  sessionId: number,
+  studentId: number | null
+): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    "UPDATE group_sessions SET star_student_id = ? WHERE id = ?",
+    [studentId, sessionId]
   );
 }
 

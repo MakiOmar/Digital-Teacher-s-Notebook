@@ -12,7 +12,7 @@ import { t } from "@/src/i18n/ar";
 import { listGroups, listPatterns } from "@/src/repositories";
 import type { StudyGroup, Weekday } from "@/src/db/types";
 import { WEEKDAY_LABELS, formatMoney } from "@/src/utils/date";
-import { spacing } from "@/src/theme/colors";
+import { groupAccentColor, spacing } from "@/src/theme/colors";
 import { useAppData } from "@/src/contexts/AppDataContext";
 import { getGroupListStats } from "@/src/services/rounds";
 
@@ -120,6 +120,7 @@ export default function GroupsTab() {
             title={item.name}
             subtitle={`${item.scheduleLabel || "—"} · ${t("studentsCount")}: ${item.student_count} · ${t("groupTotalFees")}: ${formatMoney(item.total_fees)} · ${t("classesPerRound")}: ${item.classes_per_round ?? 4}`}
             right={formatMoney(item.default_monthly_fee)}
+            borderColor={groupAccentColor(item.id, item.accent_color)}
             onPress={() => router.push(`/groups/${item.id}`)}
           />
         )}

@@ -1,24 +1,18 @@
 import { useRouter } from "expo-router";
-import { StyleSheet, Text, Pressable, View } from "react-native";
-import { Screen, Title } from "@/src/components/ui";
+import { StyleSheet, Text, View } from "react-native";
+import { MenuCard, Screen, Title } from "@/src/components/ui";
 import { t } from "@/src/i18n/ar";
 import { colors, spacing } from "@/src/theme/colors";
 import { rtlText } from "@/src/theme/rtl";
 import { useAppData } from "@/src/contexts/AppDataContext";
 
-function MoreItem({
-  label,
-  onPress,
-}: {
-  label: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable onPress={onPress} style={styles.item}>
-      <Text style={styles.itemText}>{label}</Text>
-    </Pressable>
-  );
-}
+const ICONS = {
+  years: require("../../assets/icons/icon-years.png"),
+  students: require("../../assets/icons/icon-students.png"),
+  schedule: require("../../assets/icons/icon-schedule.png"),
+  backup: require("../../assets/icons/icon-backup.png"),
+  more: require("../../assets/icons/icon-more.png"),
+};
 
 export default function MoreTab() {
   const router = useRouter();
@@ -33,12 +27,36 @@ export default function MoreTab() {
         </Text>
       ) : null}
       <View style={{ marginTop: spacing.md }}>
-        <MoreItem
-          label={t("academicYears")}
+        <MenuCard
+          title={t("students")}
+          icon={ICONS.students}
+          borderColor="#8B5CF6"
+          onPress={() => router.push("/students" as never)}
+        />
+        <MenuCard
+          title={t("weeklySchedule")}
+          icon={ICONS.schedule}
+          borderColor={colors.primary}
+          onPress={() => router.push("/schedule" as never)}
+        />
+        <MenuCard
+          title={t("academicYears")}
+          icon={ICONS.years}
+          borderColor={colors.accent}
           onPress={() => router.push("/years")}
         />
-        <MoreItem label={t("backup")} onPress={() => router.push("/backup")} />
-        <MoreItem label={t("about")} onPress={() => router.push("/about")} />
+        <MenuCard
+          title={t("backup")}
+          icon={ICONS.backup}
+          borderColor={colors.warning}
+          onPress={() => router.push("/backup")}
+        />
+        <MenuCard
+          title={t("about")}
+          icon={ICONS.more}
+          borderColor={colors.textMuted}
+          onPress={() => router.push("/about")}
+        />
       </View>
     </Screen>
   );
@@ -50,20 +68,5 @@ const styles = StyleSheet.create({
     width: "100%",
     color: colors.textMuted,
     marginBottom: spacing.sm,
-  },
-  item: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: spacing.lg,
-    marginBottom: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  itemText: {
-    ...rtlText,
-    width: "100%",
-    fontSize: 16,
-    fontWeight: "600",
-    color: colors.text,
   },
 });

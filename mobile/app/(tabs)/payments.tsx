@@ -13,7 +13,7 @@ import { t } from "@/src/i18n/ar";
 import { getOpenRoundsPaymentSummary } from "@/src/services/rounds";
 import type { PaymentStatus, StudentDueRow } from "@/src/db/types";
 import { formatMoney, formatRoundTitle } from "@/src/utils/date";
-import { spacing } from "@/src/theme/colors";
+import { colors, spacing } from "@/src/theme/colors";
 import { rtlChipRow } from "@/src/theme/rtl";
 
 export default function PaymentsTab() {
@@ -109,6 +109,13 @@ export default function PaymentsTab() {
                 : t("currentRound")
             } · ${t("remainingClasses")}: ${item.remaining_classes ?? 0} · ${formatMoney(item.paid)} / ${formatMoney(item.due)}`}
             right={formatMoney(item.remaining)}
+            borderColor={
+              item.status === "paid"
+                ? colors.paidBorder
+                : item.status === "partial"
+                  ? colors.partialBorder
+                  : colors.unpaidBorder
+            }
             onPress={() =>
               router.push(
                 `/groups/round-payments?groupId=${item.group_id}` as never

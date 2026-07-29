@@ -32,6 +32,16 @@ async function migrate(db: SQLite.SQLiteDatabase): Promise<void> {
       "ALTER TABLE groups ADD COLUMN classes_per_round INTEGER NOT NULL DEFAULT 4"
     );
   }
+  if (!groupCols.has("accent_color")) {
+    await db.execAsync("ALTER TABLE groups ADD COLUMN accent_color TEXT");
+  }
+
+  const sessionCols = await tableColumns(db, "group_sessions");
+  if (!sessionCols.has("star_student_id")) {
+    await db.execAsync(
+      "ALTER TABLE group_sessions ADD COLUMN star_student_id INTEGER REFERENCES students(id) ON DELETE SET NULL"
+    );
+  }
 
   await db.execAsync(`
     CREATE TABLE IF NOT EXISTS billing_rounds (

@@ -130,12 +130,12 @@ export default function RootLayout() {
             <Stack
               screenOptions={{
                 headerShown: true,
-                headerStyle: { backgroundColor: "rgba(255,255,255,0.92)" },
+                headerStyle: { backgroundColor: "rgba(255,255,255,0.94)" },
                 headerShadowVisible: false,
                 headerTintColor: colors.text,
                 headerTitleAlign: "center",
                 headerTitleStyle: {
-                  fontWeight: "700",
+                  fontWeight: "800",
                 },
                 contentStyle: { backgroundColor: "transparent" },
               }}

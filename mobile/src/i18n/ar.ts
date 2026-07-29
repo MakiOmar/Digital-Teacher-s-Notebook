@@ -30,6 +30,13 @@ export const ar = {
   upcomingSessions: "الحصص القادمة",
   nextSession: "أقرب حصة",
   noUnpaid: "كل الطلاب سددوا هذا الشهر",
+  todaySchedule: "جدول اليوم",
+  weeklySchedule: "الجدول الأسبوعي",
+  starOfClass: "نجم الحصة",
+  pickStarStudent: "اختر نجم الحصة",
+  clearStar: "إزالة النجم",
+  noSessionsToday: "لا توجد حصص اليوم",
+  brandTagline: "منصة الهندسة والتعليم الذكي",
   selectMonth: "الشهر الدراسي",
   currency: "ج.م",
 

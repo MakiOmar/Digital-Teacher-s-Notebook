@@ -1,6 +1,7 @@
 import React from "react";
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -10,7 +11,7 @@ import {
   TextStyle,
   StyleProp,
 } from "react-native";
-import { colors, spacing } from "../theme/colors";
+import { colors, radii, spacing } from "../theme/colors";
 import { rtlRow, rtlText, rtlBlock, rtlChipRow, inputShell, inputTextAlign } from "../theme/rtl";
 
 export function Screen({
@@ -150,14 +151,22 @@ export function ListRow({
   subtitle,
   right,
   onPress,
+  borderColor,
 }: {
   title: string;
   subtitle?: string;
   right?: string;
   onPress?: () => void;
+  borderColor?: string;
 }) {
   const content = (
-    <View style={[styles.row, rtlRow()]}>
+    <View
+      style={[
+        styles.row,
+        rtlRow(),
+        borderColor ? { borderColor, borderWidth: 2 } : null,
+      ]}
+    >
       <View style={{ flex: 1 }}>
         <Text style={styles.rowTitle}>{title}</Text>
         {subtitle ? <Text style={styles.muted}>{subtitle}</Text> : null}
@@ -173,6 +182,66 @@ export function ListRow({
     >
       {content}
     </Pressable>
+  );
+}
+
+/** Home / hub menu card with optional icon image and colored border. */
+export function MenuCard({
+  title,
+  subtitle,
+  icon,
+  borderColor,
+  onPress,
+}: {
+  title: string;
+  subtitle?: string;
+  icon?: number;
+  borderColor?: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.menuCard,
+        rtlRow(),
+        { borderColor: borderColor ?? colors.primary },
+        pressed && { opacity: 0.85 },
+      ]}
+    >
+      {icon != null ? (
+        <Image source={icon} style={styles.menuIcon} />
+      ) : (
+        <View style={[styles.menuIconFallback, { backgroundColor: colors.primarySoft }]} />
+      )}
+      <View style={{ flex: 1 }}>
+        <Text style={styles.menuTitle}>{title}</Text>
+        {subtitle ? <Text style={styles.muted}>{subtitle}</Text> : null}
+      </View>
+    </Pressable>
+  );
+}
+
+export function BorderedCard({
+  children,
+  borderColor,
+  style,
+}: {
+  children: React.ReactNode;
+  borderColor?: string;
+  style?: StyleProp<ViewStyle>;
+}) {
+  return (
+    <View
+      style={[
+        styles.card,
+        rtlBlock,
+        { borderColor: borderColor ?? colors.border, borderWidth: 2 },
+        style,
+      ]}
+    >
+      {children}
+    </View>
   );
 }
 
@@ -203,8 +272,16 @@ export function StatCard({
         : tone === "warning"
           ? colors.partial
           : colors.primarySoft;
+  const border =
+    tone === "success"
+      ? colors.paidBorder
+      : tone === "danger"
+        ? colors.unpaidBorder
+        : tone === "warning"
+          ? colors.partialBorder
+          : colors.primary;
   return (
-    <View style={[styles.stat, rtlBlock, { backgroundColor: bg }]}>
+    <View style={[styles.stat, rtlBlock, { backgroundColor: bg, borderColor: border }]}>
       <Text style={styles.statLabel}>{label}</Text>
       <Text style={styles.statValue}>{value}</Text>
     </View>
@@ -314,15 +391,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
     backgroundColor: colors.surface,
-    borderRadius: 12,
+    borderRadius: radii.md,
     padding: spacing.md,
     marginBottom: spacing.sm,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   rowTitle: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
     color: colors.text,
     ...rtlText,
   },
@@ -333,16 +415,54 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
+    borderRadius: radii.lg,
     padding: spacing.lg,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
     marginBottom: spacing.md,
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  menuCard: {
+    alignItems: "center",
+    gap: 14,
+    backgroundColor: colors.surface,
+    borderRadius: radii.xl,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    borderWidth: 2,
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
+  menuIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+  },
+  menuIconFallback: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+  },
+  menuTitle: {
+    fontSize: 17,
+    fontWeight: "800",
+    color: colors.text,
+    ...rtlText,
   },
   stat: {
-    borderRadius: 12,
+    borderRadius: radii.md,
     padding: spacing.md,
     marginBottom: spacing.sm,
+    borderWidth: 1.5,
+    borderColor: colors.border,
   },
   statLabel: {
     ...rtlText,

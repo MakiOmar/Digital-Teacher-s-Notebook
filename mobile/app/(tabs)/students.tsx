@@ -11,7 +11,7 @@ import {
 import { t } from "@/src/i18n/ar";
 import { getActiveEnrollment, listStudents } from "@/src/repositories";
 import type { Student } from "@/src/db/types";
-import { spacing } from "@/src/theme/colors";
+import { spacing, colors } from "@/src/theme/colors";
 
 export default function StudentsTab() {
   const router = useRouter();
@@ -69,6 +69,7 @@ export default function StudentsTab() {
             title={item.name}
             subtitle={`${item.groupName}${item.guardian_phone ? ` · ${item.guardian_phone}` : ""}`}
             right={item.status === "active" ? t("active") : item.status}
+            borderColor={colors.primary}
             onPress={() => router.push(`/students/${item.id}`)}
           />
         )}

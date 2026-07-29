@@ -15,17 +15,17 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: true,
-        headerStyle: { backgroundColor: "rgba(255,255,255,0.92)" },
+        headerStyle: { backgroundColor: "rgba(255,255,255,0.94)" },
         headerShadowVisible: false,
         headerTitleAlign: "center",
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: {
-          backgroundColor: "rgba(255,255,255,0.95)",
+          backgroundColor: "rgba(255,255,255,0.97)",
           borderTopColor: colors.border,
         },
         sceneStyle: { backgroundColor: "transparent" },
-        tabBarLabelStyle: { fontWeight: "600", fontSize: 11 },
+        tabBarLabelStyle: { fontWeight: "700", fontSize: 11 },
       }}
     >
       <Tabs.Screen
@@ -38,20 +38,20 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="today"
+        options={{
+          title: t("todaySchedule"),
+          tabBarIcon: ({ color }) => (
+            <TabIcon name="clock-o" color={String(color)} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="groups"
         options={{
           title: t("groups"),
           tabBarIcon: ({ color }) => (
             <TabIcon name="users" color={String(color)} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="students"
-        options={{
-          title: t("students"),
-          tabBarIcon: ({ color }) => (
-            <TabIcon name="user" color={String(color)} />
           ),
         }}
       />
@@ -71,6 +71,21 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => (
             <TabIcon name="bars" color={String(color)} />
           ),
+        }}
+      />
+      {/* Hidden from tab bar — reachable via Home / More */}
+      <Tabs.Screen
+        name="students"
+        options={{
+          href: null,
+          title: t("students"),
+        }}
+      />
+      <Tabs.Screen
+        name="schedule"
+        options={{
+          href: null,
+          title: t("weeklySchedule"),
         }}
       />
     </Tabs>

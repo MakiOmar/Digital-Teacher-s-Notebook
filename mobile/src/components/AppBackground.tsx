@@ -8,15 +8,11 @@ import {
   StyleProp,
 } from "react-native";
 
-export const APP_BACKGROUND = require("../../assets/images/background.png");
+export const SPLASH_BRAND = require("../../assets/images/background.png");
+export const BLUEPRINT_BG = require("../../assets/images/blueprint-bg.png");
 export const SPLASH_LETTERBOX = "#423226";
 
-/** White veil strength (higher = denser white, fainter image). */
-export const PAGE_WHITE_OPACITY = 0.92;
-
-/**
- * Launch splash: image centered with correct aspect ratio (no stretch).
- */
+/** Launch splash: brand portrait, centered, correct aspect ratio. */
 export function SplashBackground({
   onLoadEnd,
   style,
@@ -27,7 +23,7 @@ export function SplashBackground({
   return (
     <View style={[styles.splashRoot, style]}>
       <Image
-        source={APP_BACKGROUND}
+        source={SPLASH_BRAND}
         style={styles.splashImage}
         resizeMode="contain"
         onLoadEnd={onLoadEnd}
@@ -37,16 +33,15 @@ export function SplashBackground({
 }
 
 /**
- * White shell with a centered, barely-visible brand image.
- * Children render ON TOP of the image (ImageBackground), so the UI cannot get covered.
+ * In-app shell: soft blueprint wash. Children always paint above the image.
  */
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <ImageBackground
-      source={APP_BACKGROUND}
+      source={BLUEPRINT_BG}
       style={styles.shell}
       imageStyle={styles.shellImage}
-      resizeMode="contain"
+      resizeMode="cover"
     >
       {children}
     </ImageBackground>
@@ -67,10 +62,9 @@ const styles = StyleSheet.create({
   shell: {
     flex: 1,
     width: "100%",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#E8F1F8",
   },
   shellImage: {
-    // Centered by resizeMode="contain"; barely visible under dense white.
-    opacity: 1 - PAGE_WHITE_OPACITY,
+    opacity: 0.35,
   },
 });

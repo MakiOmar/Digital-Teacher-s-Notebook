@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS groups (
   subject TEXT,
   default_monthly_fee REAL NOT NULL DEFAULT 0,
   classes_per_round INTEGER NOT NULL DEFAULT 4,
+  accent_color TEXT,
   status TEXT NOT NULL DEFAULT 'active',
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -78,7 +79,8 @@ CREATE TABLE IF NOT EXISTS group_sessions (
   ends_at TEXT NOT NULL,
   session_index INTEGER NOT NULL DEFAULT 1,
   status TEXT NOT NULL DEFAULT 'scheduled',
-  source TEXT NOT NULL DEFAULT 'auto'
+  source TEXT NOT NULL DEFAULT 'auto',
+  star_student_id INTEGER REFERENCES students(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS attendances (

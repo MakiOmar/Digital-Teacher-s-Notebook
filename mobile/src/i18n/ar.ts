@@ -98,6 +98,16 @@ export const ar = {
   // Groups
   addGroup: "إضافة مجموعة",
   editGroup: "تعديل مجموعة",
+  groupStartDate: "تاريخ بداية المجموعة",
+  groupEndDate: "تاريخ نهاية المجموعة",
+  groupDateRange: "فترة المجموعة",
+  groupDateHint:
+    "يمكنك اختيار أي تواريخ — غير مقيدة ببداية أو نهاية الفصول الدراسية",
+  groupDateOrder: "تاريخ النهاية يجب أن يكون بعد أو يساوي تاريخ البداية",
+  groupEndDateRequired: "حدد تاريخ نهاية للمجموعة أو فعّل سنة دراسية لها نهاية",
+  groupStartDateMissing: "لم يُحدد تاريخ البداية — عدّل المجموعة",
+  scheduleShort: "الجدول",
+  ongoing: "مستمرة",
   groupName: "اسم المجموعة",
   subject: "المادة / المرحلة",
   defaultFee: "اشتراك الشهر",

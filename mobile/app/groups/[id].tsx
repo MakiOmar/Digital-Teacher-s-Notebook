@@ -6,7 +6,6 @@ import {
   ListRow,
   LoadingBlock,
   Muted,
-  PrimaryButton,
   Screen,
   Title,
 } from "@/src/components/ui";
@@ -25,11 +24,17 @@ import type {
   StudentDueRow,
   StudyGroup,
 } from "@/src/db/types";
-import { WEEKDAY_LABELS, formatMoney, formatRoundTitle } from "@/src/utils/date";
+import {
+  WEEKDAY_LABELS,
+  formatDateAr,
+  formatMoney,
+  formatRoundTitle,
+} from "@/src/utils/date";
 import { generateSessionsForGroup } from "@/src/services/schedule";
 import { getRoundDues } from "@/src/services/rounds";
 import { SessionClassButton } from "@/src/components/SessionClassButton";
 import { MonthStarTitle } from "@/src/components/MonthStarTitle";
+import { IconActionBar } from "@/src/components/IconActionBar";
 import { useDialog } from "@/src/components/DialogProvider";
 import { useAppData } from "@/src/contexts/AppDataContext";
 import { colors, spacing } from "@/src/theme/colors";
@@ -142,15 +147,72 @@ export default function GroupDetailsScreen() {
     );
   }
 
+  const dateRangeLabel = group.start_date
+    ? `${formatDateAr(group.start_date)}${
+        group.end_date ? ` — ${formatDateAr(group.end_date)}` : ` — ${t("ongoing")}`
+      }`
+    : t("groupStartDateMissing");
+
   return (
     <Screen padded={false} style={{ flex: 1 }}>
       <ScrollView
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40 }}
       >
+        {/* Top icon actions */}
+        <IconActionBar
+          actions={[
+            {
+              key: "students",
+              icon: "user-plus",
+              label: t("students"),
+              tone: "accent",
+              onPress: () =>
+                router.push(
+                  `/groups/add-students?groupId=${groupId}` as never
+                ),
+            },
+            {
+              key: "payments",
+              icon: "money",
+              label: t("payments"),
+              onPress: () =>
+                router.push(
+                  `/groups/round-payments?groupId=${groupId}` as never
+                ),
+            },
+            {
+              key: "edit",
+              icon: "pencil",
+              label: t("edit"),
+              onPress: () =>
+                router.push({
+                  pathname: "/groups/form",
+                  params: { id: String(groupId) },
+                }),
+            },
+            {
+              key: "schedule",
+              icon: "calendar",
+              label: t("scheduleShort"),
+              onPress: () => void onGenerate(),
+            },
+            {
+              key: "delete",
+              icon: "trash",
+              label: t("delete"),
+              tone: "danger",
+              onPress: () => void onDeleteGroup(),
+            },
+          ]}
+        />
+
         {/* Group header */}
         <Title>{group.name}</Title>
         <Muted>{group.subject || "—"}</Muted>
         <Card>
+          <Text style={styles.cardLine}>
+            {t("groupDateRange")}: {dateRangeLabel}
+          </Text>
           <Text style={styles.cardLine}>
             {t("defaultFee")}: {formatMoney(group.default_monthly_fee)}
           </Text>
@@ -166,45 +228,6 @@ export default function GroupDetailsScreen() {
               .join(" · ") || "—"}
           </Muted>
         </Card>
-
-        <View style={{ gap: 10, marginBottom: spacing.md }}>
-          <PrimaryButton
-            label={t("addStudentsToGroup")}
-            onPress={() =>
-              router.push(`/groups/add-students?groupId=${groupId}` as never)
-            }
-          />
-          <PrimaryButton
-            label={t("roundPayments")}
-            onPress={() =>
-              router.push(
-                `/groups/round-payments?groupId=${groupId}` as never
-              )
-            }
-          />
-          <PrimaryButton
-            label={t("edit")}
-            variant="ghost"
-            onPress={() =>
-              router.push({
-                pathname: "/groups/form",
-                params: { id: String(groupId) },
-              })
-            }
-          />
-          {!sessions.length ? (
-            <PrimaryButton
-              label={t("needScheduleFirst")}
-              variant="ghost"
-              onPress={() => void onGenerate()}
-            />
-          ) : null}
-          <PrimaryButton
-            label={t("delete")}
-            variant="danger"
-            onPress={() => void onDeleteGroup()}
-          />
-        </View>
 
         {/* Open-round status per student */}
         <Title>{t("groupStudents")}</Title>

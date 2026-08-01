@@ -39,6 +39,8 @@ CREATE TABLE IF NOT EXISTS groups (
   subject TEXT,
   default_monthly_fee REAL NOT NULL DEFAULT 0,
   classes_per_round INTEGER NOT NULL DEFAULT 4,
+  start_date TEXT,
+  end_date TEXT,
   accent_color TEXT,
   status TEXT NOT NULL DEFAULT 'active',
   created_at TEXT NOT NULL DEFAULT (datetime('now'))

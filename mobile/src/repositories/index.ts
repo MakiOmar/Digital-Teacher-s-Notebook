@@ -190,6 +190,64 @@ export async function getStudyMonth(id: number): Promise<StudyMonth | null> {
   );
 }
 
+/**
+ * Ensure a study_month row exists for YYYY-MM on the active year.
+ * Creates months even outside semester date ranges (group schedules are free).
+ */
+export async function ensureStudyMonthForYearMonth(
+  academicYearId: number,
+  yearMonth: string,
+  clipStart?: string,
+  clipEnd?: string
+): Promise<StudyMonth> {
+  const db = await getDb();
+  const existing = await db.getFirstAsync<StudyMonth>(
+    `SELECT * FROM study_months
+     WHERE academic_year_id = ? AND year_month = ?`,
+    [academicYearId, yearMonth]
+  );
+  if (existing) return existing;
+
+  const semesters = await listSemesters(academicYearId);
+  if (!semesters.length) {
+    throw new Error("لا يوجد فصل دراسي في السنة النشطة");
+  }
+
+  // Prefer semester whose range overlaps this month; else first semester.
+  const bounds = monthBounds(yearMonth);
+  const monthStart = clipStart && clipStart > bounds.start ? clipStart : bounds.start;
+  const monthEnd = clipEnd && clipEnd < bounds.end ? clipEnd : bounds.end;
+
+  let semesterId = semesters[0].id;
+  for (const s of semesters) {
+    if (!s.start_date || !s.end_date) continue;
+    if (s.start_date <= monthEnd && s.end_date >= monthStart) {
+      semesterId = s.id;
+      break;
+    }
+  }
+
+  const r = await db.runAsync(
+    `INSERT INTO study_months
+     (semester_id, academic_year_id, year_month, display_name, start_date, end_date, status)
+     VALUES (?, ?, ?, ?, ?, ?, 'open')`,
+    [
+      semesterId,
+      academicYearId,
+      yearMonth,
+      yearMonthLabel(yearMonth),
+      monthStart,
+      monthEnd,
+    ]
+  );
+  const created = await db.getFirstAsync<StudyMonth>(
+    "SELECT * FROM study_months WHERE id = ?",
+    [Number(r.lastInsertRowId)]
+  );
+  if (!created) throw new Error("تعذر إنشاء الشهر الدراسي");
+  return created;
+}
+
 /** Pick current study month: matching calendar month, else nearest open, else first. */
 export async function resolveCurrentStudyMonth(
   yearId: number
@@ -228,17 +286,22 @@ export async function createGroup(input: {
   subject?: string | null;
   default_monthly_fee: number;
   classes_per_round?: number;
+  start_date?: string | null;
+  end_date?: string | null;
   patterns: { weekday: Weekday; start_time: string; end_time: string }[];
 }): Promise<number> {
   return withTransaction(async (db) => {
     const r = await db.runAsync(
-      `INSERT INTO groups (name, subject, default_monthly_fee, classes_per_round, status)
-       VALUES (?, ?, ?, ?, 'active')`,
+      `INSERT INTO groups
+       (name, subject, default_monthly_fee, classes_per_round, start_date, end_date, status)
+       VALUES (?, ?, ?, ?, ?, ?, 'active')`,
       [
         input.name,
         input.subject ?? null,
         input.default_monthly_fee,
         input.classes_per_round ?? 4,
+        input.start_date ?? null,
+        input.end_date ?? null,
       ]
     );
     const id = Number(r.lastInsertRowId);
@@ -260,17 +323,24 @@ export async function updateGroup(
     subject?: string | null;
     default_monthly_fee: number;
     classes_per_round?: number;
+    start_date?: string | null;
+    end_date?: string | null;
     patterns: { weekday: Weekday; start_time: string; end_time: string }[];
   }
 ): Promise<void> {
   await withTransaction(async (db) => {
     await db.runAsync(
-      `UPDATE groups SET name = ?, subject = ?, default_monthly_fee = ?, classes_per_round = ? WHERE id = ?`,
+      `UPDATE groups SET
+         name = ?, subject = ?, default_monthly_fee = ?, classes_per_round = ?,
+         start_date = ?, end_date = ?
+       WHERE id = ?`,
       [
         input.name,
         input.subject ?? null,
         input.default_monthly_fee,
         input.classes_per_round ?? 4,
+        input.start_date ?? null,
+        input.end_date ?? null,
         id,
       ]
     );

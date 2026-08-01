@@ -35,6 +35,12 @@ async function migrate(db: SQLite.SQLiteDatabase): Promise<void> {
   if (!groupCols.has("accent_color")) {
     await db.execAsync("ALTER TABLE groups ADD COLUMN accent_color TEXT");
   }
+  if (!groupCols.has("start_date")) {
+    await db.execAsync("ALTER TABLE groups ADD COLUMN start_date TEXT");
+  }
+  if (!groupCols.has("end_date")) {
+    await db.execAsync("ALTER TABLE groups ADD COLUMN end_date TEXT");
+  }
 
   const sessionCols = await tableColumns(db, "group_sessions");
   if (!sessionCols.has("star_student_id")) {

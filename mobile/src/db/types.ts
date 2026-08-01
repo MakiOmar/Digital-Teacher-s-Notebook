@@ -47,6 +47,10 @@ export interface StudyGroup {
   subject: string | null;
   default_monthly_fee: number;
   classes_per_round: number;
+  /** Group schedule start (YYYY-MM-DD) — not limited to semester bounds. */
+  start_date: string | null;
+  /** Optional schedule end; null = open-ended through active year end. */
+  end_date: string | null;
   accent_color: string | null;
   status: string;
   created_at: string;

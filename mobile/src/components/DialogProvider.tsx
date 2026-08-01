@@ -153,7 +153,7 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
       >
         <View style={styles.backdrop}>
           <Pressable
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
             onPress={() => {
               if (!request) return;
               if (request.kind === "confirm") dismissConfirm(false);

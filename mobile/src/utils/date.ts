@@ -202,6 +202,31 @@ export function todayDateOnly(): string {
   return toDateOnly(new Date());
 }
 
+/** Add calendar months to a YYYY-MM-DD date (clamped to last day of target month). */
+export function addCalendarMonths(dateOnly: string, months: number): string {
+  const d = parseDateOnly(dateOnly);
+  const day = d.getDate();
+  d.setDate(1);
+  d.setMonth(d.getMonth() + months);
+  const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(day, lastDay));
+  return toDateOnly(d);
+}
+
+/**
+ * Resolve a schedule end date that never blocks an arbitrary group start.
+ * Prefer explicit end; else year end if still after start; else start + 12 months.
+ */
+export function resolveGroupScheduleEnd(
+  startDate: string,
+  endDate?: string | null,
+  yearEndDate?: string | null
+): string {
+  if (endDate && endDate >= startDate) return endDate;
+  if (yearEndDate && yearEndDate >= startDate) return yearEndDate;
+  return addCalendarMonths(startDate, 12);
+}
+
 export function formatMoney(amount: number): string {
   return `${amount.toLocaleString("ar-EG", { maximumFractionDigits: 2 })} ج.م`;
 }

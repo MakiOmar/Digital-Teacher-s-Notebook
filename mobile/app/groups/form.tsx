@@ -24,7 +24,7 @@ import {
   updateGroup,
 } from "@/src/repositories";
 import type { Weekday } from "@/src/db/types";
-import { WEEKDAY_LABELS, todayDateOnly } from "@/src/utils/date";
+import { WEEKDAY_LABELS, resolveGroupScheduleEnd, todayDateOnly } from "@/src/utils/date";
 import { colors, spacing } from "@/src/theme/colors";
 import { rtlChipRow, rtlText } from "@/src/theme/rtl";
 import { useAppData } from "@/src/contexts/AppDataContext";
@@ -60,9 +60,9 @@ export default function GroupFormScreen() {
 
   useEffect(() => {
     if (!editId) {
-      // Default end to active year end when creating — still editable freely
-      if (activeYear?.end_date) setEndDate(activeYear.end_date);
-      if (activeYear?.start_date) setStartDate(activeYear.start_date);
+      // Any start date allowed — default to today, not year/semester start
+      setStartDate(todayDateOnly());
+      setEndDate("");
       return;
     }
     void (async () => {
@@ -72,7 +72,7 @@ export default function GroupFormScreen() {
       setSubject(g.subject ?? "");
       setFee(String(g.default_monthly_fee));
       setClassesPerRound(String(g.classes_per_round ?? 4));
-      setStartDate(g.start_date || activeYear?.start_date || todayDateOnly());
+      setStartDate(g.start_date || todayDateOnly());
       setEndDate(g.end_date || "");
       const patterns = await listPatterns(editId);
       if (patterns.length) {
@@ -81,7 +81,7 @@ export default function GroupFormScreen() {
         setEndTime(patterns[0].end_time);
       }
     })();
-  }, [editId, activeYear]);
+  }, [editId]);
 
   function toggleDay(d: Weekday) {
     setSelectedDays((prev) =>
@@ -102,21 +102,19 @@ export default function GroupFormScreen() {
       await dialog.alert({ title: t("error"), message: t("groupStartDate") });
       return;
     }
-    const resolvedEnd = endDate.trim() || activeYear?.end_date || "";
-    if (!resolvedEnd) {
-      await dialog.alert({
-        title: t("error"),
-        message: t("groupEndDateRequired"),
-      });
-      return;
-    }
-    if (resolvedEnd < startDate) {
+    if (endDate.trim() && endDate.trim() < startDate) {
       await dialog.alert({
         title: t("error"),
         message: t("groupDateOrder"),
       });
       return;
     }
+    // End may be empty — schedule resolves to year end or start+12 months
+    const resolvedEnd = resolveGroupScheduleEnd(
+      startDate,
+      endDate.trim() || null,
+      activeYear?.end_date
+    );
     const feeNum = Number(fee.replace(",", "."));
     if (Number.isNaN(feeNum) || feeNum < 0) {
       await dialog.alert({ title: t("error"), message: t("defaultFee") });
@@ -142,7 +140,7 @@ export default function GroupFormScreen() {
           default_monthly_fee: feeNum,
           classes_per_round: roundNum,
           start_date: startDate,
-          end_date: resolvedEnd,
+          end_date: endDate.trim() || resolvedEnd,
           patterns,
         });
       } else {
@@ -152,7 +150,7 @@ export default function GroupFormScreen() {
           default_monthly_fee: feeNum,
           classes_per_round: roundNum,
           start_date: startDate,
-          end_date: resolvedEnd,
+          end_date: endDate.trim() || resolvedEnd,
           patterns,
         });
       }
@@ -207,7 +205,7 @@ export default function GroupFormScreen() {
             placeholder="4"
           />
 
-          {/* Free date range — not clamped to semester bounds */}
+          {/* Any calendar date — no semester / year min-max on the picker */}
           <DateField
             label={t("groupStartDate")}
             value={startDate}
@@ -215,7 +213,14 @@ export default function GroupFormScreen() {
           />
           <DateField
             label={t("groupEndDate")}
-            value={endDate || activeYear?.end_date || todayDateOnly()}
+            value={
+              endDate ||
+              resolveGroupScheduleEnd(
+                startDate,
+                null,
+                activeYear?.end_date
+              )
+            }
             onChange={setEndDate}
           />
           <Muted style={{ marginBottom: spacing.md }}>

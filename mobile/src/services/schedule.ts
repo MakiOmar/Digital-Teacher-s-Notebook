@@ -12,6 +12,7 @@ import {
   combineDateAndTime,
   datesForWeekdayInRange,
   monthsOverlappingRange,
+  resolveGroupScheduleEnd,
   todayDateOnly,
 } from "../utils/date";
 
@@ -22,8 +23,8 @@ export type GenerateResult = {
 };
 
 /**
- * Generate sessions for a group from its own start/end dates
- * (not limited to semester month lists). Creates study_months as needed.
+ * Generate sessions for a group from its own start/end dates.
+ * Start may be any calendar date (before/after semester or year bounds).
  */
 export async function generateSessionsForGroup(
   groupId: number
@@ -39,11 +40,12 @@ export async function generateSessionsForGroup(
   const year = await getActiveYear();
   if (!year) throw new Error("لا توجد سنة دراسية نشطة");
 
-  const rangeStart = group.start_date || year.start_date || todayDateOnly();
-  const rangeEnd = group.end_date || year.end_date;
-  if (!rangeEnd || rangeEnd < rangeStart) {
-    throw new Error("حدد تاريخ بداية ونهاية صالحين للمجموعة");
-  }
+  const rangeStart = group.start_date || todayDateOnly();
+  const rangeEnd = resolveGroupScheduleEnd(
+    rangeStart,
+    group.end_date,
+    year.end_date
+  );
 
   const monthSlices = monthsOverlappingRange(rangeStart, rangeEnd);
 

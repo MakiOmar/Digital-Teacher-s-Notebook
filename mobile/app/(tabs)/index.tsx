@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
   },
   logo: {
     width: "100%",
-    height: 56,
+    height: 64,
   },
   profileRing: {
     width: 78,

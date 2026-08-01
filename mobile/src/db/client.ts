@@ -72,6 +72,15 @@ async function migrate(db: SQLite.SQLiteDatabase): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_rounds_open ON billing_rounds(status);
   `);
 
+  await db.execAsync(`
+    CREATE TABLE IF NOT EXISTS round_stars (
+      group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+      round_number INTEGER NOT NULL,
+      student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+      PRIMARY KEY (group_id, round_number)
+    );
+  `);
+
   // Seed open round #1 for active enrollments missing a round
   await db.execAsync(`
     INSERT INTO billing_rounds (group_id, student_id, round_number, target_classes, counted_classes, status)

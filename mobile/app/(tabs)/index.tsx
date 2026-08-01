@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import {
+  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -23,8 +24,11 @@ import { getOpenRoundsPaymentSummary } from "@/src/services/rounds";
 import { listUpcomingSessions } from "@/src/repositories";
 import { formatDateTimeAr, formatMoney } from "@/src/utils/date";
 import type { GroupSession } from "@/src/db/types";
-import { colors, groupAccentColor, radii, spacing } from "@/src/theme/colors";
+import { colors, groupAccentColor, spacing } from "@/src/theme/colors";
 import { rtlText } from "@/src/theme/rtl";
+
+const LOGO = require("../../assets/images/logo.png");
+const PROFILE = require("../../assets/images/profile.png");
 
 const ICONS = {
   today: require("../../assets/icons/icon-today.png"),
@@ -69,7 +73,12 @@ export default function HomeScreen() {
   if (!activeYear) {
     return (
       <Screen>
-        <Text style={styles.brand}>{t("appName")}</Text>
+        <View style={styles.header}>
+          <View style={styles.profileRing}>
+            <Image source={PROFILE} style={styles.profile} />
+          </View>
+          <Image source={LOGO} style={styles.logo} resizeMode="contain" />
+        </View>
         <Muted>{t("brandTagline")}</Muted>
         <EmptyState message={t("noActiveYear")} />
         <PrimaryButton
@@ -97,9 +106,11 @@ export default function HomeScreen() {
         }
       >
         <View style={styles.header}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.brand}>{t("appName")}</Text>
-            <Muted>{t("brandTagline")}</Muted>
+          <View style={styles.profileRing}>
+            <Image source={PROFILE} style={styles.profile} />
+          </View>
+          <View style={styles.logoCol}>
+            <Image source={LOGO} style={styles.logo} resizeMode="contain" />
             <Muted>{activeYear.name}</Muted>
           </View>
         </View>
@@ -169,14 +180,36 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row-reverse",
     alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.md,
     marginBottom: spacing.lg,
   },
-  brand: {
-    ...rtlText,
-    fontSize: 26,
-    fontWeight: "900",
-    color: colors.primaryDark,
+  logoCol: {
+    flex: 1,
+    alignItems: "flex-start",
+  },
+  logo: {
     width: "100%",
+    height: 56,
+  },
+  profileRing: {
+    width: 78,
+    height: 78,
+    borderRadius: 39,
+    borderWidth: 5,
+    borderColor: "#FFFFFF",
+    overflow: "hidden",
+    backgroundColor: "#000",
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  profile: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
   },
   section: {
     ...rtlText,

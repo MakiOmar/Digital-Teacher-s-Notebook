@@ -130,4 +130,11 @@ CREATE INDEX IF NOT EXISTS idx_enrollments_group ON enrollments(group_id);
 CREATE INDEX IF NOT EXISTS idx_rounds_student ON billing_rounds(student_id);
 CREATE INDEX IF NOT EXISTS idx_rounds_group ON billing_rounds(group_id);
 CREATE INDEX IF NOT EXISTS idx_rounds_open ON billing_rounds(status);
+
+CREATE TABLE IF NOT EXISTS round_stars (
+  group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+  round_number INTEGER NOT NULL,
+  student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  PRIMARY KEY (group_id, round_number)
+);
 `;

@@ -15,6 +15,7 @@ const TABLES = [
   "group_sessions",
   "attendances",
   "billing_rounds",
+  "round_stars",
   "payments",
 ] as const;
 

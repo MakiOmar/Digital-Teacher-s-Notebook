@@ -8,10 +8,9 @@ import { I18nManager, StyleSheet, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
+import { colors } from "@/src/theme/colors";
 import { AppDataProvider, useAppData } from "@/src/contexts/AppDataContext";
 import { AppShell, SplashBackground } from "@/src/components/AppBackground";
-import { colors } from "@/src/theme/colors";
-import { t } from "@/src/i18n/ar";
 
 const RTL_RELOAD_KEY = "tutoring.rtl.reload.v1";
 
@@ -129,41 +128,30 @@ export default function RootLayout() {
           <AppShell>
             <Stack
               screenOptions={{
+                // No page titles — back button only on stack screens
                 headerShown: true,
-                headerStyle: { backgroundColor: "rgba(255,255,255,0.94)" },
+                headerTitle: "",
                 headerShadowVisible: false,
+                headerStyle: { backgroundColor: "transparent" },
                 headerTintColor: colors.text,
-                headerTitleAlign: "center",
-                headerTitleStyle: {
-                  fontWeight: "800",
-                },
                 contentStyle: { backgroundColor: "transparent" },
               }}
             >
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen name="groups/form" options={{ title: t("addGroup") }} />
-              <Stack.Screen name="groups/[id]" options={{ title: t("groupDetails") }} />
-              <Stack.Screen
-                name="groups/add-students"
-                options={{ title: t("addStudentsToGroup") }}
-              />
-              <Stack.Screen
-                name="groups/round-payments"
-                options={{ title: t("roundPayments") }}
-              />
-              <Stack.Screen name="groups/sessions" options={{ title: t("sessions") }} />
-              <Stack.Screen
-                name="attendance/[sessionId]"
-                options={{ title: t("attendance") }}
-              />
-              <Stack.Screen name="students/form" options={{ title: t("addStudent") }} />
-              <Stack.Screen name="students/[id]" options={{ title: t("studentDetails") }} />
-              <Stack.Screen name="payments/form" options={{ title: t("addPayment") }} />
-              <Stack.Screen name="payments/dues" options={{ title: t("dues") }} />
-              <Stack.Screen name="years/index" options={{ title: t("academicYears") }} />
-              <Stack.Screen name="years/form" options={{ title: t("addYear") }} />
-              <Stack.Screen name="backup" options={{ title: t("backup") }} />
-              <Stack.Screen name="about" options={{ title: t("about") }} />
+              <Stack.Screen name="groups/form" />
+              <Stack.Screen name="groups/[id]" />
+              <Stack.Screen name="groups/add-students" />
+              <Stack.Screen name="groups/round-payments" />
+              <Stack.Screen name="groups/sessions" />
+              <Stack.Screen name="attendance/[sessionId]" />
+              <Stack.Screen name="students/form" />
+              <Stack.Screen name="students/[id]" />
+              <Stack.Screen name="payments/form" />
+              <Stack.Screen name="payments/dues" />
+              <Stack.Screen name="years/index" />
+              <Stack.Screen name="years/form" />
+              <Stack.Screen name="backup" />
+              <Stack.Screen name="about" />
             </Stack>
           </AppShell>
         </Bootstrap>

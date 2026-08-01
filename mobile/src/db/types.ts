@@ -111,6 +111,12 @@ export interface BillingRound {
   closed_at: string | null;
 }
 
+export interface RoundStar {
+  group_id: number;
+  round_number: number;
+  student_id: number;
+}
+
 export interface Payment {
   id: number;
   student_id: number;

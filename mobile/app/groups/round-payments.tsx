@@ -22,6 +22,9 @@ import {
   createPayment,
   deletePaymentsForBillingRound,
   getGroup,
+  getRoundStar,
+  listActiveStudentsInGroup,
+  setRoundStar,
 } from "@/src/repositories";
 import {
   getGroupDuesForRoundNumber,
@@ -33,6 +36,7 @@ import { formatMoney, formatRoundRange, formatRoundTitle, todayDateOnly } from "
 import { colors, spacing } from "@/src/theme/colors";
 import { rtlChipRow, rtlRow, rtlText } from "@/src/theme/rtl";
 import { useAppData } from "@/src/contexts/AppDataContext";
+import { MonthStarTitle } from "@/src/components/MonthStarTitle";
 
 const METHODS: { key: PaymentMethod; label: string }[] = [
   { key: "cash", label: t("cash") },
@@ -57,9 +61,10 @@ export default function GroupRoundPaymentsScreen() {
     Record<number, PaymentMethod>
   >({});
   const [bulkMethod, setBulkMethod] = useState<PaymentMethod>("cash");
+  const [monthStarName, setMonthStarName] = useState<string | null>(null);
 
   useEffect(() => {
-    navigation.setOptions({ title: t("roundPayments") });
+    navigation.setOptions({ headerTitle: "" });
   }, [navigation]);
 
   const selectedSummary = useMemo(
@@ -80,9 +85,40 @@ export default function GroupRoundPaymentsScreen() {
   const reloadRows = useCallback(
     async (round: number) => {
       setRows(await getGroupDuesForRoundNumber(groupId, round));
+      const star = await getRoundStar(groupId, round);
+      setMonthStarName(star?.student_name ?? null);
     },
     [groupId]
   );
+
+  function pickMonthStar() {
+    if (selectedRound == null) return;
+    void (async () => {
+      const students = await listActiveStudentsInGroup(groupId);
+      Alert.alert(t("pickMonthStar"), undefined, [
+        ...students.map((s) => ({
+          text: s.name,
+          onPress: () => {
+            void setRoundStar(groupId, selectedRound, s.id).then(() => {
+              bump();
+              void reloadRows(selectedRound);
+            });
+          },
+        })),
+        {
+          text: t("clearStar"),
+          style: "destructive" as const,
+          onPress: () => {
+            void setRoundStar(groupId, selectedRound, null).then(() => {
+              bump();
+              void reloadRows(selectedRound);
+            });
+          },
+        },
+        { text: t("cancel"), style: "cancel" as const },
+      ]);
+    })();
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -292,7 +328,11 @@ export default function GroupRoundPaymentsScreen() {
         {selectedSummary ? (
           <View style={styles.roundBanner}>
             <View style={styles.divider} />
-            <Text style={styles.roundBannerTitle}>{roundHeading}</Text>
+            <MonthStarTitle
+              title={roundHeading}
+              starName={monthStarName}
+              onPressStar={pickMonthStar}
+            />
             <Muted>
               {t("roundRange")}:{" "}
               {formatRoundRange(

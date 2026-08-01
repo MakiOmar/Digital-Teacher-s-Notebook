@@ -128,6 +128,12 @@ const payments = [
   { id: 6, student_id: 10, study_month_id: 7, billing_round_id: 10, group_id: 3, amount: 300, paid_at: "2026-07-10 12:00:00", method: "other", note: "تحويل فودافون كاش", created_at: "2026-07-10 12:00:00" },
 ];
 
+const round_stars = [
+  { group_id: 1, round_number: 1, student_id: 1 },
+  { group_id: 2, round_number: 1, student_id: 5 },
+  { group_id: 3, round_number: 1, student_id: 9 },
+];
+
 const payload = {
   version: 1,
   exported_at: new Date().toISOString(),
@@ -155,6 +161,7 @@ const payload = {
     group_sessions: sessions,
     attendances,
     billing_rounds,
+    round_stars,
     payments,
   },
 };

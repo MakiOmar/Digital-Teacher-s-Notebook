@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "exported_at": "2026-08-01T14:30:56.385Z",
+  "exported_at": "2026-08-01T15:06:10.955Z",
   "tables": {
     "academic_years": [
       {
@@ -833,6 +833,23 @@
         "status": "open",
         "started_at": "2026-07-01 00:00:00",
         "closed_at": null
+      }
+    ],
+    "round_stars": [
+      {
+        "group_id": 1,
+        "round_number": 1,
+        "student_id": 1
+      },
+      {
+        "group_id": 2,
+        "round_number": 1,
+        "student_id": 5
+      },
+      {
+        "group_id": 3,
+        "round_number": 1,
+        "student_id": 9
       }
     ],
     "payments": [

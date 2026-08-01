@@ -698,6 +698,69 @@ export async function setSessionStarStudent(
   );
 }
 
+/** Month/round star for a group (one student per round_number). */
+export async function listRoundStarsForGroup(
+  groupId: number
+): Promise<Record<number, { student_id: number; student_name: string }>> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<{
+    round_number: number;
+    student_id: number;
+    student_name: string;
+  }>(
+    `SELECT rs.round_number, rs.student_id, s.name as student_name
+     FROM round_stars rs
+     JOIN students s ON s.id = rs.student_id
+     WHERE rs.group_id = ?`,
+    [groupId]
+  );
+  const map: Record<number, { student_id: number; student_name: string }> = {};
+  for (const r of rows) {
+    map[r.round_number] = {
+      student_id: r.student_id,
+      student_name: r.student_name,
+    };
+  }
+  return map;
+}
+
+export async function getRoundStar(
+  groupId: number,
+  roundNumber: number
+): Promise<{ student_id: number; student_name: string } | null> {
+  const db = await getDb();
+  return (
+    (await db.getFirstAsync<{ student_id: number; student_name: string }>(
+      `SELECT rs.student_id, s.name as student_name
+       FROM round_stars rs
+       JOIN students s ON s.id = rs.student_id
+       WHERE rs.group_id = ? AND rs.round_number = ?`,
+      [groupId, roundNumber]
+    )) ?? null
+  );
+}
+
+export async function setRoundStar(
+  groupId: number,
+  roundNumber: number,
+  studentId: number | null
+): Promise<void> {
+  const db = await getDb();
+  if (studentId == null) {
+    await db.runAsync(
+      "DELETE FROM round_stars WHERE group_id = ? AND round_number = ?",
+      [groupId, roundNumber]
+    );
+    return;
+  }
+  await db.runAsync(
+    `INSERT INTO round_stars (group_id, round_number, student_id)
+     VALUES (?, ?, ?)
+     ON CONFLICT(group_id, round_number) DO UPDATE SET student_id = excluded.student_id`,
+    [groupId, roundNumber, studentId]
+  );
+}
+
 export async function sessionHasAttendance(sessionId: number): Promise<boolean> {
   const db = await getDb();
   const row = await db.getFirstAsync<{ c: number }>(

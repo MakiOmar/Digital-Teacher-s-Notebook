@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { Alert, FlatList, View } from "react-native";
+import { FlatList, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import {
   EmptyState,
@@ -16,11 +16,13 @@ import {
 } from "@/src/repositories";
 import type { AcademicYear } from "@/src/db/types";
 import { useAppData } from "@/src/contexts/AppDataContext";
+import { useDialog } from "@/src/components/DialogProvider";
 import { spacing } from "@/src/theme/colors";
 
 export default function YearsScreen() {
   const router = useRouter();
   const { bump } = useAppData();
+  const dialog = useDialog();
   const [loading, setLoading] = useState(true);
   const [years, setYears] = useState<AcademicYear[]>([]);
 
@@ -67,37 +69,33 @@ export default function YearsScreen() {
             subtitle={`${item.start_date} → ${item.end_date}`}
             right={item.is_active ? t("activeYear") : undefined}
             onPress={() => {
-              Alert.alert(item.name, undefined, [
-                {
-                  text: t("activateYear"),
-                  onPress: () => {
-                    void setActiveYear(item.id).then(() => {
-                      bump();
-                      void load();
-                    });
-                  },
-                },
-                {
-                  text: t("delete"),
-                  style: "destructive",
-                  onPress: () => {
-                    Alert.alert(t("delete"), t("deleteConfirm"), [
-                      { text: t("cancel"), style: "cancel" },
-                      {
-                        text: t("delete"),
-                        style: "destructive",
-                        onPress: () => {
-                          void deleteAcademicYear(item.id).then(() => {
-                            bump();
-                            void load();
-                          });
-                        },
-                      },
-                    ]);
-                  },
-                },
-                { text: t("cancel"), style: "cancel" },
-              ]);
+              void (async () => {
+                const choice = await dialog.pick({
+                  title: item.name,
+                  options: [
+                    { id: "activate", label: t("activateYear") },
+                    { id: "delete", label: t("delete"), destructive: true },
+                  ],
+                });
+                if (choice === "activate") {
+                  await setActiveYear(item.id);
+                  bump();
+                  await load();
+                  return;
+                }
+                if (choice === "delete") {
+                  const ok = await dialog.confirm({
+                    title: t("delete"),
+                    message: t("deleteConfirm"),
+                    confirmLabel: t("delete"),
+                    danger: true,
+                  });
+                  if (!ok) return;
+                  await deleteAcademicYear(item.id);
+                  bump();
+                  await load();
+                }
+              })();
             }}
           />
         )}

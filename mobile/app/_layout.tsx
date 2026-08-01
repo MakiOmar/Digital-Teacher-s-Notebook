@@ -11,6 +11,7 @@ import { StatusBar } from "expo-status-bar";
 import { colors } from "@/src/theme/colors";
 import { AppDataProvider, useAppData } from "@/src/contexts/AppDataContext";
 import { AppShell, SplashBackground } from "@/src/components/AppBackground";
+import { DialogProvider } from "@/src/components/DialogProvider";
 
 const RTL_RELOAD_KEY = "tutoring.rtl.reload.v1";
 
@@ -124,37 +125,39 @@ export default function RootLayout() {
     <SafeAreaProvider style={styles.root}>
       <StatusBar style="dark" />
       <AppDataProvider>
-        <Bootstrap onAppReady={onAppReady}>
-          <AppShell>
-            <Stack
-              screenOptions={{
-                // No page titles — back button only on stack screens
-                headerShown: true,
-                headerTitle: "",
-                headerShadowVisible: false,
-                headerStyle: { backgroundColor: "transparent" },
-                headerTintColor: colors.text,
-                contentStyle: { backgroundColor: "transparent" },
-              }}
-            >
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen name="groups/form" />
-              <Stack.Screen name="groups/[id]" />
-              <Stack.Screen name="groups/add-students" />
-              <Stack.Screen name="groups/round-payments" />
-              <Stack.Screen name="groups/sessions" />
-              <Stack.Screen name="attendance/[sessionId]" />
-              <Stack.Screen name="students/form" />
-              <Stack.Screen name="students/[id]" />
-              <Stack.Screen name="payments/form" />
-              <Stack.Screen name="payments/dues" />
-              <Stack.Screen name="years/index" />
-              <Stack.Screen name="years/form" />
-              <Stack.Screen name="backup" />
-              <Stack.Screen name="about" />
-            </Stack>
-          </AppShell>
-        </Bootstrap>
+        <DialogProvider>
+          <Bootstrap onAppReady={onAppReady}>
+            <AppShell>
+              <Stack
+                screenOptions={{
+                  // No page titles — back button only on stack screens
+                  headerShown: true,
+                  headerTitle: "",
+                  headerShadowVisible: false,
+                  headerStyle: { backgroundColor: "transparent" },
+                  headerTintColor: colors.text,
+                  contentStyle: { backgroundColor: "transparent" },
+                }}
+              >
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen name="groups/form" />
+                <Stack.Screen name="groups/[id]" />
+                <Stack.Screen name="groups/add-students" />
+                <Stack.Screen name="groups/round-payments" />
+                <Stack.Screen name="groups/sessions" />
+                <Stack.Screen name="attendance/[sessionId]" />
+                <Stack.Screen name="students/form" />
+                <Stack.Screen name="students/[id]" />
+                <Stack.Screen name="payments/form" />
+                <Stack.Screen name="payments/dues" />
+                <Stack.Screen name="years/index" />
+                <Stack.Screen name="years/form" />
+                <Stack.Screen name="backup" />
+                <Stack.Screen name="about" />
+              </Stack>
+            </AppShell>
+          </Bootstrap>
+        </DialogProvider>
       </AppDataProvider>
     </SafeAreaProvider>
   );

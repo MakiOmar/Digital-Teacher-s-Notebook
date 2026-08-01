@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import {
   Card,
@@ -18,8 +18,6 @@ import {
   listSessionsForGroup,
   softDeleteGroup,
   listRoundStarsForGroup,
-  listActiveStudentsInGroup,
-  setRoundStar,
 } from "@/src/repositories";
 import type {
   GroupSession,
@@ -32,6 +30,7 @@ import { generateSessionsForGroup } from "@/src/services/schedule";
 import { getRoundDues } from "@/src/services/rounds";
 import { SessionClassButton } from "@/src/components/SessionClassButton";
 import { MonthStarTitle } from "@/src/components/MonthStarTitle";
+import { useDialog } from "@/src/components/DialogProvider";
 import { useAppData } from "@/src/contexts/AppDataContext";
 import { colors, spacing } from "@/src/theme/colors";
 import { rtlText } from "@/src/theme/rtl";
@@ -63,6 +62,7 @@ export default function GroupDetailsScreen() {
   const groupId = Number(id);
   const router = useRouter();
   const { bump } = useAppData();
+  const dialog = useDialog();
   const [loading, setLoading] = useState(true);
   const [group, setGroup] = useState<StudyGroup | null>(null);
   const [patterns, setPatterns] = useState<SchedulePattern[]>([]);
@@ -89,38 +89,6 @@ export default function GroupDetailsScreen() {
     }
   }, [groupId]);
 
-  function pickMonthStar(roundNumber: number) {
-    void (async () => {
-      const students = await listActiveStudentsInGroup(groupId);
-      Alert.alert(
-        t("pickMonthStar"),
-        undefined,
-        [
-          ...students.map((s) => ({
-            text: s.name,
-            onPress: () => {
-              void setRoundStar(groupId, roundNumber, s.id).then(() => {
-                bump();
-                void load();
-              });
-            },
-          })),
-          {
-            text: t("clearStar"),
-            style: "destructive" as const,
-            onPress: () => {
-              void setRoundStar(groupId, roundNumber, null).then(() => {
-                bump();
-                void load();
-              });
-            },
-          },
-          { text: t("cancel"), style: "cancel" as const },
-        ]
-      );
-    })();
-  }
-
   const sessionRounds = useMemo(() => {
     return chunkSessionsByRound(sessions, group?.classes_per_round ?? 4);
   }, [sessions, group?.classes_per_round]);
@@ -132,30 +100,38 @@ export default function GroupDetailsScreen() {
   );
 
   async function onGenerate() {
-    Alert.alert(t("generateSchedule"), t("regenerateConfirm"), [
-      { text: t("cancel"), style: "cancel" },
-      {
-        text: t("confirm"),
-        onPress: () => {
-          void (async () => {
-            try {
-              const result = await generateSessionsForGroup(groupId);
-              Alert.alert(
-                t("success"),
-                `تم إنشاء ${result.created} حصة (موجود مسبقاً: ${result.skippedExisting})`
-              );
-              bump();
-              await load();
-            } catch (e) {
-              Alert.alert(
-                t("error"),
-                e instanceof Error ? e.message : t("error")
-              );
-            }
-          })();
-        },
-      },
-    ]);
+    const ok = await dialog.confirm({
+      title: t("generateSchedule"),
+      message: t("regenerateConfirm"),
+    });
+    if (!ok) return;
+    try {
+      const result = await generateSessionsForGroup(groupId);
+      dialog.toast(
+        `تم إنشاء ${result.created} حصة (موجود مسبقاً: ${result.skippedExisting})`,
+        "success"
+      );
+      bump();
+      await load();
+    } catch (e) {
+      await dialog.alert({
+        title: t("error"),
+        message: e instanceof Error ? e.message : t("error"),
+      });
+    }
+  }
+
+  async function onDeleteGroup() {
+    const ok = await dialog.confirm({
+      title: t("delete"),
+      message: t("deleteConfirm"),
+      confirmLabel: t("delete"),
+      danger: true,
+    });
+    if (!ok) return;
+    await softDeleteGroup(groupId);
+    bump();
+    router.back();
   }
 
   if (loading || !group) {
@@ -226,21 +202,7 @@ export default function GroupDetailsScreen() {
           <PrimaryButton
             label={t("delete")}
             variant="danger"
-            onPress={() => {
-              Alert.alert(t("delete"), t("deleteConfirm"), [
-                { text: t("cancel"), style: "cancel" },
-                {
-                  text: t("delete"),
-                  style: "destructive",
-                  onPress: () => {
-                    void softDeleteGroup(groupId).then(() => {
-                      bump();
-                      router.back();
-                    });
-                  },
-                },
-              ]);
-            }}
+            onPress={() => void onDeleteGroup()}
           />
         </View>
 
@@ -293,7 +255,6 @@ export default function GroupDetailsScreen() {
                 <MonthStarTitle
                   title={title}
                   starName={star?.student_name}
-                  onPressStar={() => pickMonthStar(chunk.roundNumber)}
                 />
                 <View style={styles.divider} />
                 {chunk.sessions.map((s) => (
@@ -321,12 +282,11 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   roundBlock: {
-    marginBottom: spacing.lg,
-    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
   divider: {
-    height: StyleSheet.hairlineWidth,
+    height: 1,
     backgroundColor: colors.border,
-    width: "100%",
+    marginVertical: 6,
   },
 });

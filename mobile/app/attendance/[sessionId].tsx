@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import {
   LoadingBlock,
@@ -28,6 +28,7 @@ import { sessionStatusLabel } from "@/src/components/SessionClassButton";
 import { colors, radii, spacing } from "@/src/theme/colors";
 import { rtlChipRow, rtlText } from "@/src/theme/rtl";
 import { useAppData } from "@/src/contexts/AppDataContext";
+import { useDialog } from "@/src/components/DialogProvider";
 
 const STATUSES: { key: AttendanceStatus; label: string }[] = [
   { key: "present", label: t("present") },
@@ -39,6 +40,7 @@ export default function AttendanceScreen() {
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
   const id = Number(sessionId);
   const { bump } = useAppData();
+  const dialog = useDialog();
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<GroupSession | null>(null);
   const [groupName, setGroupName] = useState("");
@@ -118,59 +120,62 @@ export default function AttendanceScreen() {
   }
 
   function onPickStar() {
-    const options = [
-      ...students.map((s) => ({
-        text: s.name,
-        onPress: () => void pickStar(s.id),
-      })),
-      {
-        text: t("clearStar"),
-        style: "destructive" as const,
-        onPress: () => void pickStar(null),
-      },
-      { text: t("cancel"), style: "cancel" as const },
-    ];
-    Alert.alert(t("pickStarStudent"), undefined, options);
+    void (async () => {
+      const choice = await dialog.pick({
+        title: t("pickStarStudent"),
+        options: [
+          ...students.map((s) => ({ id: String(s.id), label: s.name })),
+          { id: "clear", label: t("clearStar"), destructive: true },
+        ],
+      });
+      if (choice == null) return;
+      if (choice === "clear") {
+        await pickStar(null);
+        return;
+      }
+      await pickStar(Number(choice));
+    })();
   }
 
   function onMarkAllPresent() {
-    Alert.alert(t("markAllPresent"), t("markAllPresentConfirm"), [
-      { text: t("cancel"), style: "cancel" },
-      {
-        text: t("confirm"),
-        onPress: () => void setAllStatus("present"),
-      },
-    ]);
+    void (async () => {
+      const ok = await dialog.confirm({
+        title: t("markAllPresent"),
+        message: t("markAllPresentConfirm"),
+      });
+      if (ok) await setAllStatus("present");
+    })();
   }
 
   function onMarkAllAbsent() {
-    Alert.alert(t("markAllAbsent"), t("markAllAbsentConfirm"), [
-      { text: t("cancel"), style: "cancel" },
-      {
-        text: t("confirm"),
-        style: "destructive",
-        onPress: () => void setAllStatus("absent_unexcused"),
-      },
-    ]);
+    void (async () => {
+      const ok = await dialog.confirm({
+        title: t("markAllAbsent"),
+        message: t("markAllAbsentConfirm"),
+        danger: true,
+      });
+      if (ok) await setAllStatus("absent_unexcused");
+    })();
   }
 
   function onCompleteSession() {
-    if (!allAttendanceSet) {
-      Alert.alert(t("error"), t("completeSessionBlocked"));
-      return;
-    }
-    Alert.alert(t("completeSession"), t("completeSessionConfirm"), [
-      { text: t("cancel"), style: "cancel" },
-      {
-        text: t("confirm"),
-        onPress: () => {
-          void updateSessionStatus(id, "completed").then(() => {
-            bump();
-            void load();
-          });
-        },
-      },
-    ]);
+    void (async () => {
+      if (!allAttendanceSet) {
+        await dialog.alert({
+          title: t("error"),
+          message: t("completeSessionBlocked"),
+        });
+        return;
+      }
+      const ok = await dialog.confirm({
+        title: t("completeSession"),
+        message: t("completeSessionConfirm"),
+      });
+      if (!ok) return;
+      await updateSessionStatus(id, "completed");
+      bump();
+      await load();
+    })();
   }
 
   function onReopenSession() {
@@ -258,19 +263,18 @@ export default function AttendanceScreen() {
                 label={t("cancelSession")}
                 variant="danger"
                 onPress={() => {
-                  Alert.alert(t("cancelSession"), t("deleteConfirm"), [
-                    { text: t("cancel"), style: "cancel" },
-                    {
-                      text: t("confirm"),
-                      style: "destructive",
-                      onPress: () => {
-                        void updateSessionStatus(id, "cancelled").then(() => {
-                          bump();
-                          void load();
-                        });
-                      },
-                    },
-                  ]);
+                  void (async () => {
+                    const ok = await dialog.confirm({
+                      title: t("cancelSession"),
+                      message: t("deleteConfirm"),
+                      confirmLabel: t("confirm"),
+                      danger: true,
+                    });
+                    if (!ok) return;
+                    await updateSessionStatus(id, "cancelled");
+                    bump();
+                    await load();
+                  })();
                 }}
               />
             ) : null}

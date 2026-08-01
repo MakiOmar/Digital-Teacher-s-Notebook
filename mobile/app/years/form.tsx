@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -18,12 +17,14 @@ import { DateField } from "@/src/components/DateFields";
 import { t } from "@/src/i18n/ar";
 import { createAcademicYearWithSemesters } from "@/src/repositories";
 import { useAppData } from "@/src/contexts/AppDataContext";
+import { useDialog } from "@/src/components/DialogProvider";
 import { spacing } from "@/src/theme/colors";
 import { monthsOverlappingRange, yearMonthLabel } from "@/src/utils/date";
 
 export default function YearFormScreen() {
   const router = useRouter();
   const { bump } = useAppData();
+  const dialog = useDialog();
   const [name, setName] = useState("2025/2026");
   const [sem1Start, setSem1Start] = useState("2025-10-01");
   const [sem1End, setSem1End] = useState("2025-12-31");
@@ -49,15 +50,21 @@ export default function YearFormScreen() {
 
   async function onSave() {
     if (!name.trim()) {
-      Alert.alert(t("error"), t("required"));
+      await dialog.alert({ title: t("error"), message: t("required") });
       return;
     }
     if (sem1Start > sem1End) {
-      Alert.alert(t("error"), t("invalidSemesterDates1"));
+      await dialog.alert({
+        title: t("error"),
+        message: t("invalidSemesterDates1"),
+      });
       return;
     }
     if (sem2Start > sem2End) {
-      Alert.alert(t("error"), t("invalidSemesterDates2"));
+      await dialog.alert({
+        title: t("error"),
+        message: t("invalidSemesterDates2"),
+      });
       return;
     }
     setSaving(true);
@@ -70,7 +77,10 @@ export default function YearFormScreen() {
       bump();
       router.back();
     } catch (e) {
-      Alert.alert(t("error"), e instanceof Error ? e.message : t("error"));
+      await dialog.alert({
+        title: t("error"),
+        message: e instanceof Error ? e.message : t("error"),
+      });
     } finally {
       setSaving(false);
     }

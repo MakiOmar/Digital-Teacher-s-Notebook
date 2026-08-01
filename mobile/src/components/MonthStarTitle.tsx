@@ -1,33 +1,28 @@
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, StyleSheet, Text, View } from "react-native";
 import { colors, spacing } from "../theme/colors";
 import { rtlRow, rtlText } from "../theme/rtl";
 import { t } from "../i18n/ar";
 
 const STAR_ICON = require("../../assets/images/star.png");
 
-/** Month/round title with star icon + optional month-star student name. */
+/** Month/round title with star badge — display only (who is the month star). */
 export function MonthStarTitle({
   title,
   starName,
-  onPressStar,
 }: {
   title: string;
   starName?: string | null;
-  onPressStar?: () => void;
 }) {
   return (
     <View style={styles.wrap}>
+      {/* Round / month heading */}
       <Text style={styles.title}>{title}</Text>
-      <Pressable
-        onPress={onPressStar}
-        style={styles.starRow}
-        disabled={!onPressStar}
-      >
+      <View style={styles.starRow}>
         <Image source={STAR_ICON} style={styles.starIcon} />
         <Text style={styles.starText} numberOfLines={1}>
-          {starName ? starName : t("monthStar")}
+          {starName ? starName : t("monthStarNone")}
         </Text>
-      </Pressable>
+      </View>
     </View>
   );
 }

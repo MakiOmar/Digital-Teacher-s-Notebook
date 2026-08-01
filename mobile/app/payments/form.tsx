@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -32,6 +31,7 @@ import { formatMoney, formatRoundTitle, todayDateOnly } from "@/src/utils/date";
 import { colors, spacing } from "@/src/theme/colors";
 import { rtlChipRow, rtlText } from "@/src/theme/rtl";
 import { useAppData } from "@/src/contexts/AppDataContext";
+import { useDialog } from "@/src/components/DialogProvider";
 
 const METHODS: { key: PaymentMethod; label: string }[] = [
   { key: "cash", label: t("cash") },
@@ -57,6 +57,7 @@ export default function PaymentFormScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const { bump } = useAppData();
+  const dialog = useDialog();
 
   const [groups, setGroups] = useState<StudyGroup[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
@@ -153,12 +154,12 @@ export default function PaymentFormScreen() {
 
   async function onSave() {
     if (!studentId || (!editId && !roundId)) {
-      Alert.alert(t("error"), t("required"));
+      await dialog.alert({ title: t("error"), message: t("required") });
       return;
     }
     const amountNum = Number(amount.replace(",", "."));
     if (Number.isNaN(amountNum) || amountNum <= 0) {
-      Alert.alert(t("error"), t("amount"));
+      await dialog.alert({ title: t("error"), message: t("amount") });
       return;
     }
     setSaving(true);
@@ -185,7 +186,10 @@ export default function PaymentFormScreen() {
       bump();
       router.back();
     } catch (e) {
-      Alert.alert(t("error"), e instanceof Error ? e.message : t("error"));
+      await dialog.alert({
+        title: t("error"),
+        message: e instanceof Error ? e.message : t("error"),
+      });
     } finally {
       setSaving(false);
     }
@@ -342,19 +346,18 @@ export default function PaymentFormScreen() {
                 label={t("delete")}
                 variant="danger"
                 onPress={() => {
-                  Alert.alert(t("delete"), t("deleteConfirm"), [
-                    { text: t("cancel"), style: "cancel" },
-                    {
-                      text: t("delete"),
-                      style: "destructive",
-                      onPress: () => {
-                        void deletePayment(editId).then(() => {
-                          bump();
-                          router.back();
-                        });
-                      },
-                    },
-                  ]);
+                  void (async () => {
+                    const ok = await dialog.confirm({
+                      title: t("delete"),
+                      message: t("deleteConfirm"),
+                      confirmLabel: t("delete"),
+                      danger: true,
+                    });
+                    if (!ok) return;
+                    await deletePayment(editId);
+                    bump();
+                    router.back();
+                  })();
                 }}
               />
             </View>

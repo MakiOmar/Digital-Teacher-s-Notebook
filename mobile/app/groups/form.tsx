@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -28,6 +27,7 @@ import { WEEKDAY_LABELS } from "@/src/utils/date";
 import { colors, spacing } from "@/src/theme/colors";
 import { rtlChipRow, rtlText } from "@/src/theme/rtl";
 import { useAppData } from "@/src/contexts/AppDataContext";
+import { useDialog } from "@/src/components/DialogProvider";
 import { generateSessionsForGroup } from "@/src/services/schedule";
 
 const WEEKDAYS: Weekday[] = [6, 0, 1, 2, 3, 4, 5]; // Sat first for Arabic week
@@ -38,6 +38,7 @@ export default function GroupFormScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const { bump, activeYear } = useAppData();
+  const dialog = useDialog();
 
   const [name, setName] = useState("");
   const [subject, setSubject] = useState("");
@@ -80,21 +81,21 @@ export default function GroupFormScreen() {
 
   async function onSave() {
     if (!name.trim()) {
-      Alert.alert(t("error"), t("required"));
+      await dialog.alert({ title: t("error"), message: t("required") });
       return;
     }
     if (!selectedDays.length) {
-      Alert.alert(t("error"), t("scheduleDays"));
+      await dialog.alert({ title: t("error"), message: t("scheduleDays") });
       return;
     }
     const feeNum = Number(fee.replace(",", "."));
     if (Number.isNaN(feeNum) || feeNum < 0) {
-      Alert.alert(t("error"), t("defaultFee"));
+      await dialog.alert({ title: t("error"), message: t("defaultFee") });
       return;
     }
     const roundNum = Math.floor(Number(classesPerRound.replace(",", ".")));
     if (!Number.isFinite(roundNum) || roundNum < 1) {
-      Alert.alert(t("error"), t("classesPerRound"));
+      await dialog.alert({ title: t("error"), message: t("classesPerRound") });
       return;
     }
     setSaving(true);
@@ -138,7 +139,10 @@ export default function GroupFormScreen() {
         router.back();
       }
     } catch (e) {
-      Alert.alert(t("error"), e instanceof Error ? e.message : t("error"));
+      await dialog.alert({
+        title: t("error"),
+        message: e instanceof Error ? e.message : t("error"),
+      });
     } finally {
       setSaving(false);
     }

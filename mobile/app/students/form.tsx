@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -29,6 +28,7 @@ import { todayDateOnly } from "@/src/utils/date";
 import { colors, spacing } from "@/src/theme/colors";
 import { rtlChipRow, rtlText } from "@/src/theme/rtl";
 import { useAppData } from "@/src/contexts/AppDataContext";
+import { useDialog } from "@/src/components/DialogProvider";
 
 export default function StudentFormScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
@@ -36,6 +36,7 @@ export default function StudentFormScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const { bump } = useAppData();
+  const dialog = useDialog();
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -78,13 +79,13 @@ export default function StudentFormScreen() {
 
   async function onSave() {
     if (!name.trim() || !groupId) {
-      Alert.alert(t("error"), t("required"));
+      await dialog.alert({ title: t("error"), message: t("required") });
       return;
     }
     const feeVal =
       customFee.trim() === "" ? null : Number(customFee.replace(",", "."));
     if (feeVal != null && Number.isNaN(feeVal)) {
-      Alert.alert(t("error"), t("customFee"));
+      await dialog.alert({ title: t("error"), message: t("customFee") });
       return;
     }
     setSaving(true);
@@ -112,7 +113,10 @@ export default function StudentFormScreen() {
       bump();
       router.back();
     } catch (e) {
-      Alert.alert(t("error"), e instanceof Error ? e.message : t("error"));
+      await dialog.alert({
+        title: t("error"),
+        message: e instanceof Error ? e.message : t("error"),
+      });
     } finally {
       setSaving(false);
     }

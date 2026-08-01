@@ -698,8 +698,79 @@ export async function setSessionStarStudent(
   );
 }
 
-/** Month/round star for a group (one student per round_number). */
-export async function listRoundStarsForGroup(
+/**
+ * Month star is display-only: student with the most class-star awards
+ * in that round's sessions. Falls back to stored round_stars (e.g. backup).
+ */
+async function computeRoundStarsFromSessions(
+  groupId: number
+): Promise<Record<number, { student_id: number; student_name: string }>> {
+  const db = await getDb();
+  const group = await db.getFirstAsync<{ classes_per_round: number }>(
+    "SELECT classes_per_round FROM groups WHERE id = ?",
+    [groupId]
+  );
+  const per = Math.max(1, group?.classes_per_round ?? 4);
+  const sessions = await db.getAllAsync<{ star_student_id: number | null }>(
+    `SELECT star_student_id FROM group_sessions
+     WHERE group_id = ? AND status != 'cancelled'
+     ORDER BY starts_at ASC`,
+    [groupId]
+  );
+
+  const countsByRound = new Map<number, Map<number, number>>();
+  sessions.forEach((s, i) => {
+    if (s.star_student_id == null) return;
+    const roundNumber = Math.floor(i / per) + 1;
+    let counts = countsByRound.get(roundNumber);
+    if (!counts) {
+      counts = new Map();
+      countsByRound.set(roundNumber, counts);
+    }
+    counts.set(
+      s.star_student_id,
+      (counts.get(s.star_student_id) ?? 0) + 1
+    );
+  });
+
+  const winners: { round_number: number; student_id: number }[] = [];
+  for (const [roundNumber, counts] of countsByRound) {
+    let bestId: number | null = null;
+    let bestCount = 0;
+    for (const [studentId, count] of counts) {
+      if (count > bestCount) {
+        bestCount = count;
+        bestId = studentId;
+      }
+    }
+    if (bestId != null) {
+      winners.push({ round_number: roundNumber, student_id: bestId });
+    }
+  }
+
+  if (!winners.length) return {};
+
+  const ids = [...new Set(winners.map((w) => w.student_id))];
+  const placeholders = ids.map(() => "?").join(",");
+  const names = await db.getAllAsync<{ id: number; name: string }>(
+    `SELECT id, name FROM students WHERE id IN (${placeholders})`,
+    ids
+  );
+  const nameById = new Map(names.map((n) => [n.id, n.name]));
+
+  const map: Record<number, { student_id: number; student_name: string }> = {};
+  for (const w of winners) {
+    const student_name = nameById.get(w.student_id);
+    if (!student_name) continue;
+    map[w.round_number] = {
+      student_id: w.student_id,
+      student_name,
+    };
+  }
+  return map;
+}
+
+async function listStoredRoundStars(
   groupId: number
 ): Promise<Record<number, { student_id: number; student_name: string }>> {
   const db = await getDb();
@@ -724,22 +795,24 @@ export async function listRoundStarsForGroup(
   return map;
 }
 
+/** Month/round stars for a group (computed for display). */
+export async function listRoundStarsForGroup(
+  groupId: number
+): Promise<Record<number, { student_id: number; student_name: string }>> {
+  const computed = await computeRoundStarsFromSessions(groupId);
+  const stored = await listStoredRoundStars(groupId);
+  return { ...stored, ...computed };
+}
+
 export async function getRoundStar(
   groupId: number,
   roundNumber: number
 ): Promise<{ student_id: number; student_name: string } | null> {
-  const db = await getDb();
-  return (
-    (await db.getFirstAsync<{ student_id: number; student_name: string }>(
-      `SELECT rs.student_id, s.name as student_name
-       FROM round_stars rs
-       JOIN students s ON s.id = rs.student_id
-       WHERE rs.group_id = ? AND rs.round_number = ?`,
-      [groupId, roundNumber]
-    )) ?? null
-  );
+  const all = await listRoundStarsForGroup(groupId);
+  return all[roundNumber] ?? null;
 }
 
+/** Kept for backup restore compatibility — UI does not set month stars. */
 export async function setRoundStar(
   groupId: number,
   roundNumber: number,

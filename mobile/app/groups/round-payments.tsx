@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Alert,
   FlatList,
   Pressable,
   StyleSheet,
@@ -23,8 +22,6 @@ import {
   deletePaymentsForBillingRound,
   getGroup,
   getRoundStar,
-  listActiveStudentsInGroup,
-  setRoundStar,
 } from "@/src/repositories";
 import {
   getGroupDuesForRoundNumber,
@@ -37,6 +34,7 @@ import { colors, spacing } from "@/src/theme/colors";
 import { rtlChipRow, rtlRow, rtlText } from "@/src/theme/rtl";
 import { useAppData } from "@/src/contexts/AppDataContext";
 import { MonthStarTitle } from "@/src/components/MonthStarTitle";
+import { useDialog } from "@/src/components/DialogProvider";
 
 const METHODS: { key: PaymentMethod; label: string }[] = [
   { key: "cash", label: t("cash") },
@@ -49,6 +47,7 @@ export default function GroupRoundPaymentsScreen() {
   const groupId = Number(groupIdParam);
   const navigation = useNavigation();
   const { bump } = useAppData();
+  const dialog = useDialog();
 
   const [loading, setLoading] = useState(true);
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -90,35 +89,6 @@ export default function GroupRoundPaymentsScreen() {
     },
     [groupId]
   );
-
-  function pickMonthStar() {
-    if (selectedRound == null) return;
-    void (async () => {
-      const students = await listActiveStudentsInGroup(groupId);
-      Alert.alert(t("pickMonthStar"), undefined, [
-        ...students.map((s) => ({
-          text: s.name,
-          onPress: () => {
-            void setRoundStar(groupId, selectedRound, s.id).then(() => {
-              bump();
-              void reloadRows(selectedRound);
-            });
-          },
-        })),
-        {
-          text: t("clearStar"),
-          style: "destructive" as const,
-          onPress: () => {
-            void setRoundStar(groupId, selectedRound, null).then(() => {
-              bump();
-              void reloadRows(selectedRound);
-            });
-          },
-        },
-        { text: t("cancel"), style: "cancel" as const },
-      ]);
-    })();
-  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -183,7 +153,7 @@ export default function GroupRoundPaymentsScreen() {
       }
     } catch (e) {
       if (!silent) {
-        Alert.alert(t("error"), e instanceof Error ? e.message : t("error"));
+        dialog.toast(e instanceof Error ? e.message : t("error"), "error");
       } else {
         throw e;
       }
@@ -203,7 +173,7 @@ export default function GroupRoundPaymentsScreen() {
       }
     } catch (e) {
       if (!silent) {
-        Alert.alert(t("error"), e instanceof Error ? e.message : t("error"));
+        dialog.toast(e instanceof Error ? e.message : t("error"), "error");
       } else {
         throw e;
       }
@@ -221,75 +191,67 @@ export default function GroupRoundPaymentsScreen() {
       return;
     }
 
-    Alert.alert(t("roundPayments"), t("markUnpaidConfirm"), [
-      { text: t("cancel"), style: "cancel" },
-      {
-        text: t("unpaid"),
-        style: "destructive",
-        onPress: () => void markUnpaid(row),
-      },
-    ]);
+    void (async () => {
+      const ok = await dialog.confirm({
+        title: t("roundPayments"),
+        message: t("markUnpaidConfirm"),
+        confirmLabel: t("unpaid"),
+        danger: true,
+      });
+      if (ok) await markUnpaid(row);
+    })();
   }
 
   function onMarkAllPaid() {
     const targets = rows.filter((r) => r.status !== "paid");
     if (!targets.length || selectedRound == null) return;
-    Alert.alert(t("markAllPaid"), t("markAllPaidConfirm"), [
-      { text: t("cancel"), style: "cancel" },
-      {
-        text: t("confirm"),
-        onPress: () => {
-          void (async () => {
-            setBulkBusy(true);
-            try {
-              for (const row of targets) {
-                await markPaid(row, bulkMethod, true);
-              }
-              bump();
-              await reloadRows(selectedRound);
-            } catch (e) {
-              Alert.alert(
-                t("error"),
-                e instanceof Error ? e.message : t("error")
-              );
-            } finally {
-              setBulkBusy(false);
-            }
-          })();
-        },
-      },
-    ]);
+    void (async () => {
+      const ok = await dialog.confirm({
+        title: t("markAllPaid"),
+        message: t("markAllPaidConfirm"),
+      });
+      if (!ok) return;
+      setBulkBusy(true);
+      try {
+        for (const row of targets) {
+          await markPaid(row, bulkMethod, true);
+        }
+        bump();
+        await reloadRows(selectedRound);
+        dialog.toast(t("switchedPaid"), "success");
+      } catch (e) {
+        dialog.toast(e instanceof Error ? e.message : t("error"), "error");
+      } finally {
+        setBulkBusy(false);
+      }
+    })();
   }
 
   function onMarkAllUnpaid() {
     const targets = rows.filter((r) => r.paid > 0);
     if (!targets.length || selectedRound == null) return;
-    Alert.alert(t("markAllUnpaid"), t("markAllUnpaidConfirm"), [
-      { text: t("cancel"), style: "cancel" },
-      {
-        text: t("unpaid"),
-        style: "destructive",
-        onPress: () => {
-          void (async () => {
-            setBulkBusy(true);
-            try {
-              for (const row of targets) {
-                await markUnpaid(row, true);
-              }
-              bump();
-              await reloadRows(selectedRound);
-            } catch (e) {
-              Alert.alert(
-                t("error"),
-                e instanceof Error ? e.message : t("error")
-              );
-            } finally {
-              setBulkBusy(false);
-            }
-          })();
-        },
-      },
-    ]);
+    void (async () => {
+      const ok = await dialog.confirm({
+        title: t("markAllUnpaid"),
+        message: t("markAllUnpaidConfirm"),
+        confirmLabel: t("unpaid"),
+        danger: true,
+      });
+      if (!ok) return;
+      setBulkBusy(true);
+      try {
+        for (const row of targets) {
+          await markUnpaid(row, true);
+        }
+        bump();
+        await reloadRows(selectedRound);
+        dialog.toast(t("switchedUnpaid"), "success");
+      } catch (e) {
+        dialog.toast(e instanceof Error ? e.message : t("error"), "error");
+      } finally {
+        setBulkBusy(false);
+      }
+    })();
   }
 
   if (loading) {
@@ -331,7 +293,6 @@ export default function GroupRoundPaymentsScreen() {
             <MonthStarTitle
               title={roundHeading}
               starName={monthStarName}
-              onPressStar={pickMonthStar}
             />
             <Muted>
               {t("roundRange")}:{" "}

@@ -36,7 +36,7 @@ export const ar = {
   pickStarStudent: "اختر نجم الحصة",
   clearStar: "إزالة النجم",
   monthStar: "نجم الشهر",
-  pickMonthStar: "اختر نجم الشهر",
+  monthStarNone: "لا يوجد نجم بعد",
   noSessionsToday: "لا توجد حصص اليوم",
   brandTagline: "منصة الهندسة والتعليم الذكي",
   selectMonth: "الشهر الدراسي",

@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { Alert, ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import {
   Card,
@@ -17,6 +17,7 @@ import {
 } from "@/src/repositories";
 import type { Student } from "@/src/db/types";
 import { useAppData } from "@/src/contexts/AppDataContext";
+import { useDialog } from "@/src/components/DialogProvider";
 import { spacing } from "@/src/theme/colors";
 import { rtlText } from "@/src/theme/rtl";
 
@@ -25,6 +26,7 @@ export default function StudentDetailsScreen() {
   const studentId = Number(id);
   const router = useRouter();
   const { bump } = useAppData();
+  const dialog = useDialog();
   const [loading, setLoading] = useState(true);
   const [student, setStudent] = useState<Student | null>(null);
   const [groupName, setGroupName] = useState("—");
@@ -108,19 +110,18 @@ export default function StudentDetailsScreen() {
             label={t("delete")}
             variant="danger"
             onPress={() => {
-              Alert.alert(t("delete"), t("deleteConfirm"), [
-                { text: t("cancel"), style: "cancel" },
-                {
-                  text: t("delete"),
-                  style: "destructive",
-                  onPress: () => {
-                    void deleteStudent(studentId).then(() => {
-                      bump();
-                      router.back();
-                    });
-                  },
-                },
-              ]);
+              void (async () => {
+                const ok = await dialog.confirm({
+                  title: t("delete"),
+                  message: t("deleteConfirm"),
+                  confirmLabel: t("delete"),
+                  danger: true,
+                });
+                if (!ok) return;
+                await deleteStudent(studentId);
+                bump();
+                router.back();
+              })();
             }}
           />
         </View>

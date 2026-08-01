@@ -4,10 +4,11 @@ import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import {
   LoadingBlock,
   Muted,
-  PrimaryButton,
   Screen,
   Title,
 } from "@/src/components/ui";
+import { IconActionBar } from "@/src/components/IconActionBar";
+import type { IconAction } from "@/src/components/IconActionBar";
 import { t } from "@/src/i18n/ar";
 import {
   getSession,
@@ -196,9 +197,66 @@ export default function AttendanceScreen() {
   const cancelled = session.status === "cancelled";
   const completed = session.status === "completed";
 
+  const sessionActions: IconAction[] = cancelled
+    ? []
+    : [
+        {
+          key: "present",
+          icon: "check",
+          label: t("actionPresent"),
+          tone: "accent",
+          onPress: onMarkAllPresent,
+        },
+        {
+          key: "absent",
+          icon: "times",
+          label: t("actionAbsent"),
+          onPress: onMarkAllAbsent,
+        },
+        completed
+          ? {
+              key: "reopen",
+              icon: "undo",
+              label: t("actionReopen"),
+              onPress: onReopenSession,
+            }
+          : {
+              key: "complete",
+              icon: "flag-checkered",
+              label: t("actionComplete"),
+              disabled: !allAttendanceSet,
+              onPress: onCompleteSession,
+            },
+        ...(!completed
+          ? [
+              {
+                key: "cancel",
+                icon: "ban" as const,
+                label: t("cancel"),
+                tone: "danger" as const,
+                onPress: () => {
+                  void (async () => {
+                    const ok = await dialog.confirm({
+                      title: t("cancelSession"),
+                      message: t("deleteConfirm"),
+                      confirmLabel: t("confirm"),
+                      danger: true,
+                    });
+                    if (!ok) return;
+                    await updateSessionStatus(id, "cancelled");
+                    bump();
+                    await load();
+                  })();
+                },
+              },
+            ]
+          : []),
+      ];
+
   return (
     <Screen padded={false} style={{ flex: 1 }}>
       <View style={{ padding: spacing.lg, gap: 10 }}>
+        <IconActionBar actions={sessionActions} />
         <Title>{groupName}</Title>
         <Muted>{formatDateTimeAr(session.starts_at)}</Muted>
         <Muted>
@@ -234,54 +292,7 @@ export default function AttendanceScreen() {
           ))}
         </View>
 
-        {!cancelled ? (
-          <>
-            <PrimaryButton
-              label={t("markAllPresent")}
-              onPress={onMarkAllPresent}
-            />
-            <PrimaryButton
-              label={t("markAllAbsent")}
-              variant="ghost"
-              onPress={onMarkAllAbsent}
-            />
-            {completed ? (
-              <PrimaryButton
-                label={t("reopenSession")}
-                variant="ghost"
-                onPress={onReopenSession}
-              />
-            ) : (
-              <PrimaryButton
-                label={t("completeSession")}
-                onPress={onCompleteSession}
-                disabled={!allAttendanceSet}
-              />
-            )}
-            {!completed ? (
-              <PrimaryButton
-                label={t("cancelSession")}
-                variant="danger"
-                onPress={() => {
-                  void (async () => {
-                    const ok = await dialog.confirm({
-                      title: t("cancelSession"),
-                      message: t("deleteConfirm"),
-                      confirmLabel: t("confirm"),
-                      danger: true,
-                    });
-                    if (!ok) return;
-                    await updateSessionStatus(id, "cancelled");
-                    bump();
-                    await load();
-                  })();
-                }}
-              />
-            ) : null}
-          </>
-        ) : (
-          <Muted>{t("sessionCancelled")}</Muted>
-        )}
+        {cancelled ? <Muted>{t("sessionCancelled")}</Muted> : null}
       </View>
       <FlatList
         style={{ flex: 1 }}

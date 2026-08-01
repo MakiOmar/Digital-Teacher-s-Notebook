@@ -13,10 +13,10 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   FormField,
   Muted,
-  PrimaryButton,
   Screen,
   Title,
 } from "@/src/components/ui";
+import { IconActionBar } from "@/src/components/IconActionBar";
 import { t } from "@/src/i18n/ar";
 import {
   assignSeatToGroup,
@@ -172,6 +172,30 @@ export default function AddStudentsToGroupScreen() {
           contentContainerStyle={{ padding: spacing.lg, paddingBottom: 48 }}
           keyboardShouldPersistTaps="handled"
         >
+          <IconActionBar
+            actions={[
+              {
+                key: "seats",
+                icon: "th-large",
+                label: t("actionSeats"),
+                tone: "accent",
+                onPress: onGenerateSeats,
+              },
+              {
+                key: "seat",
+                icon: "plus",
+                label: t("actionSeat"),
+                onPress: addSeat,
+              },
+              {
+                key: "save",
+                icon: "save",
+                label: t("actionSave"),
+                disabled: saving,
+                onPress: () => void onSave(),
+              },
+            ]}
+          />
           <Title>{t("addStudentsToGroup")}</Title>
           <Muted style={{ marginBottom: spacing.md }}>
             {group?.name ?? "—"}
@@ -183,17 +207,6 @@ export default function AddStudentsToGroupScreen() {
             onChangeText={setSeatsCountInput}
             keyboardType="numeric"
           />
-          <View style={{ gap: 10, marginBottom: spacing.lg }}>
-            <PrimaryButton
-              label={t("generateSeats")}
-              onPress={onGenerateSeats}
-            />
-            <PrimaryButton
-              label={t("addMoreSeat")}
-              variant="ghost"
-              onPress={addSeat}
-            />
-          </View>
 
           {seats.map((seat, index) => {
             const isActive = activeSeatKey === seat.key;
@@ -269,12 +282,6 @@ export default function AddStudentsToGroupScreen() {
               </View>
             );
           })}
-
-          <PrimaryButton
-            label={saving ? t("loading") : t("saveStudents")}
-            onPress={() => void onSave()}
-            disabled={saving}
-          />
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>

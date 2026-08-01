@@ -1,16 +1,14 @@
 import { useState } from "react";
-import { View } from "react-native";
 import {
   Muted,
-  PrimaryButton,
   Screen,
   Title,
 } from "@/src/components/ui";
+import { IconActionBar } from "@/src/components/IconActionBar";
 import { t } from "@/src/i18n/ar";
 import { exportBackupFile, importBackupFromPicker } from "@/src/services/backup";
 import { useAppData } from "@/src/contexts/AppDataContext";
 import { useDialog } from "@/src/components/DialogProvider";
-import { spacing } from "@/src/theme/colors";
 
 export default function BackupScreen() {
   const { bump } = useAppData();
@@ -60,23 +58,29 @@ export default function BackupScreen() {
 
   return (
     <Screen>
+      <IconActionBar
+        actions={[
+          {
+            key: "export",
+            icon: "upload",
+            label: t("actionExport"),
+            tone: "accent",
+            disabled: busy,
+            onPress: () => void onExport(),
+          },
+          {
+            key: "import",
+            icon: "download",
+            label: t("actionImport"),
+            disabled: busy,
+            onPress: onImport,
+          },
+        ]}
+      />
       <Title>{t("backup")}</Title>
       <Muted>
         صدّر نسخة احتياطية كملف JSON واحفظها على جهازك أو Google Drive يدوياً.
       </Muted>
-      <View style={{ gap: 12, marginTop: spacing.lg }}>
-        <PrimaryButton
-          label={busy ? t("loading") : t("exportBackup")}
-          onPress={() => void onExport()}
-          disabled={busy}
-        />
-        <PrimaryButton
-          label={t("importBackup")}
-          variant="ghost"
-          onPress={onImport}
-          disabled={busy}
-        />
-      </View>
     </Screen>
   );
 }

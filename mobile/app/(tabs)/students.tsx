@@ -5,9 +5,9 @@ import {
   EmptyState,
   ListRow,
   LoadingBlock,
-  PrimaryButton,
   Screen,
 } from "@/src/components/ui";
+import { IconActionBar } from "@/src/components/IconActionBar";
 import { t } from "@/src/i18n/ar";
 import { getActiveEnrollment, listStudents } from "@/src/repositories";
 import type { Student } from "@/src/db/types";
@@ -52,10 +52,17 @@ export default function StudentsTab() {
 
   return (
     <Screen padded={false} style={{ flex: 1 }}>
-      <View style={{ padding: spacing.lg }}>
-        <PrimaryButton
-          label={t("addStudent")}
-          onPress={() => router.push("/students/form")}
+      <View style={{ padding: spacing.lg, paddingBottom: 0 }}>
+        <IconActionBar
+          actions={[
+            {
+              key: "add",
+              icon: "plus",
+              label: t("actionAdd"),
+              tone: "accent",
+              onPress: () => router.push("/students/form"),
+            },
+          ]}
         />
       </View>
       <FlatList

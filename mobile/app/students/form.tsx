@@ -11,9 +11,9 @@ import {
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import {
   FormField,
-  PrimaryButton,
   Screen,
 } from "@/src/components/ui";
+import { IconActionBar } from "@/src/components/IconActionBar";
 import { DateField } from "@/src/components/DateFields";
 import { t } from "@/src/i18n/ar";
 import {
@@ -132,6 +132,18 @@ export default function StudentFormScreen() {
           contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40 }}
           keyboardShouldPersistTaps="handled"
         >
+          <IconActionBar
+            actions={[
+              {
+                key: "save",
+                icon: "save",
+                label: t("actionSave"),
+                tone: "accent",
+                disabled: saving,
+                onPress: () => void onSave(),
+              },
+            ]}
+          />
           <FormField label={t("studentName")} value={name} onChangeText={setName} />
           <FormField
             label={t("guardianPhone")}
@@ -195,12 +207,6 @@ export default function StudentFormScreen() {
               </Pressable>
             ))}
           </View>
-
-          <PrimaryButton
-            label={saving ? t("loading") : t("save")}
-            onPress={() => void onSave()}
-            disabled={saving}
-          />
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>

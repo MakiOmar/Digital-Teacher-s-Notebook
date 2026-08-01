@@ -9,10 +9,10 @@ import { useRouter } from "expo-router";
 import {
   FormField,
   Muted,
-  PrimaryButton,
   Screen,
   SectionTitle,
 } from "@/src/components/ui";
+import { IconActionBar } from "@/src/components/IconActionBar";
 import { DateField } from "@/src/components/DateFields";
 import { t } from "@/src/i18n/ar";
 import { createAcademicYearWithSemesters } from "@/src/repositories";
@@ -100,6 +100,18 @@ export default function YearFormScreen() {
           }}
           keyboardShouldPersistTaps="handled"
         >
+          <IconActionBar
+            actions={[
+              {
+                key: "save",
+                icon: "save",
+                label: t("actionSave"),
+                tone: "accent",
+                disabled: saving,
+                onPress: () => void onSave(),
+              },
+            ]}
+          />
           <FormField label={t("yearName")} value={name} onChangeText={setName} />
 
           <SectionTitle>{t("semester1")}</SectionTitle>
@@ -145,11 +157,6 @@ export default function YearFormScreen() {
           </Muted>
 
           <View style={{ height: 8 }} />
-          <PrimaryButton
-            label={saving ? t("loading") : t("save")}
-            onPress={() => void onSave()}
-            disabled={saving}
-          />
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>

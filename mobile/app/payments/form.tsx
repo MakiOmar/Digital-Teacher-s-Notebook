@@ -11,9 +11,9 @@ import {
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import {
   FormField,
-  PrimaryButton,
   Screen,
 } from "@/src/components/ui";
+import { IconActionBar } from "@/src/components/IconActionBar";
 import { DateField } from "@/src/components/DateFields";
 import { t } from "@/src/i18n/ar";
 import {
@@ -205,6 +205,42 @@ export default function PaymentFormScreen() {
           contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40 }}
           keyboardShouldPersistTaps="handled"
         >
+          <IconActionBar
+            actions={[
+              {
+                key: "save",
+                icon: "save",
+                label: t("actionSave"),
+                tone: "accent",
+                disabled: saving,
+                onPress: () => void onSave(),
+              },
+              ...(editId
+                ? [
+                    {
+                      key: "delete",
+                      icon: "trash" as const,
+                      label: t("delete"),
+                      tone: "danger" as const,
+                      onPress: () => {
+                        void (async () => {
+                          const ok = await dialog.confirm({
+                            title: t("delete"),
+                            message: t("deleteConfirm"),
+                            confirmLabel: t("delete"),
+                            danger: true,
+                          });
+                          if (!ok) return;
+                          await deletePayment(editId);
+                          bump();
+                          router.back();
+                        })();
+                      },
+                    },
+                  ]
+                : []),
+            ]}
+          />
           {!editId ? (
             <>
               {/* Step 1: group */}
@@ -333,35 +369,6 @@ export default function PaymentFormScreen() {
             onChangeText={setNote}
             multiline
           />
-
-          <PrimaryButton
-            label={saving ? t("loading") : t("save")}
-            onPress={() => void onSave()}
-            disabled={saving}
-          />
-
-          {editId ? (
-            <View style={{ marginTop: 12 }}>
-              <PrimaryButton
-                label={t("delete")}
-                variant="danger"
-                onPress={() => {
-                  void (async () => {
-                    const ok = await dialog.confirm({
-                      title: t("delete"),
-                      message: t("deleteConfirm"),
-                      confirmLabel: t("delete"),
-                      danger: true,
-                    });
-                    if (!ok) return;
-                    await deletePayment(editId);
-                    bump();
-                    router.back();
-                  })();
-                }}
-              />
-            </View>
-          ) : null}
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>

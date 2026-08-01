@@ -12,9 +12,9 @@ import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import {
   FormField,
   Muted,
-  PrimaryButton,
   Screen,
 } from "@/src/components/ui";
+import { IconActionBar } from "@/src/components/IconActionBar";
 import { DateField, TimeField } from "@/src/components/DateFields";
 import { t } from "@/src/i18n/ar";
 import {
@@ -189,6 +189,18 @@ export default function GroupFormScreen() {
           contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40 }}
           keyboardShouldPersistTaps="handled"
         >
+          <IconActionBar
+            actions={[
+              {
+                key: "save",
+                icon: "save",
+                label: t("actionSave"),
+                tone: "accent",
+                disabled: saving,
+                onPress: () => void onSave(),
+              },
+            ]}
+          />
           <FormField label={t("groupName")} value={name} onChangeText={setName} />
           <FormField label={t("subject")} value={subject} onChangeText={setSubject} />
           <FormField
@@ -255,12 +267,6 @@ export default function GroupFormScreen() {
               );
             })}
           </View>
-
-          <PrimaryButton
-            label={saving ? t("loading") : t("save")}
-            onPress={() => void onSave()}
-            disabled={saving}
-          />
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>

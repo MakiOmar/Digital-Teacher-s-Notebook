@@ -13,9 +13,9 @@ import {
   EmptyState,
   LoadingBlock,
   Muted,
-  PrimaryButton,
   Screen,
 } from "@/src/components/ui";
+import { IconActionBar } from "@/src/components/IconActionBar";
 import { t } from "@/src/i18n/ar";
 import {
   createPayment,
@@ -265,6 +265,30 @@ export default function GroupRoundPaymentsScreen() {
   return (
     <Screen padded={false} style={{ flex: 1 }}>
       <View style={styles.header}>
+        <IconActionBar
+          actions={
+            rows.length
+              ? [
+                  {
+                    key: "paid",
+                    icon: "check-circle",
+                    label: t("actionPaidAll"),
+                    tone: "accent",
+                    disabled: bulkBusy,
+                    onPress: onMarkAllPaid,
+                  },
+                  {
+                    key: "unpaid",
+                    icon: "times-circle",
+                    label: t("actionUnpaidAll"),
+                    tone: "danger",
+                    disabled: bulkBusy,
+                    onPress: onMarkAllUnpaid,
+                  },
+                ]
+              : []
+          }
+        />
         <Text style={styles.title}>{groupName}</Text>
         <Muted>{t("selectRound")}</Muted>
         {!roundSummaries.length ? (
@@ -330,17 +354,6 @@ export default function GroupRoundPaymentsScreen() {
                 </Pressable>
               ))}
             </View>
-            <PrimaryButton
-              label={t("markAllPaid")}
-              onPress={onMarkAllPaid}
-              disabled={bulkBusy}
-            />
-            <PrimaryButton
-              label={t("markAllUnpaid")}
-              variant="danger"
-              onPress={onMarkAllUnpaid}
-              disabled={bulkBusy}
-            />
           </View>
         ) : null}
       </View>

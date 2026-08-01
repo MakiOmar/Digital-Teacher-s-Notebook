@@ -1,19 +1,22 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
+import type { ComponentProps } from "react";
 import { colors, radii, spacing } from "../theme/colors";
 import { rtlRow, rtlText } from "../theme/rtl";
 
 export type IconAction = {
   key: string;
   /** FontAwesome glyph name */
-  icon: React.ComponentProps<typeof FontAwesome>["name"];
+  icon: ComponentProps<typeof FontAwesome>["name"];
   label: string;
   onPress: () => void;
   tone?: "default" | "danger" | "accent";
+  disabled?: boolean;
 };
 
-/** Compact icon+caption action row for group header toolbars. */
+/** Compact icon+caption action row for page-top toolbars. */
 export function IconActionBar({ actions }: { actions: IconAction[] }) {
+  if (!actions.length) return null;
   return (
     <View style={styles.row}>
       {actions.map((a) => {
@@ -28,12 +31,13 @@ export function IconActionBar({ actions }: { actions: IconAction[] }) {
           <Pressable
             key={a.key}
             onPress={a.onPress}
+            disabled={a.disabled}
             accessibilityLabel={a.label}
             style={({ pressed }) => [
               styles.btn,
               tone === "danger" && styles.btnDanger,
               tone === "accent" && styles.btnAccent,
-              pressed && { opacity: 0.75 },
+              (a.disabled || pressed) && { opacity: 0.55 },
             ]}
           >
             <FontAwesome name={a.icon} size={18} color={iconColor} />

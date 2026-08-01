@@ -5,9 +5,9 @@ import {
   EmptyState,
   ListRow,
   LoadingBlock,
-  PrimaryButton,
   Screen,
 } from "@/src/components/ui";
+import { IconActionBar } from "@/src/components/IconActionBar";
 import { t } from "@/src/i18n/ar";
 import { listGroups, listPatterns } from "@/src/repositories";
 import type { StudyGroup, Weekday } from "@/src/db/types";
@@ -100,10 +100,17 @@ export default function GroupsTab() {
 
   return (
     <Screen padded={false} style={{ flex: 1 }}>
-      <View style={{ padding: spacing.lg, gap: 10 }}>
-        <PrimaryButton
-          label={t("addGroup")}
-          onPress={() => router.push("/groups/form")}
+      <View style={{ padding: spacing.lg, paddingBottom: 0 }}>
+        <IconActionBar
+          actions={[
+            {
+              key: "add",
+              icon: "plus",
+              label: t("actionAdd"),
+              tone: "accent",
+              onPress: () => router.push("/groups/form"),
+            },
+          ]}
         />
       </View>
       <FlatList

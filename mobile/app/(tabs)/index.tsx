@@ -14,10 +14,10 @@ import {
   LoadingBlock,
   MenuCard,
   Muted,
-  PrimaryButton,
   Screen,
   BorderedCard,
 } from "@/src/components/ui";
+import { IconActionBar } from "@/src/components/IconActionBar";
 import { useAppData } from "@/src/contexts/AppDataContext";
 import { t } from "@/src/i18n/ar";
 import { getOpenRoundsPaymentSummary } from "@/src/services/rounds";
@@ -81,9 +81,16 @@ export default function HomeScreen() {
         </View>
         <Muted>{t("brandTagline")}</Muted>
         <EmptyState message={t("noActiveYear")} />
-        <PrimaryButton
-          label={t("addYear")}
-          onPress={() => router.push("/years/form")}
+        <IconActionBar
+          actions={[
+            {
+              key: "add-year",
+              icon: "plus",
+              label: t("actionAdd"),
+              tone: "accent",
+              onPress: () => router.push("/years/form"),
+            },
+          ]}
         />
       </Screen>
     );

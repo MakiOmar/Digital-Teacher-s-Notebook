@@ -45,6 +45,8 @@ export function SetupWizardScreen() {
     frequency: "daily",
     lastRunAt: null,
     lastPath: null,
+    directoryUri: null,
+    directoryLabel: null,
   });
 
   useEffect(() => {

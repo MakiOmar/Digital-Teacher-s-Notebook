@@ -60,24 +60,13 @@ export async function exportBackupFile(): Promise<string> {
 /**
  * Silent on-device backup (no share sheet) for auto-backup.
  * Writes under documentDirectory/backups/.
+ * Prefer writeBackupToLocation in backupLocation.ts when a user folder may be set.
  */
 export async function writeBackupToDocuments(
   prefix = "auto-backup"
 ): Promise<string> {
-  const root = FileSystem.documentDirectory;
-  if (!root) throw new Error("لا يمكن الوصول لمجلد الملفات");
-  const dir = `${root}backups/`;
-  const info = await FileSystem.getInfoAsync(dir);
-  if (!info.exists) {
-    await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
-  }
-  const payload = await buildBackup();
-  const json = JSON.stringify(payload, null, 2);
-  const path = `${dir}${prefix}-${Date.now()}.json`;
-  await FileSystem.writeAsStringAsync(path, json, {
-    encoding: FileSystem.EncodingType.UTF8,
-  });
-  return path;
+  const { writeBackupToLocation } = await import("../backup/backupLocation");
+  return writeBackupToLocation(null, prefix);
 }
 
 export async function importBackupFromPicker(): Promise<void> {

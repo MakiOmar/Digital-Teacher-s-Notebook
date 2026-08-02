@@ -73,6 +73,12 @@ export default function MoreTab() {
             onPress={() => router.push("/backup")}
           />
           <MenuCard
+            title={t("appLock")}
+            icon={ICONS.more}
+            borderColor={colors.danger}
+            onPress={() => router.push("/app-lock" as never)}
+          />
+          <MenuCard
             title={t("license")}
             icon={ICONS.more}
             borderColor={colors.success}

@@ -230,6 +230,28 @@ export const ar = {
   autoBackupLastRun: "آخر نسخ تلقائي",
   autoBackupNever: "لم يُنفَّذ بعد",
   autoBackupSaved: "تم حفظ إعدادات النسخ التلقائي",
+  autoBackupFolder: "مجلد الحفظ",
+  autoBackupFolderDefault: "مجلد التطبيق الداخلي",
+  autoBackupPickFolder: "اختيار مجلد",
+  autoBackupClearFolder: "استخدام مجلد التطبيق",
+  autoBackupFolderPicked: "تم اختيار مجلد الحفظ",
+  autoBackupFolderHint:
+    "على أندرويد يمكنك اختيار مجلد على الجهاز (مثل التنزيلات). على iOS تُحفظ النسخ داخل التطبيق ويمكن تصديرها يدوياً.",
+  autoBackupFolderUnavailable: "اختيار المجلد متاح على أندرويد فقط حالياً.",
+
+  // App lock
+  appLock: "قفل التطبيق",
+  appLockTitle: "التطبيق مقفل",
+  appLockHint: "استخدم بصمة الإصبع أو رقم السر أو نمط قفل الهاتف لفتح التطبيق.",
+  appLockUnlock: "فتح التطبيق",
+  appLockEnable: "تفعيل قفل التطبيق",
+  appLockSettingsHint:
+    "عند التفعيل، سيُطلب منك قفل الهاتف (بصمة / وجه / رقم سري / نمط) عند فتح التطبيق وبعد مغادرته.",
+  appLockEnabled: "تم تفعيل قفل التطبيق",
+  appLockDisabled: "تم إيقاف قفل التطبيق",
+  appLockNoDeviceAuth:
+    "يجب تعيين قفل للهاتف أولاً (رقم سري أو بصمة) من إعدادات الجهاز.",
+  appLockAuthCancelled: "تم إلغاء التحقق",
 
   // License (ULSP)
   license: "الترخيص",

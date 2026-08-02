@@ -1,6 +1,8 @@
 import { useCallback, useState } from "react";
 import {
+  Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Switch,
   Text,
@@ -9,6 +11,7 @@ import {
 import { useFocusEffect } from "expo-router";
 import {
   Muted,
+  PrimaryButton,
   Screen,
   Title,
 } from "@/src/components/ui";
@@ -24,7 +27,12 @@ import {
   type AutoBackupFrequency,
   type AutoBackupSettings,
 } from "@/src/backup/autoBackup";
+import {
+  canPickBackupFolder,
+  pickBackupFolder,
+} from "@/src/backup/backupLocation";
 import { colors, radii, spacing } from "@/src/theme/colors";
+import { fonts } from "@/src/theme/typography";
 import { rtlChipRow, rtlRow, rtlText } from "@/src/theme/rtl";
 import { formatDateTimeAr } from "@/src/utils/date";
 
@@ -37,6 +45,8 @@ export default function BackupScreen() {
     frequency: "daily",
     lastRunAt: null,
     lastPath: null,
+    directoryUri: null,
+    directoryLabel: null,
   });
 
   const refreshSettings = useCallback(async () => {
@@ -57,6 +67,38 @@ export default function BackupScreen() {
     const next = await saveAutoBackupSettings(partial);
     setSettings(next);
     dialog.toast(t("autoBackupSaved"), "success");
+  }
+
+  async function onPickFolder() {
+    if (!canPickBackupFolder()) {
+      await dialog.alert({
+        title: t("backup"),
+        message: t("autoBackupFolderUnavailable"),
+      });
+      return;
+    }
+    setBusy(true);
+    try {
+      const picked = await pickBackupFolder();
+      if (!picked) return;
+      const next = await saveAutoBackupSettings({
+        directoryUri: picked.uri,
+        directoryLabel: picked.label,
+      });
+      setSettings(next);
+      dialog.toast(t("autoBackupFolderPicked"), "success");
+    } catch (e) {
+      await dialog.alert({
+        title: t("error"),
+        message: e instanceof Error ? e.message : t("error"),
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onClearFolder() {
+    await persistPartial({ directoryUri: null, directoryLabel: null });
   }
 
   async function onExport() {
@@ -104,67 +146,102 @@ export default function BackupScreen() {
     ? formatDateTimeAr(settings.lastRunAt)
     : t("autoBackupNever");
 
+  const folderLabel =
+    settings.directoryLabel?.trim() ||
+    (settings.directoryUri
+      ? settings.directoryUri
+      : t("autoBackupFolderDefault"));
+
   return (
-    <Screen>
-      <IconActionBar
-        actions={[
-          {
-            key: "export",
-            icon: "upload",
-            label: t("actionExport"),
-            tone: "accent",
-            disabled: busy,
-            onPress: () => void onExport(),
-          },
-          {
-            key: "import",
-            icon: "download",
-            label: t("actionImport"),
-            disabled: busy,
-            onPress: onImport,
-          },
-        ]}
-      />
-      <Title>{t("backup")}</Title>
-      <Muted style={{ marginBottom: spacing.lg }}>
-        صدّر نسخة احتياطية كملف JSON واحفظها على جهازك أو Google Drive يدوياً.
-      </Muted>
-
-      <Text style={styles.section}>{t("autoBackup")}</Text>
-      <Muted style={{ marginBottom: spacing.md }}>{t("autoBackupHint")}</Muted>
-
-      <View style={styles.switchRow}>
-        <Text style={styles.switchLabel}>{t("autoBackupEnable")}</Text>
-        <Switch
-          value={settings.enabled}
-          onValueChange={(enabled) => void persistPartial({ enabled })}
-          trackColor={{ false: colors.border, true: colors.primarySoft }}
-          thumbColor={settings.enabled ? colors.primary : colors.textMuted}
+    <Screen padded={false} style={{ flex: 1 }}>
+      <ScrollView
+        contentContainerStyle={{
+          padding: spacing.lg,
+          paddingBottom: 48,
+        }}
+        keyboardShouldPersistTaps="handled"
+      >
+        <IconActionBar
+          actions={[
+            {
+              key: "export",
+              icon: "upload",
+              label: t("actionExport"),
+              tone: "accent",
+              disabled: busy,
+              onPress: () => void onExport(),
+            },
+            {
+              key: "import",
+              icon: "download",
+              label: t("actionImport"),
+              disabled: busy,
+              onPress: onImport,
+            },
+          ]}
         />
-      </View>
+        <Title>{t("backup")}</Title>
+        <Muted style={{ marginBottom: spacing.lg }}>
+          صدّر نسخة احتياطية كملف JSON واحفظها على جهازك أو Google Drive يدوياً.
+        </Muted>
 
-      <Text style={styles.freqLabel}>{t("autoBackupFrequency")}</Text>
-      <View style={styles.freqRow}>
-        {(["daily", "weekly"] as AutoBackupFrequency[]).map((f) => {
-          const selected = settings.frequency === f;
-          return (
-            <Pressable
-              key={f}
-              onPress={() => void persistPartial({ frequency: f })}
-              style={[styles.chip, selected && styles.chipOn]}
-            >
-              <Text style={[styles.chipText, selected && styles.chipTextOn]}>
-                {f === "daily" ? t("autoBackupDaily") : t("autoBackupWeekly")}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+        <Text style={styles.section}>{t("autoBackup")}</Text>
+        <Muted style={{ marginBottom: spacing.md }}>{t("autoBackupHint")}</Muted>
 
-      <View style={styles.lastBox}>
-        <Text style={styles.lastLabel}>{t("autoBackupLastRun")}</Text>
-        <Muted>{lastRunLabel}</Muted>
-      </View>
+        <View style={styles.switchRow}>
+          <Text style={styles.switchLabel}>{t("autoBackupEnable")}</Text>
+          <Switch
+            value={settings.enabled}
+            onValueChange={(enabled) => void persistPartial({ enabled })}
+            trackColor={{ false: colors.border, true: colors.primarySoft }}
+            thumbColor={settings.enabled ? colors.primary : colors.textMuted}
+          />
+        </View>
+
+        <Text style={styles.freqLabel}>{t("autoBackupFrequency")}</Text>
+        <View style={styles.freqRow}>
+          {(["daily", "weekly"] as AutoBackupFrequency[]).map((f) => {
+            const selected = settings.frequency === f;
+            return (
+              <Pressable
+                key={f}
+                onPress={() => void persistPartial({ frequency: f })}
+                style={[styles.chip, selected && styles.chipOn]}
+              >
+                <Text style={[styles.chipText, selected && styles.chipTextOn]}>
+                  {f === "daily" ? t("autoBackupDaily") : t("autoBackupWeekly")}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <Text style={styles.section}>{t("autoBackupFolder")}</Text>
+        <Muted style={{ marginBottom: spacing.sm }}>
+          {t("autoBackupFolderHint")}
+        </Muted>
+        <Muted style={{ marginBottom: spacing.md }}>{folderLabel}</Muted>
+        <View style={{ gap: 10, marginBottom: spacing.lg }}>
+          <PrimaryButton
+            label={t("autoBackupPickFolder")}
+            onPress={() => void onPickFolder()}
+            disabled={busy || Platform.OS !== "android"}
+          />
+          {settings.directoryUri ? (
+            <PrimaryButton
+              label={t("autoBackupClearFolder")}
+              variant="ghost"
+              onPress={() => void onClearFolder()}
+              disabled={busy}
+            />
+          ) : null}
+        </View>
+
+        <View style={styles.lastBox}>
+          <Text style={styles.lastLabel}>{t("autoBackupLastRun")}</Text>
+          <Muted>{lastRunLabel}</Muted>
+        </View>
+      </ScrollView>
     </Screen>
   );
 }
@@ -174,6 +251,7 @@ const styles = StyleSheet.create({
     ...rtlText,
     width: "100%",
     fontSize: 16,
+    fontFamily: fonts.extraBold,
     fontWeight: "800",
     color: colors.text,
     marginBottom: spacing.sm,
@@ -188,12 +266,14 @@ const styles = StyleSheet.create({
   switchLabel: {
     ...rtlText,
     flex: 1,
+    fontFamily: fonts.bold,
     fontWeight: "700",
     color: colors.text,
   },
   freqLabel: {
     ...rtlText,
     width: "100%",
+    fontFamily: fonts.semiBold,
     fontWeight: "600",
     marginBottom: 8,
     color: colors.text,
@@ -217,6 +297,7 @@ const styles = StyleSheet.create({
   },
   chipText: {
     ...rtlText,
+    fontFamily: fonts.bold,
     fontWeight: "700",
     color: colors.text,
   },
@@ -228,6 +309,7 @@ const styles = StyleSheet.create({
   lastLabel: {
     ...rtlText,
     width: "100%",
+    fontFamily: fonts.bold,
     fontWeight: "700",
     color: colors.text,
   },

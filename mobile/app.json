@@ -67,6 +67,12 @@
           "photosPermission": "السماح للتطبيق بالوصول إلى صورك لوضع صورة المدرس.",
           "cameraPermission": "السماح للتطبيق باستخدام الكاميرا لالتقاط صورة المدرس."
         }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "السماح للتطبيق باستخدام Face ID لقفل التطبيق."
+        }
       ]
     ],
     "experiments": {

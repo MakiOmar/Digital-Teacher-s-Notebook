@@ -26,9 +26,9 @@ import { formatDateTimeAr, formatMoney } from "@/src/utils/date";
 import type { GroupSession } from "@/src/db/types";
 import { colors, groupAccentColor, spacing } from "@/src/theme/colors";
 import { rtlText } from "@/src/theme/rtl";
+import { useTutorProfile } from "@/src/profile/TutorProfileContext";
 
 const LOGO = require("../../assets/images/logo.png");
-const PROFILE = require("../../assets/images/profile.png");
 
 const ICONS = {
   today: require("../../assets/icons/icon-today.png"),
@@ -42,6 +42,7 @@ const ICONS = {
 export default function HomeScreen() {
   const router = useRouter();
   const { activeYear, revision } = useAppData();
+  const { name: tutorName, profileSource } = useTutorProfile();
   const [loading, setLoading] = useState(true);
   const [nextSession, setNextSession] = useState<
     (GroupSession & { group_name: string; accent_color?: string | null }) | null
@@ -74,8 +75,15 @@ export default function HomeScreen() {
     return (
       <Screen>
         <View style={styles.header}>
-          <View style={styles.profileRing}>
-            <Image source={PROFILE} style={styles.profile} />
+          <View style={styles.profileCol}>
+            <View style={styles.profileRing}>
+              <Image source={profileSource} style={styles.profile} />
+            </View>
+            {tutorName ? (
+              <Text style={styles.tutorName} numberOfLines={1}>
+                {tutorName}
+              </Text>
+            ) : null}
           </View>
           <Image source={LOGO} style={styles.logo} resizeMode="contain" />
         </View>
@@ -113,8 +121,15 @@ export default function HomeScreen() {
         }
       >
         <View style={styles.header}>
-          <View style={styles.profileRing}>
-            <Image source={PROFILE} style={styles.profile} />
+          <View style={styles.profileCol}>
+            <View style={styles.profileRing}>
+              <Image source={profileSource} style={styles.profile} />
+            </View>
+            {tutorName ? (
+              <Text style={styles.tutorName} numberOfLines={1}>
+                {tutorName}
+              </Text>
+            ) : null}
           </View>
           <View style={styles.logoCol}>
             <Image source={LOGO} style={styles.logo} resizeMode="contain" />
@@ -199,6 +214,10 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 64,
   },
+  profileCol: {
+    alignItems: "center",
+    maxWidth: 96,
+  },
   profileRing: {
     width: 78,
     height: 78,
@@ -217,6 +236,14 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
     resizeMode: "cover",
+  },
+  tutorName: {
+    ...rtlText,
+    marginTop: 6,
+    fontSize: 12,
+    fontWeight: "800",
+    color: colors.text,
+    textAlign: "center",
   },
   section: {
     ...rtlText,

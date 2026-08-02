@@ -60,7 +60,14 @@
           }
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "السماح للتطبيق بالوصول إلى صورك لوضع صورة المدرس.",
+          "cameraPermission": "السماح للتطبيق باستخدام الكاميرا لالتقاط صورة المدرس."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

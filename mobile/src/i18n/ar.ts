@@ -203,6 +203,33 @@ export const ar = {
   about: "عن التطبيق",
   aboutText: "تطبيق محلي لإدارة مجموعات التدريس والاشتراكات الشهرية والحضور بدون سيرفر.",
 
+  // Setup / profile
+  setupWizardTitle: "إعداد المدرس",
+  setupWizardHint: "أدخل اسمك وصورة شخصية (اختيارية) للظهور في الصفحة الرئيسية.",
+  tutorName: "اسم المدرس",
+  tutorNameRequired: "أدخل اسم المدرس",
+  pickProfilePhoto: "اختر صورة",
+  changeProfilePhoto: "تغيير الصورة",
+  removeProfilePhoto: "إزالة الصورة",
+  profilePhotoPermission: "يلزم إذن الوصول للصور لاختيار صورة الملف الشخصي.",
+  setupNext: "التالي",
+  setupFinish: "إنهاء الإعداد",
+  profileSaved: "تم حفظ الملف الشخصي",
+  tutorProfile: "الملف الشخصي",
+  editProfile: "تعديل الملف الشخصي",
+
+  // Auto backup
+  autoBackup: "نسخ احتياطي تلقائي",
+  autoBackupHint:
+    "حفظ نسخة JSON تلقائياً على الجهاز عند فتح التطبيق (بدون رفع سحابي).",
+  autoBackupEnable: "تفعيل النسخ التلقائي",
+  autoBackupFrequency: "التكرار",
+  autoBackupDaily: "يومياً",
+  autoBackupWeekly: "أسبوعياً",
+  autoBackupLastRun: "آخر نسخ تلقائي",
+  autoBackupNever: "لم يُنفَّذ بعد",
+  autoBackupSaved: "تم حفظ إعدادات النسخ التلقائي",
+
   // License (ULSP)
   license: "الترخيص",
   licenseActivateTitle: "تفعيل الترخيص",

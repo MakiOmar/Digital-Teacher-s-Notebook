@@ -4,7 +4,7 @@ import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { reloadAppAsync } from "expo";
 import { useCallback, useEffect, useState } from "react";
-import { I18nManager, StyleSheet, Text, View } from "react-native";
+import { AppState, I18nManager, StyleSheet, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -17,6 +17,12 @@ import {
   useLicense,
 } from "@/src/license/LicenseContext";
 import { LicenseActivateScreen } from "@/src/license/LicenseActivateScreen";
+import {
+  TutorProfileProvider,
+  useTutorProfile,
+} from "@/src/profile/TutorProfileContext";
+import { SetupWizardScreen } from "@/src/profile/SetupWizardScreen";
+import { runAutoBackupIfDue } from "@/src/backup/autoBackup";
 
 const RTL_RELOAD_KEY = "tutoring.rtl.reload.v1";
 
@@ -46,6 +52,7 @@ function Bootstrap({
 }) {
   const { ready, error } = useAppData();
   const { status: licenseStatus, ready: licenseReady } = useLicense();
+  const { ready: profileReady, setupComplete } = useTutorProfile();
   const [rtlReady, setRtlReady] = useState(I18nManager.isRTL);
   const [forceShow, setForceShow] = useState(false);
 
@@ -75,7 +82,7 @@ function Bootstrap({
     };
   }, []);
 
-  const bootReady = ready && rtlReady && licenseReady;
+  const bootReady = ready && rtlReady && licenseReady && profileReady;
 
   useEffect(() => {
     if (bootReady) {
@@ -93,7 +100,19 @@ function Bootstrap({
     return () => clearTimeout(id);
   }, [onAppReady]);
 
-  if ((!bootReady) && !forceShow) {
+  // Silent auto-backup when unlocked + setup done (launch / foreground)
+  useEffect(() => {
+    if (licenseStatus !== "unlocked" || !setupComplete) return;
+    void runAutoBackupIfDue().catch(() => undefined);
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        void runAutoBackupIfDue().catch(() => undefined);
+      }
+    });
+    return () => sub.remove();
+  }, [licenseStatus, setupComplete]);
+
+  if (!bootReady && !forceShow) {
     return (
       <View style={styles.bootPlaceholder}>
         <SplashBackground />
@@ -118,6 +137,11 @@ function Bootstrap({
         <SplashBackground />
       </View>
     );
+  }
+
+  // Post-license setup wizard until tutor profile is completed
+  if (profileReady && !setupComplete) {
+    return <SetupWizardScreen />;
   }
 
   return <>{children}</>;
@@ -147,40 +171,43 @@ export default function RootLayout() {
       <StatusBar style="dark" />
       <AppDataProvider>
         <LicenseProvider>
-          <DialogProvider>
-            <Bootstrap onAppReady={onAppReady}>
-              <AppShell>
-                <Stack
-                  screenOptions={{
-                    // No page titles — back button only on stack screens
-                    headerShown: true,
-                    headerTitle: "",
-                    headerShadowVisible: false,
-                    headerStyle: { backgroundColor: "transparent" },
-                    headerTintColor: colors.text,
-                    contentStyle: { backgroundColor: "transparent" },
-                  }}
-                >
-                  <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                  <Stack.Screen name="groups/form" />
-                  <Stack.Screen name="groups/[id]" />
-                  <Stack.Screen name="groups/add-students" />
-                  <Stack.Screen name="groups/round-payments" />
-                  <Stack.Screen name="groups/sessions" />
-                  <Stack.Screen name="attendance/[sessionId]" />
-                  <Stack.Screen name="students/form" />
-                  <Stack.Screen name="students/[id]" />
-                  <Stack.Screen name="payments/form" />
-                  <Stack.Screen name="payments/dues" />
-                  <Stack.Screen name="years/index" />
-                  <Stack.Screen name="years/form" />
-                  <Stack.Screen name="backup" />
-                  <Stack.Screen name="about" />
-                  <Stack.Screen name="license-manage" />
-                </Stack>
-              </AppShell>
-            </Bootstrap>
-          </DialogProvider>
+          <TutorProfileProvider>
+            <DialogProvider>
+              <Bootstrap onAppReady={onAppReady}>
+                <AppShell>
+                  <Stack
+                    screenOptions={{
+                      // No page titles — back button only on stack screens
+                      headerShown: true,
+                      headerTitle: "",
+                      headerShadowVisible: false,
+                      headerStyle: { backgroundColor: "transparent" },
+                      headerTintColor: colors.text,
+                      contentStyle: { backgroundColor: "transparent" },
+                    }}
+                  >
+                    <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                    <Stack.Screen name="groups/form" />
+                    <Stack.Screen name="groups/[id]" />
+                    <Stack.Screen name="groups/add-students" />
+                    <Stack.Screen name="groups/round-payments" />
+                    <Stack.Screen name="groups/sessions" />
+                    <Stack.Screen name="attendance/[sessionId]" />
+                    <Stack.Screen name="students/form" />
+                    <Stack.Screen name="students/[id]" />
+                    <Stack.Screen name="payments/form" />
+                    <Stack.Screen name="payments/dues" />
+                    <Stack.Screen name="years/index" />
+                    <Stack.Screen name="years/form" />
+                    <Stack.Screen name="backup" />
+                    <Stack.Screen name="about" />
+                    <Stack.Screen name="license-manage" />
+                    <Stack.Screen name="profile-edit" />
+                  </Stack>
+                </AppShell>
+              </Bootstrap>
+            </DialogProvider>
+          </TutorProfileProvider>
         </LicenseProvider>
       </AppDataProvider>
     </SafeAreaProvider>

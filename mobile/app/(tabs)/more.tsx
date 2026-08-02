@@ -46,6 +46,12 @@ export default function MoreTab() {
           onPress={() => router.push("/years")}
         />
         <MenuCard
+          title={t("tutorProfile")}
+          icon={ICONS.more}
+          borderColor={colors.primary}
+          onPress={() => router.push("/profile-edit" as never)}
+        />
+        <MenuCard
           title={t("backup")}
           icon={ICONS.backup}
           borderColor={colors.warning}

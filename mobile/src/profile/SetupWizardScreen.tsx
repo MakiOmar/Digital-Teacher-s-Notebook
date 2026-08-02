@@ -1,0 +1,311 @@
+import { useEffect, useState } from "react";
+import {
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
+} from "react-native";
+import {
+  FormField,
+  Muted,
+  PrimaryButton,
+  Screen,
+  Title,
+} from "@/src/components/ui";
+import { useTutorProfile } from "@/src/profile/TutorProfileContext";
+import {
+  loadAutoBackupSettings,
+  saveAutoBackupSettings,
+  type AutoBackupFrequency,
+  type AutoBackupSettings,
+} from "@/src/backup/autoBackup";
+import { useDialog } from "@/src/components/DialogProvider";
+import { t } from "@/src/i18n/ar";
+import { colors, radii, spacing } from "@/src/theme/colors";
+import { rtlChipRow, rtlRow, rtlText } from "@/src/theme/rtl";
+
+const FALLBACK = require("../../assets/images/profile.png");
+
+type Step = "profile" | "backup";
+
+/** First-run wizard: tutor profile then auto-backup prefs. */
+export function SetupWizardScreen() {
+  const { name: savedName, profileUri: savedUri, saveProfile, pickImage } =
+    useTutorProfile();
+  const dialog = useDialog();
+  const [step, setStep] = useState<Step>("profile");
+  const [name, setName] = useState(savedName);
+  const [profileUri, setProfileUri] = useState<string | null>(savedUri);
+  const [busy, setBusy] = useState(false);
+  const [backup, setBackup] = useState<AutoBackupSettings>({
+    enabled: false,
+    frequency: "daily",
+    lastRunAt: null,
+    lastPath: null,
+  });
+
+  useEffect(() => {
+    setName(savedName);
+    setProfileUri(savedUri);
+  }, [savedName, savedUri]);
+
+  useEffect(() => {
+    void loadAutoBackupSettings().then(setBackup);
+  }, []);
+
+  async function onPickPhoto() {
+    try {
+      const uri = await pickImage();
+      if (uri) setProfileUri(uri);
+    } catch (e) {
+      const msg =
+        e instanceof Error && e.message === "permission_denied"
+          ? t("profilePhotoPermission")
+          : e instanceof Error
+            ? e.message
+            : t("error");
+      await dialog.alert({ title: t("error"), message: msg });
+    }
+  }
+
+  async function onProfileNext() {
+    if (!name.trim()) {
+      await dialog.alert({
+        title: t("error"),
+        message: t("tutorNameRequired"),
+      });
+      return;
+    }
+    setBusy(true);
+    try {
+      // Persist draft name/photo before backup step (setup not complete yet)
+      await saveProfile({
+        name: name.trim(),
+        profileUri,
+        completeSetup: false,
+      });
+      // Ensure setupCompletedAt stays null until finish — saveProfile preserves it
+      setStep("backup");
+    } catch (e) {
+      await dialog.alert({
+        title: t("error"),
+        message: e instanceof Error ? e.message : t("error"),
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onFinish() {
+    if (!name.trim()) {
+      await dialog.alert({
+        title: t("error"),
+        message: t("tutorNameRequired"),
+      });
+      return;
+    }
+    setBusy(true);
+    try {
+      await saveAutoBackupSettings({
+        enabled: backup.enabled,
+        frequency: backup.frequency,
+      });
+      await saveProfile({
+        name: name.trim(),
+        profileUri,
+        completeSetup: true,
+      });
+      dialog.toast(t("profileSaved"), "success");
+    } catch (e) {
+      await dialog.alert({
+        title: t("error"),
+        message: e instanceof Error ? e.message : t("error"),
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const avatarSource = profileUri ? { uri: profileUri } : FALLBACK;
+
+  return (
+    <Screen padded={false} style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Title>
+          {step === "profile" ? t("setupWizardTitle") : t("autoBackup")}
+        </Title>
+        <Muted style={{ marginBottom: spacing.lg }}>
+          {step === "profile" ? t("setupWizardHint") : t("autoBackupHint")}
+        </Muted>
+
+        {step === "profile" ? (
+          <>
+            <Pressable onPress={() => void onPickPhoto()} style={styles.avatarWrap}>
+              <View style={styles.avatarRing}>
+                <Image source={avatarSource} style={styles.avatar} />
+              </View>
+              <Text style={styles.pickLabel}>
+                {profileUri ? t("changeProfilePhoto") : t("pickProfilePhoto")}
+              </Text>
+            </Pressable>
+            {profileUri ? (
+              <Pressable
+                onPress={() => setProfileUri(null)}
+                style={{ marginBottom: spacing.md }}
+              >
+                <Text style={styles.removePhoto}>{t("removeProfilePhoto")}</Text>
+              </Pressable>
+            ) : null}
+            <FormField
+              label={t("tutorName")}
+              value={name}
+              onChangeText={setName}
+            />
+            <PrimaryButton
+              label={busy ? t("loading") : t("setupNext")}
+              onPress={() => void onProfileNext()}
+              disabled={busy}
+            />
+          </>
+        ) : (
+          <>
+            <View style={styles.switchRow}>
+              <Text style={styles.switchLabel}>{t("autoBackupEnable")}</Text>
+              <Switch
+                value={backup.enabled}
+                onValueChange={(enabled) =>
+                  setBackup((prev) => ({ ...prev, enabled }))
+                }
+                trackColor={{ false: colors.border, true: colors.primarySoft }}
+                thumbColor={backup.enabled ? colors.primary : colors.textMuted}
+              />
+            </View>
+            <Text style={styles.freqLabel}>{t("autoBackupFrequency")}</Text>
+            <View style={styles.freqRow}>
+              {(["daily", "weekly"] as AutoBackupFrequency[]).map((f) => {
+                const selected = backup.frequency === f;
+                return (
+                  <Pressable
+                    key={f}
+                    onPress={() =>
+                      setBackup((prev) => ({ ...prev, frequency: f }))
+                    }
+                    style={[styles.chip, selected && styles.chipOn]}
+                  >
+                    <Text
+                      style={[styles.chipText, selected && styles.chipTextOn]}
+                    >
+                      {f === "daily"
+                        ? t("autoBackupDaily")
+                        : t("autoBackupWeekly")}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <View style={{ gap: 10, marginTop: spacing.lg }}>
+              <PrimaryButton
+                label={busy ? t("loading") : t("setupFinish")}
+                onPress={() => void onFinish()}
+                disabled={busy}
+              />
+              <PrimaryButton
+                label={t("back")}
+                variant="ghost"
+                onPress={() => setStep("profile")}
+                disabled={busy}
+              />
+            </View>
+          </>
+        )}
+      </ScrollView>
+    </Screen>
+  );
+}
+
+const styles = StyleSheet.create({
+  content: {
+    flexGrow: 1,
+    justifyContent: "center",
+    padding: spacing.lg,
+    paddingBottom: 48,
+  },
+  avatarWrap: {
+    alignItems: "center",
+    marginBottom: spacing.md,
+  },
+  avatarRing: {
+    width: 112,
+    height: 112,
+    borderRadius: 56,
+    borderWidth: 4,
+    borderColor: colors.primary,
+    overflow: "hidden",
+    backgroundColor: colors.backgroundAlt,
+  },
+  avatar: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
+  pickLabel: {
+    ...rtlText,
+    marginTop: spacing.sm,
+    color: colors.primary,
+    fontWeight: "700",
+  },
+  removePhoto: {
+    ...rtlText,
+    textAlign: "center",
+    color: colors.danger,
+    fontWeight: "600",
+  },
+  switchRow: {
+    ...rtlRow(),
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: spacing.lg,
+    gap: spacing.md,
+  },
+  switchLabel: {
+    ...rtlText,
+    flex: 1,
+    fontWeight: "700",
+    color: colors.text,
+  },
+  freqLabel: {
+    ...rtlText,
+    width: "100%",
+    fontWeight: "600",
+    marginBottom: 8,
+    color: colors.text,
+  },
+  freqRow: {
+    ...rtlChipRow(),
+    gap: 8,
+  },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: radii.md,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  chipOn: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  chipText: {
+    ...rtlText,
+    fontWeight: "700",
+    color: colors.text,
+  },
+  chipTextOn: { color: "#fff" },
+});

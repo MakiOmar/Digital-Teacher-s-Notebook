@@ -62,6 +62,13 @@
       ],
       "expo-secure-store",
       [
+        "expo-file-system",
+        {
+          "supportsOpeningDocumentsInPlace": true,
+          "enableFileSharing": true
+        }
+      ],
+      [
         "expo-image-picker",
         {
           "photosPermission": "السماح للتطبيق بالوصول إلى صورك لوضع صورة المدرس.",

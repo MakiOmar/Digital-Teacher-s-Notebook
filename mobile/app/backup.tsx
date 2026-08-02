@@ -1,6 +1,5 @@
 import { useCallback, useState } from "react";
 import {
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -225,7 +224,7 @@ export default function BackupScreen() {
           <PrimaryButton
             label={t("autoBackupPickFolder")}
             onPress={() => void onPickFolder()}
-            disabled={busy || Platform.OS !== "android"}
+            disabled={busy}
           />
           {settings.directoryUri ? (
             <PrimaryButton

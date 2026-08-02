@@ -1,5 +1,6 @@
 import { Platform } from "react-native";
-import * as FileSystem from "expo-file-system/legacy";
+import * as LegacyFS from "expo-file-system/legacy";
+import { Directory } from "expo-file-system";
 import { buildBackup } from "../services/backup";
 
 const KEEP_COUNT = 5;
@@ -15,14 +16,15 @@ export function folderLabelFromUri(uri: string): string {
   }
 }
 
-/** Whether the OS can pick a persistent writable folder (Android SAF). */
+/** Folder picker is available on Android (persistent) and iOS (session-scoped). */
 export function canPickBackupFolder(): boolean {
-  return Platform.OS === "android";
+  return Platform.OS === "android" || Platform.OS === "ios";
 }
 
 /**
- * Ask the user to pick a folder for auto-backups (Android Storage Access Framework).
- * Returns null if cancelled or unavailable.
+ * Ask the user to pick a folder for auto-backups.
+ * Android: SAF with lasting permission.
+ * iOS: Files picker; access lasts for the current app session (Apple limitation).
  */
 export async function pickBackupFolder(): Promise<{
   uri: string;
@@ -31,41 +33,56 @@ export async function pickBackupFolder(): Promise<{
   if (!canPickBackupFolder()) {
     throw new Error("folder_picker_unavailable");
   }
-  const result =
-    await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
-  if (!result.granted || !result.directoryUri) return null;
-  return {
-    uri: result.directoryUri,
-    label: folderLabelFromUri(result.directoryUri),
-  };
+
+  if (Platform.OS === "android") {
+    const result =
+      await LegacyFS.StorageAccessFramework.requestDirectoryPermissionsAsync();
+    if (!result.granted || !result.directoryUri) return null;
+    return {
+      uri: result.directoryUri,
+      label: folderLabelFromUri(result.directoryUri),
+    };
+  }
+
+  // iOS (and any other platform with the new Directory picker)
+  try {
+    const directory = await Directory.pickDirectoryAsync();
+    if (!directory?.uri) return null;
+    return {
+      uri: directory.uri,
+      label: directory.name || folderLabelFromUri(directory.uri),
+    };
+  } catch {
+    return null;
+  }
 }
 
 async function ensureAppBackupsDir(): Promise<string> {
-  const root = FileSystem.documentDirectory;
+  const root = LegacyFS.documentDirectory;
   if (!root) throw new Error("لا يمكن الوصول لمجلد الملفات");
   const dir = `${root}backups/`;
-  const info = await FileSystem.getInfoAsync(dir);
+  const info = await LegacyFS.getInfoAsync(dir);
   if (!info.exists) {
-    await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
+    await LegacyFS.makeDirectoryAsync(dir, { intermediates: true });
   }
   return dir;
 }
 
 async function pruneAppDir(dir: string): Promise<void> {
-  const listing = await FileSystem.readDirectoryAsync(dir);
+  const listing = await LegacyFS.readDirectoryAsync(dir);
   const files = listing
     .filter((f) => f.startsWith("auto-backup-") && f.endsWith(".json"))
     .sort()
     .reverse();
   for (const old of files.slice(KEEP_COUNT)) {
-    await FileSystem.deleteAsync(`${dir}${old}`, { idempotent: true });
+    await LegacyFS.deleteAsync(`${dir}${old}`, { idempotent: true });
   }
 }
 
 async function pruneSafDir(directoryUri: string): Promise<void> {
   try {
     const listing =
-      await FileSystem.StorageAccessFramework.readDirectoryAsync(directoryUri);
+      await LegacyFS.StorageAccessFramework.readDirectoryAsync(directoryUri);
     const files = listing
       .filter((u) => {
         const name = folderLabelFromUri(u).toLowerCase();
@@ -74,16 +91,56 @@ async function pruneSafDir(directoryUri: string): Promise<void> {
       .sort()
       .reverse();
     for (const old of files.slice(KEEP_COUNT)) {
-      await FileSystem.deleteAsync(old, { idempotent: true });
+      await LegacyFS.deleteAsync(old, { idempotent: true });
     }
   } catch {
-    // Best-effort prune; ignore SAF listing errors
+    // Best-effort prune
   }
+}
+
+async function prunePickedDirectory(directoryUri: string): Promise<void> {
+  try {
+    const dir = new Directory(directoryUri);
+    const entries = dir.list();
+    const files = entries
+      .filter((e) => {
+        const name = ("name" in e ? e.name : "").toLowerCase();
+        return name.includes("auto-backup-") && name.endsWith(".json");
+      })
+      .sort((a, b) => {
+        const an = "name" in a ? a.name : "";
+        const bn = "name" in b ? b.name : "";
+        return bn.localeCompare(an);
+      });
+    for (const old of files.slice(KEEP_COUNT)) {
+      try {
+        if ("delete" in old && typeof old.delete === "function") {
+          old.delete();
+        }
+      } catch {
+        // ignore
+      }
+    }
+  } catch {
+    // Best-effort prune
+  }
+}
+
+/** Write into a user-picked Directory (iOS Files / modern FS API). */
+function writeToPickedDirectory(
+  directoryUri: string,
+  fileName: string,
+  json: string
+): string {
+  const dir = new Directory(directoryUri);
+  const file = dir.createFile(fileName, "application/json");
+  file.write(json);
+  return file.uri;
 }
 
 /**
  * Write a silent backup JSON.
- * Uses the chosen SAF folder when set; otherwise app documents/backups.
+ * Uses the chosen folder when set; otherwise app documents/backups.
  */
 export async function writeBackupToLocation(
   directoryUri: string | null,
@@ -93,24 +150,35 @@ export async function writeBackupToLocation(
   const json = JSON.stringify(payload, null, 2);
   const fileName = `${prefix}-${Date.now()}.json`;
 
-  if (directoryUri && Platform.OS === "android") {
-    const fileUri =
-      await FileSystem.StorageAccessFramework.createFileAsync(
-        directoryUri,
-        fileName,
-        "application/json"
-      );
-    await FileSystem.writeAsStringAsync(fileUri, json, {
-      encoding: FileSystem.EncodingType.UTF8,
-    });
-    await pruneSafDir(directoryUri);
-    return fileUri;
+  if (directoryUri) {
+    try {
+      if (Platform.OS === "android") {
+        const fileUri =
+          await LegacyFS.StorageAccessFramework.createFileAsync(
+            directoryUri,
+            fileName,
+            "application/json"
+          );
+        await LegacyFS.writeAsStringAsync(fileUri, json, {
+          encoding: LegacyFS.EncodingType.UTF8,
+        });
+        await pruneSafDir(directoryUri);
+        return fileUri;
+      }
+
+      // iOS picked folder (session-scoped security access)
+      const uri = writeToPickedDirectory(directoryUri, fileName, json);
+      await prunePickedDirectory(directoryUri);
+      return uri;
+    } catch {
+      // Access expired (common on iOS after restart) → fall back to app storage
+    }
   }
 
   const dir = await ensureAppBackupsDir();
   const path = `${dir}${fileName}`;
-  await FileSystem.writeAsStringAsync(path, json, {
-    encoding: FileSystem.EncodingType.UTF8,
+  await LegacyFS.writeAsStringAsync(path, json, {
+    encoding: LegacyFS.EncodingType.UTF8,
   });
   await pruneAppDir(dir);
   return path;

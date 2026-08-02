@@ -39,6 +39,7 @@ export const ar = {
   monthStarNone: "لا يوجد نجم بعد",
   noSessionsToday: "لا توجد حصص اليوم",
   brandTagline: "منصة الهندسة والتعليم الذكي",
+  homeWelcome: "مرحباً،",
   selectMonth: "الشهر الدراسي",
   currency: "ج.م",
 

@@ -25,10 +25,23 @@ import { listUpcomingSessions } from "@/src/repositories";
 import { formatDateTimeAr, formatMoney } from "@/src/utils/date";
 import type { GroupSession } from "@/src/db/types";
 import { colors, groupAccentColor, spacing } from "@/src/theme/colors";
-import { rtlText } from "@/src/theme/rtl";
+import { rtlRow, rtlText } from "@/src/theme/rtl";
 import { useTutorProfile } from "@/src/profile/TutorProfileContext";
 
 const LOGO = require("../../assets/images/logo.png");
+
+/** Welcome line under logo/profile: waving hand + tutor name. */
+function WelcomeRow({ name }: { name: string }) {
+  if (!name.trim()) return null;
+  return (
+    <View style={styles.welcomeRow}>
+      <Text style={styles.welcomeWave}>👋</Text>
+      <Text style={styles.welcomeText} numberOfLines={1}>
+        {t("homeWelcome")} {name.trim()}
+      </Text>
+    </View>
+  );
+}
 
 const ICONS = {
   today: require("../../assets/icons/icon-today.png"),
@@ -79,14 +92,10 @@ export default function HomeScreen() {
             <View style={styles.profileRing}>
               <Image source={profileSource} style={styles.profile} />
             </View>
-            {tutorName ? (
-              <Text style={styles.tutorName} numberOfLines={1}>
-                {tutorName}
-              </Text>
-            ) : null}
           </View>
           <Image source={LOGO} style={styles.logo} resizeMode="contain" />
         </View>
+        <WelcomeRow name={tutorName} />
         <Muted>{t("brandTagline")}</Muted>
         <EmptyState message={t("noActiveYear")} />
         <IconActionBar
@@ -125,17 +134,13 @@ export default function HomeScreen() {
             <View style={styles.profileRing}>
               <Image source={profileSource} style={styles.profile} />
             </View>
-            {tutorName ? (
-              <Text style={styles.tutorName} numberOfLines={1}>
-                {tutorName}
-              </Text>
-            ) : null}
           </View>
           <View style={styles.logoCol}>
             <Image source={LOGO} style={styles.logo} resizeMode="contain" />
             <Muted>{activeYear.name}</Muted>
           </View>
         </View>
+        <WelcomeRow name={tutorName} />
 
         <Text style={styles.section}>{t("nextSession")}</Text>
         {!nextSession ? (
@@ -204,7 +209,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     gap: spacing.md,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.sm,
   },
   logoCol: {
     flex: 1,
@@ -237,13 +242,22 @@ const styles = StyleSheet.create({
     height: "100%",
     resizeMode: "cover",
   },
-  tutorName: {
+  welcomeRow: {
+    ...rtlRow(),
+    alignItems: "center",
+    gap: 8,
+    marginBottom: spacing.lg,
+    width: "100%",
+  },
+  welcomeWave: {
+    fontSize: 22,
+  },
+  welcomeText: {
     ...rtlText,
-    marginTop: 6,
-    fontSize: 12,
+    flexShrink: 1,
+    fontSize: 18,
     fontWeight: "800",
     color: colors.text,
-    textAlign: "center",
   },
   section: {
     ...rtlText,

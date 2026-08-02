@@ -386,6 +386,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     color: colors.text,
     fontSize: 16,
+    fontFamily: fonts.regular,
     writingDirection: "rtl",
     textAlign: "right",
     width: "100%",

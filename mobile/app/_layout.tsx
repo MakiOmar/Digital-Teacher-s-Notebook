@@ -16,7 +16,7 @@ import {
   Cairo_800ExtraBold,
 } from "@expo-google-fonts/cairo";
 import { colors } from "@/src/theme/colors";
-import { applyCairoDefaults, fonts } from "@/src/theme/typography";
+import { fonts } from "@/src/theme/typography";
 import { AppDataProvider, useAppData } from "@/src/contexts/AppDataContext";
 import { AppShell, SplashBackground } from "@/src/components/AppBackground";
 import { DialogProvider } from "@/src/components/DialogProvider";
@@ -177,11 +177,6 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    if (!fontsLoaded) return;
-    applyCairoDefaults();
-  }, [fontsLoaded]);
-
-  useEffect(() => {
     if (!appReady || !fontsLoaded) return;
     const id = setTimeout(() => {
       void SplashScreen.hideAsync().catch(() => undefined);
@@ -219,6 +214,7 @@ export default function RootLayout() {
                         // No page titles — back button only on stack screens
                         headerShown: true,
                         headerTitle: "",
+                        headerTitleStyle: { fontFamily: fonts.bold },
                         headerShadowVisible: false,
                         headerStyle: { backgroundColor: "transparent" },
                         headerTintColor: colors.text,

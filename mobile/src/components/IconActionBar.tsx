@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import type { ComponentProps } from "react";
 import { colors, radii, spacing } from "../theme/colors";
+import { fonts } from "../theme/typography";
 import { rtlRow, rtlText } from "../theme/rtl";
 
 export type IconAction = {
@@ -89,6 +90,7 @@ const styles = StyleSheet.create({
   caption: {
     ...rtlText,
     fontSize: 11,
+    fontFamily: fonts.bold,
     fontWeight: "700",
     color: colors.textMuted,
     maxWidth: 72,

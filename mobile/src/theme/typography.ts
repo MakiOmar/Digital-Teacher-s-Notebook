@@ -1,4 +1,9 @@
-import { Text, TextInput, TextStyle } from "react-native";
+import {
+  Platform,
+  StyleSheet,
+  type StyleProp,
+  type TextStyle,
+} from "react-native";
 
 /** Cairo font family names from @expo-google-fonts/cairo */
 export const fonts = {
@@ -11,37 +16,66 @@ export const fonts = {
 export const fontRegular: TextStyle = { fontFamily: fonts.regular };
 export const fontSemiBold: TextStyle = {
   fontFamily: fonts.semiBold,
-  fontWeight: "600",
+  fontWeight: Platform.OS === "android" ? "normal" : "600",
 };
 export const fontBold: TextStyle = {
   fontFamily: fonts.bold,
-  fontWeight: "700",
+  fontWeight: Platform.OS === "android" ? "normal" : "700",
 };
 export const fontExtraBold: TextStyle = {
   fontFamily: fonts.extraBold,
-  fontWeight: "800",
+  fontWeight: Platform.OS === "android" ? "normal" : "800",
 };
 
-/** Apply Cairo as the default Text / TextInput face app-wide. */
-export function applyCairoDefaults(): void {
-  const base: TextStyle = { fontFamily: fonts.regular };
+const CAIRO_FAMILIES = new Set<string>(Object.values(fonts));
 
-  // defaultProps is the reliable way to set a global face in RN
-  const TextComp = Text as typeof Text & {
-    defaultProps?: { style?: TextStyle | TextStyle[] };
-  };
-  const prevText = TextComp.defaultProps?.style;
-  TextComp.defaultProps = {
-    ...TextComp.defaultProps,
-    style: prevText ? [prevText, base].flat() : base,
-  };
+/** Map RN fontWeight → the matching Cairo face file. */
+export function cairoFamilyForWeight(
+  weight?: TextStyle["fontWeight"]
+): string {
+  const w = String(weight ?? "400").toLowerCase();
+  if (w === "bold" || w === "700") return fonts.bold;
+  if (w === "800" || w === "900") return fonts.extraBold;
+  if (w === "600" || w === "500" || w === "semibold" || w === "medium") {
+    return fonts.semiBold;
+  }
+  return fonts.regular;
+}
 
-  const InputComp = TextInput as typeof TextInput & {
-    defaultProps?: { style?: TextStyle | TextStyle[] };
-  };
-  const prevInput = InputComp.defaultProps?.style;
-  InputComp.defaultProps = {
-    ...InputComp.defaultProps,
-    style: prevInput ? [prevInput, base].flat() : base,
-  };
+/**
+ * Force Cairo on any text style.
+ * On Android, pairing a custom fontFamily with fontWeight often falls back to
+ * Roboto — so we pick the bold face file and reset weight to normal.
+ */
+export function resolveCairoStyle(
+  style: StyleProp<TextStyle> | undefined
+): StyleProp<TextStyle> {
+  const flat = StyleSheet.flatten(style) ?? ({} as TextStyle);
+  const existingFamily =
+    typeof flat.fontFamily === "string" ? flat.fontFamily : undefined;
+
+  // Honor an explicit non-Cairo family (e.g. icon fonts) if one was set
+  if (existingFamily && !CAIRO_FAMILIES.has(existingFamily)) {
+    const looksSystem =
+      /^(system|sans-serif|roboto|arial|helvetica)/i.test(existingFamily);
+    if (!looksSystem) {
+      return style;
+    }
+  }
+
+  let family = cairoFamilyForWeight(flat.fontWeight);
+  if (
+    existingFamily &&
+    CAIRO_FAMILIES.has(existingFamily) &&
+    (!flat.fontWeight ||
+      flat.fontWeight === "normal" ||
+      flat.fontWeight === "400")
+  ) {
+    family = existingFamily;
+  }
+
+  if (Platform.OS === "android") {
+    return [style, { fontFamily: family, fontWeight: "normal" }];
+  }
+  return [style, { fontFamily: family }];
 }

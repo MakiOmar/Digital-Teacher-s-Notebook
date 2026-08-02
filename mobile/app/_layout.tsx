@@ -12,6 +12,11 @@ import { colors } from "@/src/theme/colors";
 import { AppDataProvider, useAppData } from "@/src/contexts/AppDataContext";
 import { AppShell, SplashBackground } from "@/src/components/AppBackground";
 import { DialogProvider } from "@/src/components/DialogProvider";
+import {
+  LicenseProvider,
+  useLicense,
+} from "@/src/license/LicenseContext";
+import { LicenseActivateScreen } from "@/src/license/LicenseActivateScreen";
 
 const RTL_RELOAD_KEY = "tutoring.rtl.reload.v1";
 
@@ -40,6 +45,7 @@ function Bootstrap({
   onAppReady: () => void;
 }) {
   const { ready, error } = useAppData();
+  const { status: licenseStatus, ready: licenseReady } = useLicense();
   const [rtlReady, setRtlReady] = useState(I18nManager.isRTL);
   const [forceShow, setForceShow] = useState(false);
 
@@ -69,11 +75,13 @@ function Bootstrap({
     };
   }, []);
 
+  const bootReady = ready && rtlReady && licenseReady;
+
   useEffect(() => {
-    if (ready && rtlReady) {
+    if (bootReady) {
       onAppReady();
     }
-  }, [ready, rtlReady, onAppReady]);
+  }, [bootReady, onAppReady]);
 
   // Fail-safe: never stay on splash if init hangs.
   useEffect(() => {
@@ -81,11 +89,11 @@ function Bootstrap({
       setRtlReady(true);
       setForceShow(true);
       onAppReady();
-    }, 5000);
+    }, 8000);
     return () => clearTimeout(id);
   }, [onAppReady]);
 
-  if ((!ready || !rtlReady) && !forceShow) {
+  if ((!bootReady) && !forceShow) {
     return (
       <View style={styles.bootPlaceholder}>
         <SplashBackground />
@@ -99,6 +107,19 @@ function Bootstrap({
       </View>
     );
   }
+
+  // Full-app license gate (only after license resolved, or fail-safe)
+  if (licenseStatus === "locked") {
+    return <LicenseActivateScreen />;
+  }
+  if (licenseStatus !== "unlocked") {
+    return (
+      <View style={styles.bootPlaceholder}>
+        <SplashBackground />
+      </View>
+    );
+  }
+
   return <>{children}</>;
 }
 
@@ -125,39 +146,42 @@ export default function RootLayout() {
     <SafeAreaProvider style={styles.root}>
       <StatusBar style="dark" />
       <AppDataProvider>
-        <DialogProvider>
-          <Bootstrap onAppReady={onAppReady}>
-            <AppShell>
-              <Stack
-                screenOptions={{
-                  // No page titles — back button only on stack screens
-                  headerShown: true,
-                  headerTitle: "",
-                  headerShadowVisible: false,
-                  headerStyle: { backgroundColor: "transparent" },
-                  headerTintColor: colors.text,
-                  contentStyle: { backgroundColor: "transparent" },
-                }}
-              >
-                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                <Stack.Screen name="groups/form" />
-                <Stack.Screen name="groups/[id]" />
-                <Stack.Screen name="groups/add-students" />
-                <Stack.Screen name="groups/round-payments" />
-                <Stack.Screen name="groups/sessions" />
-                <Stack.Screen name="attendance/[sessionId]" />
-                <Stack.Screen name="students/form" />
-                <Stack.Screen name="students/[id]" />
-                <Stack.Screen name="payments/form" />
-                <Stack.Screen name="payments/dues" />
-                <Stack.Screen name="years/index" />
-                <Stack.Screen name="years/form" />
-                <Stack.Screen name="backup" />
-                <Stack.Screen name="about" />
-              </Stack>
-            </AppShell>
-          </Bootstrap>
-        </DialogProvider>
+        <LicenseProvider>
+          <DialogProvider>
+            <Bootstrap onAppReady={onAppReady}>
+              <AppShell>
+                <Stack
+                  screenOptions={{
+                    // No page titles — back button only on stack screens
+                    headerShown: true,
+                    headerTitle: "",
+                    headerShadowVisible: false,
+                    headerStyle: { backgroundColor: "transparent" },
+                    headerTintColor: colors.text,
+                    contentStyle: { backgroundColor: "transparent" },
+                  }}
+                >
+                  <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                  <Stack.Screen name="groups/form" />
+                  <Stack.Screen name="groups/[id]" />
+                  <Stack.Screen name="groups/add-students" />
+                  <Stack.Screen name="groups/round-payments" />
+                  <Stack.Screen name="groups/sessions" />
+                  <Stack.Screen name="attendance/[sessionId]" />
+                  <Stack.Screen name="students/form" />
+                  <Stack.Screen name="students/[id]" />
+                  <Stack.Screen name="payments/form" />
+                  <Stack.Screen name="payments/dues" />
+                  <Stack.Screen name="years/index" />
+                  <Stack.Screen name="years/form" />
+                  <Stack.Screen name="backup" />
+                  <Stack.Screen name="about" />
+                  <Stack.Screen name="license-manage" />
+                </Stack>
+              </AppShell>
+            </Bootstrap>
+          </DialogProvider>
+        </LicenseProvider>
       </AppDataProvider>
     </SafeAreaProvider>
   );

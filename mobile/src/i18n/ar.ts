@@ -203,6 +203,34 @@ export const ar = {
   about: "عن التطبيق",
   aboutText: "تطبيق محلي لإدارة مجموعات التدريس والاشتراكات الشهرية والحضور بدون سيرفر.",
 
+  // License (ULSP)
+  license: "الترخيص",
+  licenseActivateTitle: "تفعيل الترخيص",
+  licenseActivateHint:
+    "أدخل مفتاح الترخيص الذي اشتريته لتفعيل التطبيق على هذا الجهاز.",
+  licenseKey: "مفتاح الترخيص",
+  licenseKeyRequired: "أدخل مفتاح الترخيص",
+  licenseActivate: "تفعيل",
+  licenseActivated: "تم تفعيل الترخيص بنجاح",
+  licenseInvalid: "الترخيص غير صالح",
+  licenseNetworkError: "تعذر الاتصال بخادم الترخيص. تحقق من الإنترنت وحاول مرة أخرى.",
+  licenseGraceExpired:
+    "انتهت فترة الاستخدام دون اتصال. اتصل بالإنترنت لإعادة التحقق من الترخيص.",
+  licenseDeviceNotRegistered: "هذا الجهاز غير مسجّل على الترخيص. أعد التفعيل.",
+  licenseReasonNotFound: "مفتاح الترخيص غير معروف",
+  licenseReasonSuspended: "الترخيص موقوف من الإدارة",
+  licenseReasonCancelled: "الترخيص ملغى",
+  licenseReasonExpired: "انتهت صلاحية الترخيص",
+  licenseRemove: "إزالة",
+  licenseRemoveConfirm:
+    "سيتم إلغاء ربط هذا الجهاز بالترخيص. هل تريد المتابعة؟",
+  licenseRemoved: "تم إزالة الترخيص",
+  licenseRecheck: "تحقق",
+  licenseRechecked: "تم التحقق من الترخيص",
+  licenseExpires: "ينتهي في",
+  licenseLastCheck: "آخر تحقق",
+  licenseStatusActive: "الحالة: مفعّل على هذا الجهاز",
+
   // Weekdays
   sun: "الأحد",
   mon: "الإثنين",

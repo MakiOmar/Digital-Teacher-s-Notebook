@@ -1,0 +1,77 @@
+---
+description: Integrate ULSP license activate/validate gate into Expo React Native apps
+globs: **/app/_layout.tsx,**/src/license/**/*,**/src/config/ulsp.ts
+alwaysApply: false
+---
+
+# ULSP license unlock (Expo + React Native)
+
+Use this checklist when adding paid license unlock to an Expo Router app. Match the pattern proven in `tutoring-manager/mobile`.
+
+## Config
+
+Create `src/config/ulsp.ts`:
+
+- `ULSP_API_BASE` from `EXPO_PUBLIC_ULSP_API_BASE` (default product host + `/api/v1`, no trailing slash)
+- `ULSP_API_KEY` from `EXPO_PUBLIC_ULSP_API_KEY` (product key — **never** put a real key in this rule or in shared templates)
+- `ULSP_GRACE_MS` = 7 days offline grace after last successful validate
+- `ULSP_ACTIVATION_TYPE` = `"device_id"`
+
+Install: `npx expo install expo-secure-store expo-crypto` and ensure `expo-secure-store` is in `app.json` plugins.
+
+## API contract
+
+Base: `{ULSP_API_BASE}`  
+Headers: `Accept`, `Content-Type: application/json`, `X-API-Key: {ULSP_API_KEY}`
+
+| Action | Method | Path | Body |
+|--------|--------|------|------|
+| Activate | POST | `/licenses/activate` | `license_key`, `activation_type`, `activation_value` |
+| Validate | POST | `/licenses/validate` | same (device fields **required** on mobile) |
+| Deactivate | POST | `/licenses/deactivate` | `license_key`, `activation_hash` |
+
+Unlock only when `valid === true` **and** `activation_valid === true` (when device fields were sent).
+
+Store after activate: `license_key`, `activation_hash`, `device_id`, `last_validated_at`, optional `expires_at` in **SecureStore only** — never SQLite / backups / AsyncStorage for secrets.
+
+## Module layout
+
+```
+src/license/
+  deviceId.ts      # getOrCreateDeviceId() → UUID in SecureStore
+  storage.ts       # load/save/clear + maskLicenseKey
+  api.ts           # activate / validate / deactivate + UlspApiError
+  LicenseContext.tsx
+  LicenseActivateScreen.tsx
+app/license-manage.tsx   # status, re-check, deactivate
+```
+
+## Root gate
+
+In `app/_layout.tsx`:
+
+1. Wrap app with `LicenseProvider` (alongside existing providers).
+2. Bootstrap waits for `license.ready` as well as DB/app ready.
+3. If `status === "locked"` → render `LicenseActivateScreen` instead of main Stack.
+4. If unlocked → normal navigation.
+5. Offline: if validate fails with network error and `last_validated_at` within grace → stay unlocked; else lock.
+
+On launch when key exists but `activation_valid === false`, re-call activate then unlock.
+
+## UI
+
+- Locked: full-screen activate (paste key, submit, show API/`reason` errors).
+- Unlocked: More / Settings entry → manage screen (masked key, expiry, re-check, remove/deactivate).
+- Use existing app dialogs/toasts — do not use `Alert.alert`.
+
+## Do / Don't
+
+- Do send `device_id` on every validate.
+- Do clear SecureStore after deactivate (even if API fails).
+- Do keep license out of backup export tables.
+- Don't gate only individual tabs — use root layout gate.
+- Don't hard-code product API keys into Cursor rules or sample snippets; use env placeholders.
+
+## Reference
+
+Full API details: ULSP `docs/MOBILE_APP_LICENSE_INTEGRATION.md` (OpenAPI under `docs/openapi/`).

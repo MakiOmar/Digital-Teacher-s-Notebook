@@ -52,6 +52,12 @@ export default function MoreTab() {
           onPress={() => router.push("/backup")}
         />
         <MenuCard
+          title={t("license")}
+          icon={ICONS.more}
+          borderColor={colors.success}
+          onPress={() => router.push("/license-manage" as never)}
+        />
+        <MenuCard
           title={t("about")}
           icon={ICONS.more}
           borderColor={colors.textMuted}

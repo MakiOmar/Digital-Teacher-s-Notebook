@@ -1,6 +1,7 @@
 import { Tabs } from "expo-router";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { colors } from "@/src/theme/colors";
+import { fonts } from "@/src/theme/typography";
 import { t } from "@/src/i18n/ar";
 
 function TabIcon(props: {
@@ -22,7 +23,11 @@ export default function TabLayout() {
           borderTopColor: colors.border,
         },
         sceneStyle: { backgroundColor: "transparent" },
-        tabBarLabelStyle: { fontWeight: "700", fontSize: 11 },
+        tabBarLabelStyle: {
+          fontFamily: fonts.bold,
+          fontWeight: "700",
+          fontSize: 11,
+        },
       }}
     >
       <Tabs.Screen

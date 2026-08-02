@@ -1,4 +1,5 @@
 import { I18nManager, TextStyle, ViewStyle } from "react-native";
+import { fonts } from "./typography";
 
 /** App is Arabic-only. Prefer explicit visual RTL that works with forceRTL. */
 export const APP_RTL = true;
@@ -54,6 +55,7 @@ export function rtlChipRow(): ViewStyle {
 export const rtlText: TextStyle = {
   textAlign: visualTextAlign(),
   writingDirection: "rtl",
+  fontFamily: fonts.regular,
 };
 
 /** Full-width block so textAlign is visible. */

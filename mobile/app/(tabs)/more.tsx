@@ -1,5 +1,6 @@
 import { useRouter } from "expo-router";
-import { StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MenuCard, Screen, Title } from "@/src/components/ui";
 import { t } from "@/src/i18n/ar";
 import { colors, spacing } from "@/src/theme/colors";
@@ -14,62 +15,77 @@ const ICONS = {
   more: require("../../assets/icons/icon-more.png"),
 };
 
+/** Approximate default bottom tab bar content height (excluding safe area). */
+const TAB_BAR_CONTENT = 56;
+
 export default function MoreTab() {
   const router = useRouter();
   const { activeYear } = useAppData();
+  const insets = useSafeAreaInsets();
+  const bottomClearance = TAB_BAR_CONTENT + insets.bottom + spacing.xl;
 
   return (
-    <Screen>
-      <Title>{t("more")}</Title>
-      {activeYear ? (
-        <Text style={styles.meta}>
-          {t("activeYear")}: {activeYear.name}
-        </Text>
-      ) : null}
-      <View style={{ marginTop: spacing.md }}>
-        <MenuCard
-          title={t("students")}
-          icon={ICONS.students}
-          borderColor="#8B5CF6"
-          onPress={() => router.push("/students" as never)}
-        />
-        <MenuCard
-          title={t("weeklySchedule")}
-          icon={ICONS.schedule}
-          borderColor={colors.primary}
-          onPress={() => router.push("/schedule" as never)}
-        />
-        <MenuCard
-          title={t("academicYears")}
-          icon={ICONS.years}
-          borderColor={colors.accent}
-          onPress={() => router.push("/years")}
-        />
-        <MenuCard
-          title={t("tutorProfile")}
-          icon={ICONS.more}
-          borderColor={colors.primary}
-          onPress={() => router.push("/profile-edit" as never)}
-        />
-        <MenuCard
-          title={t("backup")}
-          icon={ICONS.backup}
-          borderColor={colors.warning}
-          onPress={() => router.push("/backup")}
-        />
-        <MenuCard
-          title={t("license")}
-          icon={ICONS.more}
-          borderColor={colors.success}
-          onPress={() => router.push("/license-manage" as never)}
-        />
-        <MenuCard
-          title={t("about")}
-          icon={ICONS.more}
-          borderColor={colors.textMuted}
-          onPress={() => router.push("/about")}
-        />
-      </View>
+    <Screen padded={false} style={{ flex: 1 }}>
+      <ScrollView
+        contentContainerStyle={{
+          paddingHorizontal: spacing.lg,
+          paddingTop: spacing.sm,
+          // Clear the tab bar so the last card stays reachable
+          paddingBottom: bottomClearance,
+        }}
+        showsVerticalScrollIndicator={false}
+      >
+        <Title>{t("more")}</Title>
+        {activeYear ? (
+          <Text style={styles.meta}>
+            {t("activeYear")}: {activeYear.name}
+          </Text>
+        ) : null}
+        <View style={{ marginTop: spacing.md }}>
+          <MenuCard
+            title={t("students")}
+            icon={ICONS.students}
+            borderColor="#8B5CF6"
+            onPress={() => router.push("/students" as never)}
+          />
+          <MenuCard
+            title={t("weeklySchedule")}
+            icon={ICONS.schedule}
+            borderColor={colors.primary}
+            onPress={() => router.push("/schedule" as never)}
+          />
+          <MenuCard
+            title={t("academicYears")}
+            icon={ICONS.years}
+            borderColor={colors.accent}
+            onPress={() => router.push("/years")}
+          />
+          <MenuCard
+            title={t("tutorProfile")}
+            icon={ICONS.more}
+            borderColor={colors.primary}
+            onPress={() => router.push("/profile-edit" as never)}
+          />
+          <MenuCard
+            title={t("backup")}
+            icon={ICONS.backup}
+            borderColor={colors.warning}
+            onPress={() => router.push("/backup")}
+          />
+          <MenuCard
+            title={t("license")}
+            icon={ICONS.more}
+            borderColor={colors.success}
+            onPress={() => router.push("/license-manage" as never)}
+          />
+          <MenuCard
+            title={t("about")}
+            icon={ICONS.more}
+            borderColor={colors.textMuted}
+            onPress={() => router.push("/about")}
+          />
+        </View>
+      </ScrollView>
     </Screen>
   );
 }

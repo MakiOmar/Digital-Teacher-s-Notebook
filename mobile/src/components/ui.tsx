@@ -12,6 +12,7 @@ import {
   StyleProp,
 } from "react-native";
 import { colors, radii, spacing } from "../theme/colors";
+import { fonts, fontBold, fontExtraBold, fontSemiBold } from "../theme/typography";
 import { rtlRow, rtlText, rtlBlock, rtlChipRow, inputShell, inputTextAlign } from "../theme/rtl";
 
 export function Screen({
@@ -326,17 +327,19 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 22,
-    fontWeight: "700",
+    ...fontBold,
     color: colors.text,
     ...rtlText,
+    fontFamily: fonts.bold,
     width: "100%",
     marginBottom: spacing.sm,
   },
   sectionTitle: {
     fontSize: 17,
-    fontWeight: "700",
+    ...fontBold,
     color: colors.text,
     ...rtlText,
+    fontFamily: fonts.bold,
     width: "100%",
     marginBottom: 6,
   },
@@ -361,7 +364,7 @@ const styles = StyleSheet.create({
   },
   btnText: {
     color: "#fff",
-    fontWeight: "700",
+    ...fontBold,
     fontSize: 15,
     textAlign: "center",
     writingDirection: "rtl",
@@ -372,7 +375,7 @@ const styles = StyleSheet.create({
     width: "100%",
     marginBottom: 6,
     color: colors.text,
-    fontWeight: "600",
+    ...fontSemiBold,
   },
   input: {
     borderWidth: 1,
@@ -404,13 +407,14 @@ const styles = StyleSheet.create({
   },
   rowTitle: {
     fontSize: 16,
-    fontWeight: "700",
+    ...fontBold,
     color: colors.text,
     ...rtlText,
+    fontFamily: fonts.bold,
   },
   rowRight: {
     color: colors.primary,
-    fontWeight: "700",
+    ...fontBold,
     writingDirection: "rtl",
   },
   card: {
@@ -453,9 +457,10 @@ const styles = StyleSheet.create({
   },
   menuTitle: {
     fontSize: 17,
-    fontWeight: "800",
+    ...fontExtraBold,
     color: colors.text,
     ...rtlText,
+    fontFamily: fonts.extraBold,
   },
   stat: {
     borderRadius: radii.md,
@@ -472,7 +477,8 @@ const styles = StyleSheet.create({
   statValue: {
     ...rtlText,
     fontSize: 22,
-    fontWeight: "800",
+    ...fontExtraBold,
+    fontFamily: fonts.extraBold,
     color: colors.text,
   },
   chipRow: {
@@ -495,8 +501,9 @@ const styles = StyleSheet.create({
   },
   chipText: {
     color: colors.text,
-    fontWeight: "600",
+    ...fontSemiBold,
     ...rtlText,
+    fontFamily: fonts.semiBold,
   },
   chipTextSelected: { color: "#fff" },
 });

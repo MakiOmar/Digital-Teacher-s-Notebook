@@ -8,7 +8,15 @@ import { AppState, I18nManager, StyleSheet, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
+import {
+  useFonts,
+  Cairo_400Regular,
+  Cairo_600SemiBold,
+  Cairo_700Bold,
+  Cairo_800ExtraBold,
+} from "@expo-google-fonts/cairo";
 import { colors } from "@/src/theme/colors";
+import { applyCairoDefaults, fonts } from "@/src/theme/typography";
 import { AppDataProvider, useAppData } from "@/src/contexts/AppDataContext";
 import { AppShell, SplashBackground } from "@/src/components/AppBackground";
 import { DialogProvider } from "@/src/components/DialogProvider";
@@ -150,14 +158,25 @@ function Bootstrap({
 export default function RootLayout() {
   const [appReady, setAppReady] = useState(false);
   const onAppReady = useCallback(() => setAppReady(true), []);
+  const [fontsLoaded] = useFonts({
+    Cairo_400Regular,
+    Cairo_600SemiBold,
+    Cairo_700Bold,
+    Cairo_800ExtraBold,
+  });
 
   useEffect(() => {
-    if (!appReady) return;
+    if (!fontsLoaded) return;
+    applyCairoDefaults();
+  }, [fontsLoaded]);
+
+  useEffect(() => {
+    if (!appReady || !fontsLoaded) return;
     const id = setTimeout(() => {
       void SplashScreen.hideAsync().catch(() => undefined);
     }, 16);
     return () => clearTimeout(id);
-  }, [appReady]);
+  }, [appReady, fontsLoaded]);
 
   useEffect(() => {
     const id = setTimeout(() => {
@@ -165,6 +184,14 @@ export default function RootLayout() {
     }, 4000);
     return () => clearTimeout(id);
   }, []);
+
+  if (!fontsLoaded) {
+    return (
+      <View style={styles.root}>
+        <SplashBackground />
+      </View>
+    );
+  }
 
   return (
     <SafeAreaProvider style={styles.root}>
@@ -229,5 +256,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     writingDirection: "rtl",
     width: "100%",
+    fontFamily: fonts.regular,
   },
 });

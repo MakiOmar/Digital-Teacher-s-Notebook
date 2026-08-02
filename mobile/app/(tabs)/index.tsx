@@ -25,6 +25,7 @@ import { listUpcomingSessions } from "@/src/repositories";
 import { formatDateTimeAr, formatMoney } from "@/src/utils/date";
 import type { GroupSession } from "@/src/db/types";
 import { colors, groupAccentColor, spacing } from "@/src/theme/colors";
+import { fonts } from "@/src/theme/typography";
 import { rtlRow, rtlText } from "@/src/theme/rtl";
 import { useTutorProfile } from "@/src/profile/TutorProfileContext";
 
@@ -256,6 +257,7 @@ const styles = StyleSheet.create({
     ...rtlText,
     flexShrink: 1,
     fontSize: 18,
+    fontFamily: fonts.extraBold,
     fontWeight: "800",
     color: colors.text,
   },
@@ -263,6 +265,7 @@ const styles = StyleSheet.create({
     ...rtlText,
     width: "100%",
     fontSize: 16,
+    fontFamily: fonts.extraBold,
     fontWeight: "800",
     color: colors.text,
     marginBottom: spacing.sm,
@@ -271,6 +274,7 @@ const styles = StyleSheet.create({
   sessionTitle: {
     ...rtlText,
     width: "100%",
+    fontFamily: fonts.extraBold,
     fontWeight: "800",
     fontSize: 18,
     color: colors.text,

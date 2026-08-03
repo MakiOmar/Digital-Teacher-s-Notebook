@@ -9,10 +9,9 @@ import { useAppData } from "@/src/contexts/AppDataContext";
 
 const ICONS = {
   years: require("../../assets/icons/icon-years.png"),
-  students: require("../../assets/icons/icon-students.png"),
-  schedule: require("../../assets/icons/icon-schedule.png"),
   backup: require("../../assets/icons/icon-backup.png"),
   more: require("../../assets/icons/icon-more.png"),
+  payments: require("../../assets/icons/icon-payments.png"),
 };
 
 /** Approximate default bottom tab bar content height (excluding safe area). */
@@ -30,7 +29,6 @@ export default function MoreTab() {
         contentContainerStyle={{
           paddingHorizontal: spacing.lg,
           paddingTop: spacing.sm,
-          // Clear the tab bar so the last card stays reachable
           paddingBottom: bottomClearance,
         }}
         showsVerticalScrollIndicator={false}
@@ -42,18 +40,6 @@ export default function MoreTab() {
           </Text>
         ) : null}
         <View style={{ marginTop: spacing.md }}>
-          <MenuCard
-            title={t("students")}
-            icon={ICONS.students}
-            borderColor="#8B5CF6"
-            onPress={() => router.push("/students" as never)}
-          />
-          <MenuCard
-            title={t("weeklySchedule")}
-            icon={ICONS.schedule}
-            borderColor={colors.primary}
-            onPress={() => router.push("/schedule" as never)}
-          />
           <MenuCard
             title={t("academicYears")}
             icon={ICONS.years}
@@ -71,6 +57,18 @@ export default function MoreTab() {
             icon={ICONS.backup}
             borderColor={colors.warning}
             onPress={() => router.push("/backup")}
+          />
+          <MenuCard
+            title={t("reminders")}
+            icon={ICONS.more}
+            borderColor={colors.accent}
+            onPress={() => router.push("/reminders" as never)}
+          />
+          <MenuCard
+            title={t("reports")}
+            icon={ICONS.payments}
+            borderColor="#14B8A6"
+            onPress={() => router.push("/reports" as never)}
           />
           <MenuCard
             title={t("appLock")}

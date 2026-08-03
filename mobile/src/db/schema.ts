@@ -82,7 +82,8 @@ CREATE TABLE IF NOT EXISTS group_sessions (
   session_index INTEGER NOT NULL DEFAULT 1,
   status TEXT NOT NULL DEFAULT 'scheduled',
   source TEXT NOT NULL DEFAULT 'auto',
-  star_student_id INTEGER REFERENCES students(id) ON DELETE SET NULL
+  star_student_id INTEGER REFERENCES students(id) ON DELETE SET NULL,
+  notes TEXT
 );
 
 CREATE TABLE IF NOT EXISTS attendances (

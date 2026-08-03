@@ -654,6 +654,94 @@ export async function updateSessionStatus(
   ]);
 }
 
+export async function updateSessionNotes(
+  id: number,
+  notes: string | null
+): Promise<void> {
+  const db = await getDb();
+  await db.runAsync("UPDATE group_sessions SET notes = ? WHERE id = ?", [
+    notes,
+    id,
+  ]);
+}
+
+/** Recent attendance rows for a student (newest first). */
+export async function listStudentAttendanceHistory(
+  studentId: number,
+  limit = 20
+): Promise<
+  {
+    session_id: number;
+    starts_at: string;
+    group_name: string;
+    status: string;
+  }[]
+> {
+  const db = await getDb();
+  return db.getAllAsync(
+    `SELECT a.session_id, gs.starts_at, g.name as group_name, a.status
+     FROM attendances a
+     JOIN group_sessions gs ON gs.id = a.session_id
+     JOIN groups g ON g.id = gs.group_id
+     WHERE a.student_id = ?
+     ORDER BY gs.starts_at DESC
+     LIMIT ?`,
+    [studentId, limit]
+  );
+}
+
+/** Payment rows for a student (newest first). */
+export async function listStudentPayments(
+  studentId: number,
+  limit = 30
+): Promise<
+  (Payment & {
+    group_name: string | null;
+    round_number: number | null;
+  })[]
+> {
+  const db = await getDb();
+  return db.getAllAsync(
+    `SELECT p.*, g.name as group_name, br.round_number as round_number
+     FROM payments p
+     LEFT JOIN groups g ON g.id = p.group_id
+     LEFT JOIN billing_rounds br ON br.id = p.billing_round_id
+     WHERE p.student_id = ?
+     ORDER BY p.paid_at DESC, p.id DESC
+     LIMIT ?`,
+    [studentId, limit]
+  );
+}
+
+/** Open-round unpaid remaining total for a student. */
+export async function getStudentOpenRemaining(
+  studentId: number
+): Promise<number> {
+  const { getOpenRoundsPaymentSummary } = await import("../services/rounds");
+  const summary = await getOpenRoundsPaymentSummary();
+  return summary.dues
+    .filter((d) => d.student_id === studentId)
+    .reduce((sum, d) => sum + d.remaining, 0);
+}
+
+/** Attendance rate per active enrollment student. */
+export async function getAttendanceRatesByStudent(): Promise<
+  { student_id: number; student_name: string; present: number; total: number }[]
+> {
+  const db = await getDb();
+  return db.getAllAsync(
+    `SELECT s.id as student_id, s.name as student_name,
+       SUM(CASE WHEN a.status = 'present' THEN 1 ELSE 0 END) as present,
+       COUNT(a.id) as total
+     FROM students s
+     JOIN enrollments e ON e.student_id = s.id AND e.status = 'active'
+     LEFT JOIN attendances a ON a.student_id = s.id
+     WHERE s.status = 'active'
+     GROUP BY s.id
+     ORDER BY s.name COLLATE NOCASE`
+  );
+}
+
 /** Attendance coverage per session for a group (active enrolled students). */
 export async function getSessionAttendanceCoverage(
   groupId: number

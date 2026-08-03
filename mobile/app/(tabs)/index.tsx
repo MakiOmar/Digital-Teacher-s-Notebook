@@ -11,25 +11,37 @@ import {
 import { useFocusEffect, useRouter } from "expo-router";
 import {
   EmptyState,
-  LoadingBlock,
   MenuCard,
   Muted,
   Screen,
   BorderedCard,
+  SkeletonList,
 } from "@/src/components/ui";
-import { IconActionBar } from "@/src/components/IconActionBar";
 import { useAppData } from "@/src/contexts/AppDataContext";
 import { t } from "@/src/i18n/ar";
 import { getOpenRoundsPaymentSummary } from "@/src/services/rounds";
-import { listUpcomingSessions } from "@/src/repositories";
+import {
+  listGroups,
+  listTodaysSessions,
+  listUpcomingSessions,
+} from "@/src/repositories";
+import { loadAutoBackupSettings } from "@/src/backup/autoBackup";
 import { formatDateTimeAr, formatMoney } from "@/src/utils/date";
 import type { GroupSession } from "@/src/db/types";
-import { colors, groupAccentColor, spacing } from "@/src/theme/colors";
+import { colors, groupAccentColor, radii, spacing } from "@/src/theme/colors";
 import { fonts } from "@/src/theme/typography";
 import { rtlRow, rtlText } from "@/src/theme/rtl";
 import { useTutorProfile } from "@/src/profile/TutorProfileContext";
 
 const LOGO = require("../../assets/images/logo.png");
+
+const ICONS = {
+  today: require("../../assets/icons/icon-today.png"),
+  schedule: require("../../assets/icons/icon-schedule.png"),
+  groups: require("../../assets/icons/icon-groups.png"),
+  students: require("../../assets/icons/icon-students.png"),
+  payments: require("../../assets/icons/icon-payments.png"),
+};
 
 /** Welcome line under logo/profile: waving hand + tutor name. */
 function WelcomeRow({ name }: { name: string }) {
@@ -44,14 +56,18 @@ function WelcomeRow({ name }: { name: string }) {
   );
 }
 
-const ICONS = {
-  today: require("../../assets/icons/icon-today.png"),
-  schedule: require("../../assets/icons/icon-schedule.png"),
-  groups: require("../../assets/icons/icon-groups.png"),
-  students: require("../../assets/icons/icon-students.png"),
-  payments: require("../../assets/icons/icon-payments.png"),
-  more: require("../../assets/icons/icon-more.png"),
-};
+function SnapshotChip({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.snapChip}>
+      <Text style={styles.snapValue} numberOfLines={1}>
+        {value}
+      </Text>
+      <Text style={styles.snapLabel} numberOfLines={1}>
+        {label}
+      </Text>
+    </View>
+  );
+}
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -61,19 +77,35 @@ export default function HomeScreen() {
   const [nextSession, setNextSession] = useState<
     (GroupSession & { group_name: string; accent_color?: string | null }) | null
   >(null);
-  const [totalCollected, setTotalCollected] = useState(0);
+  const [unpaidCount, setUnpaidCount] = useState(0);
+  const [todayCount, setTodayCount] = useState(0);
+  const [groupCount, setGroupCount] = useState(0);
+  const [lastBackupLabel, setLastBackupLabel] = useState(t("autoBackupNever"));
   const [totalRemaining, setTotalRemaining] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [upcoming, summary] = await Promise.all([
+      const [upcoming, summary, today, groups, backup] = await Promise.all([
         listUpcomingSessions(1),
         getOpenRoundsPaymentSummary(),
+        listTodaysSessions(),
+        listGroups(),
+        loadAutoBackupSettings(),
       ]);
       setNextSession(upcoming[0] ?? null);
-      setTotalCollected(summary.totalCollected);
+      setUnpaidCount(
+        summary.dues.filter((d) => d.status === "unpaid" || d.status === "partial")
+          .length
+      );
       setTotalRemaining(summary.totalRemaining);
+      setTodayCount(today.length);
+      setGroupCount(groups.length);
+      setLastBackupLabel(
+        backup.lastRunAt
+          ? formatDateTimeAr(backup.lastRunAt)
+          : t("autoBackupNever")
+      );
     } finally {
       setLoading(false);
     }
@@ -97,27 +129,19 @@ export default function HomeScreen() {
           <Image source={LOGO} style={styles.logo} resizeMode="contain" />
         </View>
         <WelcomeRow name={tutorName} />
-        <Muted>{t("brandTagline")}</Muted>
-        <EmptyState message={t("noActiveYear")} />
-        <IconActionBar
-          actions={[
-            {
-              key: "add-year",
-              icon: "plus",
-              label: t("actionAdd"),
-              tone: "accent",
-              onPress: () => router.push("/years/form"),
-            },
-          ]}
+        <EmptyState
+          message={t("noActiveYear")}
+          actionLabel={t("createYearCta")}
+          onAction={() => router.push("/years/form")}
         />
       </Screen>
     );
   }
 
-  if (loading && !nextSession) {
+  if (loading && !nextSession && groupCount === 0) {
     return (
-      <Screen>
-        <LoadingBlock />
+      <Screen padded={false} style={{ flex: 1 }}>
+        <SkeletonList rows={6} />
       </Screen>
     );
   }
@@ -143,62 +167,95 @@ export default function HomeScreen() {
         </View>
         <WelcomeRow name={tutorName} />
 
-        <Text style={styles.section}>{t("nextSession")}</Text>
-        {!nextSession ? (
-          <Muted>{t("noSessions")}</Muted>
+        {groupCount === 0 ? (
+          <EmptyState
+            message={t("getStartedGroup")}
+            actionLabel={t("addGroupCta")}
+            onAction={() => router.push("/groups/form")}
+          />
         ) : (
-          <Pressable
-            onPress={() => router.push(`/attendance/${nextSession.id}`)}
-          >
-            <BorderedCard
-              borderColor={groupAccentColor(
-                nextSession.group_id,
-                nextSession.accent_color
-              )}
-            >
-              <Text style={styles.sessionTitle}>{nextSession.group_name}</Text>
-              <Muted>{formatDateTimeAr(nextSession.starts_at)}</Muted>
-            </BorderedCard>
-          </Pressable>
-        )}
+          <>
+            <View style={styles.snapRow}>
+              <SnapshotChip
+                label={t("snapshotUnpaid")}
+                value={String(unpaidCount)}
+              />
+              <SnapshotChip
+                label={t("snapshotToday")}
+                value={String(todayCount)}
+              />
+              <SnapshotChip
+                label={t("remaining")}
+                value={formatMoney(totalRemaining)}
+              />
+            </View>
+            <Muted style={{ marginBottom: spacing.md }}>
+              {t("snapshotLastBackup")}: {lastBackupLabel}
+            </Muted>
 
-        <MenuCard
-          title={t("todaySchedule")}
-          icon={ICONS.today}
-          borderColor={colors.accent}
-          onPress={() => router.push("/today" as never)}
-        />
-        <MenuCard
-          title={t("weeklySchedule")}
-          icon={ICONS.schedule}
-          borderColor={colors.primary}
-          onPress={() => router.push("/schedule" as never)}
-        />
-        <MenuCard
-          title={t("groups")}
-          icon={ICONS.groups}
-          borderColor="#14B8A6"
-          onPress={() => router.push("/groups" as never)}
-        />
-        <MenuCard
-          title={t("students")}
-          icon={ICONS.students}
-          borderColor="#8B5CF6"
-          onPress={() => router.push("/students" as never)}
-        />
-        <MenuCard
-          title={t("payments")}
-          subtitle={`${t("totalCollected")}: ${formatMoney(totalCollected)} · ${t("remaining")}: ${formatMoney(totalRemaining)}`}
-          icon={ICONS.payments}
-          borderColor={colors.success}
-          onPress={() => router.push("/payments" as never)}
-        />
-        <MenuCard
-          title={t("more")}
-          icon={ICONS.more}
-          borderColor={colors.textMuted}
-          onPress={() => router.push("/more" as never)}
-        />
+            <Text style={styles.section}>{t("nextSession")}</Text>
+            {!nextSession ? (
+              <Muted>{t("noSessions")}</Muted>
+            ) : (
+              <Pressable
+                onPress={() => router.push(`/attendance/${nextSession.id}`)}
+              >
+                <BorderedCard
+                  borderColor={groupAccentColor(
+                    nextSession.group_id,
+                    nextSession.accent_color
+                  )}
+                >
+                  <Text style={styles.sessionTitle}>
+                    {nextSession.group_name}
+                  </Text>
+                  <Muted>{formatDateTimeAr(nextSession.starts_at)}</Muted>
+                </BorderedCard>
+              </Pressable>
+            )}
+
+            <Text style={styles.section}>{t("quickActions")}</Text>
+            <View style={styles.qaGrid}>
+              <View style={styles.qaHalf}>
+                <MenuCard
+                  title={t("qaStudents")}
+                  icon={ICONS.students}
+                  borderColor="#8B5CF6"
+                  onPress={() => router.push("/students" as never)}
+                />
+              </View>
+              <View style={styles.qaHalf}>
+                <MenuCard
+                  title={t("qaWeeklySchedule")}
+                  icon={ICONS.schedule}
+                  borderColor={colors.primary}
+                  onPress={() => router.push("/schedule" as never)}
+                />
+              </View>
+              <View style={styles.qaHalf}>
+                <MenuCard
+                  title={t("qaUnpaid")}
+                  subtitle={
+                    unpaidCount
+                      ? `${unpaidCount} · ${formatMoney(totalRemaining)}`
+                      : undefined
+                  }
+                  icon={ICONS.payments}
+                  borderColor={colors.danger}
+                  onPress={() => router.push("/payments" as never)}
+                />
+              </View>
+              <View style={styles.qaHalf}>
+                <MenuCard
+                  title={t("qaAddGroup")}
+                  icon={ICONS.groups}
+                  borderColor="#14B8A6"
+                  onPress={() => router.push("/groups/form")}
+                />
+              </View>
+            </View>
+          </>
+        )}
       </ScrollView>
     </Screen>
   );
@@ -250,9 +307,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
     width: "100%",
   },
-  welcomeWave: {
-    fontSize: 22,
-  },
+  welcomeWave: { fontSize: 22 },
   welcomeText: {
     ...rtlText,
     flexShrink: 1,
@@ -260,6 +315,35 @@ const styles = StyleSheet.create({
     fontFamily: fonts.extraBold,
     fontWeight: "800",
     color: colors.text,
+  },
+  snapRow: {
+    ...rtlRow(),
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: spacing.sm,
+  },
+  snapChip: {
+    flexGrow: 1,
+    minWidth: "30%",
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  snapValue: {
+    ...rtlText,
+    fontFamily: fonts.extraBold,
+    fontWeight: "800",
+    fontSize: 16,
+    color: colors.text,
+  },
+  snapLabel: {
+    ...rtlText,
+    fontSize: 11,
+    color: colors.textMuted,
+    marginTop: 2,
   },
   section: {
     ...rtlText,
@@ -279,5 +363,13 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: colors.text,
     marginBottom: 4,
+  },
+  qaGrid: {
+    ...rtlRow(),
+    flexWrap: "wrap",
+    gap: 0,
+  },
+  qaHalf: {
+    width: "100%",
   },
 });

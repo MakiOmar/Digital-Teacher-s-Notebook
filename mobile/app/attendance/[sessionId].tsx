@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import {
+  FormField,
   LoadingBlock,
   Muted,
   Screen,
@@ -17,6 +18,7 @@ import {
   listAttendanceForSession,
   upsertAttendance,
   updateSessionStatus,
+  updateSessionNotes,
   setSessionStarStudent,
 } from "@/src/repositories";
 import type {
@@ -48,6 +50,7 @@ export default function AttendanceScreen() {
   const [students, setStudents] = useState<Student[]>([]);
   const [map, setMap] = useState<Record<number, AttendanceStatus>>({});
   const [starId, setStarId] = useState<number | null>(null);
+  const [notes, setNotes] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -56,6 +59,7 @@ export default function AttendanceScreen() {
       setSession(s);
       if (!s) return;
       setStarId(s.star_student_id ?? null);
+      setNotes(s.notes ?? "");
       const g = await getGroup(s.group_id);
       setGroupName(g?.name ?? "");
       const list = await listActiveStudentsInGroup(s.group_id);
@@ -269,6 +273,30 @@ export default function AttendanceScreen() {
             {starStudent ? `★ ${starStudent.name}` : t("pickStarStudent")}
           </Text>
         </Pressable>
+        <FormField
+          label={t("sessionNotes")}
+          value={notes}
+          onChangeText={setNotes}
+          placeholder={t("sessionNotesHint")}
+          multiline
+        />
+        <IconActionBar
+          actions={[
+            {
+              key: "save-notes",
+              icon: "save",
+              label: t("save"),
+              tone: "accent",
+              onPress: () => {
+                void (async () => {
+                  await updateSessionNotes(id, notes.trim() || null);
+                  dialog.toast(t("success"), "success");
+                  bump();
+                })();
+              },
+            },
+          ]}
+        />
         <View style={styles.starChips}>
           {students.map((s) => (
             <Pressable

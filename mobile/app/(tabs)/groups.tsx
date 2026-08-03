@@ -1,30 +1,32 @@
-import { useCallback, useState } from "react";
-import { FlatList, View } from "react-native";
+import { useCallback, useMemo, useState } from "react";
+import { FlatList, Pressable, View } from "react-native";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useFocusEffect, useRouter } from "expo-router";
 import {
   EmptyState,
   ListRow,
-  LoadingBlock,
   Screen,
+  SearchField,
+  SkeletonList,
 } from "@/src/components/ui";
 import { IconActionBar } from "@/src/components/IconActionBar";
 import { t } from "@/src/i18n/ar";
 import { listGroups, listPatterns } from "@/src/repositories";
 import type { StudyGroup, Weekday } from "@/src/db/types";
 import { WEEKDAY_LABELS, formatMoney } from "@/src/utils/date";
-import { groupAccentColor, spacing } from "@/src/theme/colors";
+import { colors, groupAccentColor, spacing } from "@/src/theme/colors";
 import { useAppData } from "@/src/contexts/AppDataContext";
 import { getGroupListStats } from "@/src/services/rounds";
 
 /** Sat → Fri sort order for Arabic week. */
 const WEEKDAY_SORT: Record<number, number> = {
-  6: 0, // السبت
-  0: 1, // الأحد
+  6: 0,
+  0: 1,
   1: 2,
   2: 3,
   3: 4,
   4: 5,
-  5: 6, // الجمعة
+  5: 6,
 };
 
 function primaryWeekday(weekdays: Weekday[]): number {
@@ -36,6 +38,7 @@ export default function GroupsTab() {
   const router = useRouter();
   const { bump } = useAppData();
   const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState("");
   const [groups, setGroups] = useState<
     (StudyGroup & {
       scheduleLabel: string;
@@ -46,7 +49,8 @@ export default function GroupsTab() {
   >([]);
 
   const load = useCallback(async () => {
-    setLoading(true);
+    const had = groups.length > 0;
+    if (!had) setLoading(true);
     try {
       const list = await listGroups();
       const stats = await getGroupListStats();
@@ -82,7 +86,7 @@ export default function GroupsTab() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [groups.length]);
 
   useFocusEffect(
     useCallback(() => {
@@ -90,10 +94,18 @@ export default function GroupsTab() {
     }, [load])
   );
 
-  if (loading) {
+  const filtered = useMemo(() => {
+    const q = query.trim();
+    if (!q) return groups;
+    return groups.filter(
+      (g) => g.name.includes(q) || (g.subject ?? "").includes(q)
+    );
+  }, [groups, query]);
+
+  if (loading && !groups.length) {
     return (
-      <Screen>
-        <LoadingBlock />
+      <Screen padded={false} style={{ flex: 1 }}>
+        <SkeletonList />
       </Screen>
     );
   }
@@ -112,6 +124,11 @@ export default function GroupsTab() {
             },
           ]}
         />
+        <SearchField
+          value={query}
+          onChangeText={setQuery}
+          placeholder={t("searchPlaceholder")}
+        />
       </View>
       <FlatList
         style={{ flex: 1 }}
@@ -119,9 +136,15 @@ export default function GroupsTab() {
           paddingHorizontal: spacing.lg,
           paddingBottom: 40,
         }}
-        data={groups}
+        data={filtered}
         keyExtractor={(item) => String(item.id)}
-        ListEmptyComponent={<EmptyState message={t("noGroups")} />}
+        ListEmptyComponent={
+          <EmptyState
+            message={t("noGroups")}
+            actionLabel={t("addGroupCta")}
+            onAction={() => router.push("/groups/form")}
+          />
+        }
         renderItem={({ item }) => (
           <ListRow
             title={item.name}
@@ -129,6 +152,19 @@ export default function GroupsTab() {
             right={formatMoney(item.default_monthly_fee)}
             borderColor={groupAccentColor(item.id, item.accent_color)}
             onPress={() => router.push(`/groups/${item.id}`)}
+            trailing={
+              <Pressable
+                onPress={() => {
+                  router.push(
+                    `/groups/round-payments?groupId=${item.id}` as never
+                  );
+                }}
+                hitSlop={10}
+                style={{ padding: 6 }}
+              >
+                <FontAwesome name="money" size={18} color={colors.success} />
+              </Pressable>
+            }
           />
         )}
         onRefresh={() => {

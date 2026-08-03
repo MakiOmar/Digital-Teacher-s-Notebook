@@ -80,7 +80,8 @@
         {
           "faceIDPermission": "السماح للتطبيق باستخدام Face ID لقفل التطبيق."
         }
-      ]
+      ],
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true

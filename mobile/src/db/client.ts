@@ -48,6 +48,9 @@ async function migrate(db: SQLite.SQLiteDatabase): Promise<void> {
       "ALTER TABLE group_sessions ADD COLUMN star_student_id INTEGER REFERENCES students(id) ON DELETE SET NULL"
     );
   }
+  if (!sessionCols.has("notes")) {
+    await db.execAsync("ALTER TABLE group_sessions ADD COLUMN notes TEXT");
+  }
 
   await db.execAsync(`
     CREATE TABLE IF NOT EXISTS billing_rounds (

@@ -93,6 +93,7 @@ export interface GroupSession {
   status: SessionStatus;
   source: "auto" | "manual";
   star_student_id: number | null;
+  notes: string | null;
 }
 
 export interface Attendance {

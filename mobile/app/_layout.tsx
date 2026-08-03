@@ -31,6 +31,7 @@ import {
 } from "@/src/profile/TutorProfileContext";
 import { SetupWizardScreen } from "@/src/profile/SetupWizardScreen";
 import { runAutoBackupIfDue } from "@/src/backup/autoBackup";
+import { rescheduleReminders } from "@/src/reminders/reminders";
 import {
   AppLockProvider,
   useAppLock,
@@ -114,13 +115,15 @@ function Bootstrap({
     return () => clearTimeout(id);
   }, [onAppReady]);
 
-  // Silent auto-backup when unlocked + setup done (launch / foreground)
+  // Silent auto-backup + reminder reschedule when unlocked + setup done
   useEffect(() => {
     if (licenseStatus !== "unlocked" || !setupComplete) return;
     void runAutoBackupIfDue().catch(() => undefined);
+    void rescheduleReminders().catch(() => undefined);
     const sub = AppState.addEventListener("change", (state) => {
       if (state === "active") {
         void runAutoBackupIfDue().catch(() => undefined);
+        void rescheduleReminders().catch(() => undefined);
       }
     });
     return () => sub.remove();
@@ -239,6 +242,8 @@ export default function RootLayout() {
                       <Stack.Screen name="license-manage" />
                       <Stack.Screen name="profile-edit" />
                       <Stack.Screen name="app-lock" />
+                      <Stack.Screen name="reminders" />
+                      <Stack.Screen name="reports" />
                     </Stack>
                   </AppShell>
                 </Bootstrap>

@@ -1,12 +1,13 @@
 import { useCallback, useMemo, useState } from "react";
-import { FlatList, View } from "react-native";
+import { FlatList, Pressable, View } from "react-native";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useFocusEffect, useRouter } from "expo-router";
 import {
   Chip,
   EmptyState,
   ListRow,
-  LoadingBlock,
   Screen,
+  SkeletonList,
   StatCard,
 } from "@/src/components/ui";
 import { t } from "@/src/i18n/ar";
@@ -20,12 +21,14 @@ export default function PaymentsTab() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<PaymentStatus | "all">("unpaid");
+  const [groupFilter, setGroupFilter] = useState<number | "all">("all");
   const [dues, setDues] = useState<StudentDueRow[]>([]);
   const [totalCollected, setTotalCollected] = useState(0);
   const [totalRemaining, setTotalRemaining] = useState(0);
 
   const load = useCallback(async () => {
-    setLoading(true);
+    const had = dues.length > 0;
+    if (!had) setLoading(true);
     try {
       const summary = await getOpenRoundsPaymentSummary();
       setDues(summary.dues);
@@ -34,7 +37,7 @@ export default function PaymentsTab() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [dues.length]);
 
   useFocusEffect(
     useCallback(() => {
@@ -42,15 +45,27 @@ export default function PaymentsTab() {
     }, [load])
   );
 
-  const filtered = useMemo(() => {
-    if (filter === "all") return dues;
-    return dues.filter((d) => d.status === filter);
-  }, [dues, filter]);
+  const groups = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const d of dues) map.set(d.group_id, d.group_name);
+    return [...map.entries()].map(([id, name]) => ({ id, name }));
+  }, [dues]);
 
-  if (loading) {
+  const filtered = useMemo(() => {
+    let rows = dues;
+    if (groupFilter !== "all") {
+      rows = rows.filter((d) => d.group_id === groupFilter);
+    }
+    if (filter !== "all") {
+      rows = rows.filter((d) => d.status === filter);
+    }
+    return rows;
+  }, [dues, filter, groupFilter]);
+
+  if (loading && !dues.length) {
     return (
-      <Screen>
-        <LoadingBlock />
+      <Screen padded={false} style={{ flex: 1 }}>
+        <SkeletonList />
       </Screen>
     );
   }
@@ -68,6 +83,21 @@ export default function PaymentsTab() {
           value={formatMoney(totalRemaining)}
           tone="danger"
         />
+        <View style={[rtlChipRow(), { marginBottom: 8 }]}>
+          <Chip
+            label={t("filterAllGroups")}
+            selected={groupFilter === "all"}
+            onPress={() => setGroupFilter("all")}
+          />
+          {groups.map((g) => (
+            <Chip
+              key={g.id}
+              label={g.name}
+              selected={groupFilter === g.id}
+              onPress={() => setGroupFilter(g.id)}
+            />
+          ))}
+        </View>
         <View style={rtlChipRow()}>
           {(
             [
@@ -120,6 +150,21 @@ export default function PaymentsTab() {
               router.push(
                 `/groups/round-payments?groupId=${item.group_id}` as never
               )
+            }
+            trailing={
+              item.status !== "paid" ? (
+                <Pressable
+                  onPress={() => {
+                    router.push(
+                      `/groups/round-payments?groupId=${item.group_id}` as never
+                    );
+                  }}
+                  hitSlop={10}
+                  style={{ padding: 6 }}
+                >
+                  <FontAwesome name="money" size={18} color={colors.warning} />
+                </Pressable>
+              ) : null
             }
           />
         )}

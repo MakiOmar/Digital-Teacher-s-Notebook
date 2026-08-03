@@ -67,10 +67,58 @@ export function LoadingBlock() {
   );
 }
 
-export function EmptyState({ message }: { message: string }) {
+export function EmptyState({
+  message,
+  actionLabel,
+  onAction,
+}: {
+  message: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}) {
   return (
     <View style={styles.center}>
       <Text style={styles.muted}>{message}</Text>
+      {actionLabel && onAction ? (
+        <View style={{ marginTop: spacing.md, width: "100%", maxWidth: 280 }}>
+          <PrimaryButton label={actionLabel} onPress={onAction} />
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+export function SkeletonList({ rows = 5 }: { rows?: number }) {
+  return (
+    <View style={{ padding: spacing.lg, gap: 10 }}>
+      {Array.from({ length: rows }).map((_, i) => (
+        <View key={i} style={styles.skeletonRow} />
+      ))}
+    </View>
+  );
+}
+
+export function SearchField({
+  value,
+  onChangeText,
+  placeholder,
+}: {
+  value: string;
+  onChangeText: (t: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <View style={[styles.field, rtlBlock, { marginBottom: spacing.sm }]}>
+      <View style={inputShell}>
+        <TextInput
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder ?? "بحث..."}
+          placeholderTextColor={colors.textMuted}
+          style={styles.input}
+          textAlign={inputTextAlign()}
+        />
+      </View>
     </View>
   );
 }
@@ -153,19 +201,23 @@ export function ListRow({
   right,
   onPress,
   borderColor,
+  trailing,
 }: {
   title: string;
   subtitle?: string;
   right?: string;
   onPress?: () => void;
   borderColor?: string;
+  /** Optional icon/actions rendered outside the main press target. */
+  trailing?: React.ReactNode;
 }) {
-  const content = (
+  const body = (
     <View
       style={[
         styles.row,
         rtlRow(),
         borderColor ? { borderColor, borderWidth: 2 } : null,
+        { flex: 1, marginBottom: 0 },
       ]}
     >
       <View style={{ flex: 1 }}>
@@ -175,14 +227,21 @@ export function ListRow({
       {right ? <Text style={styles.rowRight}>{right}</Text> : null}
     </View>
   );
-  if (!onPress) return content;
+
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => pressed && { opacity: 0.75 }}
-    >
-      {content}
-    </Pressable>
+    <View style={[rtlRow(), { alignItems: "center", marginBottom: spacing.sm, gap: 6 }]}>
+      {onPress ? (
+        <Pressable
+          onPress={onPress}
+          style={({ pressed }) => [{ flex: 1 }, pressed && { opacity: 0.75 }]}
+        >
+          {body}
+        </Pressable>
+      ) : (
+        <View style={{ flex: 1 }}>{body}</View>
+      )}
+      {trailing}
+    </View>
   );
 }
 
@@ -324,6 +383,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     padding: spacing.xl,
+  },
+  skeletonRow: {
+    height: 64,
+    borderRadius: radii.md,
+    backgroundColor: colors.primarySoft,
+    opacity: 0.55,
   },
   title: {
     fontSize: 22,

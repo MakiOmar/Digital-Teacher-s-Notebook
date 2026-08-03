@@ -6,6 +6,7 @@ export default function AboutScreen() {
     <Screen>
       <Title>{t("about")}</Title>
       <Card>
+        <Muted>{t("appName")}</Muted>
         <Muted>{t("aboutText")}</Muted>
         <Muted>الإصدار 1.0.0</Muted>
       </Card>

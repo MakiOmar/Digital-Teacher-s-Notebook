@@ -1,0 +1,28 @@
+{
+  "profile": "heavy",
+  "config": {
+    "groups": 40,
+    "studentsPerGroup": 18,
+    "closedRounds": 3
+  },
+  "counts": {
+    "academic_years": 1,
+    "semesters": 2,
+    "study_months": 10,
+    "groups": 40,
+    "group_schedule_patterns": 80,
+    "students": 720,
+    "enrollments": 790,
+    "group_sessions": 3475,
+    "attendances": 60326,
+    "billing_rounds": 3092,
+    "round_stars": 160,
+    "payments": 2595
+  },
+  "total_rows": 71291,
+  "size_bytes": 6867920,
+  "files": [
+    "E:\\tutoring-manager\\mobile\\samples\\tutoring-backup-heavy.json",
+    "C:\\Users\\mo7am\\OneDrive\\Desktop\\tutoring-backup-heavy.json"
+  ]
+}

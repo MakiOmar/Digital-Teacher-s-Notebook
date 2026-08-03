@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { FlatList, Linking, Pressable, View } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { useFocusEffect, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import {
   EmptyState,
   ListRow,
@@ -11,42 +11,17 @@ import {
 } from "@/src/components/ui";
 import { IconActionBar } from "@/src/components/IconActionBar";
 import { t } from "@/src/i18n/ar";
-import { getActiveEnrollment, listStudents } from "@/src/repositories";
-import type { Student } from "@/src/db/types";
+import { listStudentsWithEnrollment } from "@/src/repositories";
+import { useRefreshableList } from "@/src/hooks/useRefreshableList";
+import { telUrl } from "@/src/utils/phone";
 import { spacing, colors } from "@/src/theme/colors";
-
-function digitsOnly(phone: string): string {
-  return phone.replace(/[^\d+]/g, "");
-}
 
 export default function StudentsTab() {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
-  const [rows, setRows] = useState<(Student & { groupName: string })[]>([]);
-
-  const load = useCallback(async () => {
-    const hadRows = rows.length > 0;
-    if (!hadRows) setLoading(true);
-    try {
-      const students = await listStudents();
-      const enriched = await Promise.all(
-        students.map(async (s) => {
-          const en = await getActiveEnrollment(s.id);
-          return { ...s, groupName: en?.group_name ?? "—" };
-        })
-      );
-      setRows(enriched);
-    } finally {
-      setLoading(false);
-    }
-  }, [rows.length]);
-
-  useFocusEffect(
-    useCallback(() => {
-      void load();
-    }, [load])
-  );
+  const fetcher = useCallback(() => listStudentsWithEnrollment(), []);
+  const { data: rows, loading, refreshing, reload } =
+    useRefreshableList(fetcher);
 
   const filtered = useMemo(() => {
     const q = query.trim();
@@ -54,7 +29,7 @@ export default function StudentsTab() {
     return rows.filter((r) => r.name.includes(q));
   }, [rows, query]);
 
-  if (loading && !rows.length) {
+  if (loading) {
     return (
       <Screen padded={false} style={{ flex: 1 }}>
         <SkeletonList />
@@ -100,15 +75,15 @@ export default function StudentsTab() {
         renderItem={({ item }) => (
           <ListRow
             title={item.name}
-            subtitle={`${item.groupName}${item.guardian_phone ? ` · ${item.guardian_phone}` : ""}`}
+            subtitle={`${item.group_name ?? "—"}${item.guardian_phone ? ` · ${item.guardian_phone}` : ""}`}
             right={item.status === "active" ? t("active") : item.status}
             borderColor={colors.primary}
             onPress={() => router.push(`/students/${item.id}`)}
             trailing={
               item.guardian_phone ? (
-                  <Pressable
+                <Pressable
                   onPress={() => {
-                    void Linking.openURL(`tel:${digitsOnly(item.guardian_phone!)}`);
+                    void Linking.openURL(telUrl(item.guardian_phone!));
                   }}
                   hitSlop={10}
                   accessibilityLabel={t("callGuardian")}
@@ -120,8 +95,8 @@ export default function StudentsTab() {
             }
           />
         )}
-        refreshing={loading}
-        onRefresh={() => void load()}
+        refreshing={refreshing}
+        onRefresh={() => void reload()}
       />
     </Screen>
   );

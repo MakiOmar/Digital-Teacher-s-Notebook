@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { FlatList, Pressable, View } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { useFocusEffect, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import {
   EmptyState,
   ListRow,
@@ -11,88 +11,65 @@ import {
 } from "@/src/components/ui";
 import { IconActionBar } from "@/src/components/IconActionBar";
 import { t } from "@/src/i18n/ar";
-import { listGroups, listPatterns } from "@/src/repositories";
+import { listGroupsWithPatterns } from "@/src/repositories";
+import { getGroupListStats } from "@/src/services/rounds";
+import { useRefreshableList } from "@/src/hooks/useRefreshableList";
 import type { StudyGroup, Weekday } from "@/src/db/types";
-import { WEEKDAY_LABELS, formatMoney } from "@/src/utils/date";
+import {
+  WEEKDAY_LABELS,
+  WEEKDAY_SORT,
+  formatMoney,
+  primaryWeekday,
+} from "@/src/utils/date";
 import { colors, groupAccentColor, spacing } from "@/src/theme/colors";
 import { useAppData } from "@/src/contexts/AppDataContext";
-import { getGroupListStats } from "@/src/services/rounds";
 
-/** Sat → Fri sort order for Arabic week. */
-const WEEKDAY_SORT: Record<number, number> = {
-  6: 0,
-  0: 1,
-  1: 2,
-  2: 3,
-  3: 4,
-  4: 5,
-  5: 6,
+type GroupRow = StudyGroup & {
+  scheduleLabel: string;
+  student_count: number;
+  total_fees: number;
+  sortDay: number;
 };
-
-function primaryWeekday(weekdays: Weekday[]): number {
-  if (!weekdays.length) return 99;
-  return Math.min(...weekdays.map((d) => WEEKDAY_SORT[d] ?? 99));
-}
 
 export default function GroupsTab() {
   const router = useRouter();
-  const { bump } = useAppData();
-  const [loading, setLoading] = useState(true);
+  const { bump, revision } = useAppData();
   const [query, setQuery] = useState("");
-  const [groups, setGroups] = useState<
-    (StudyGroup & {
-      scheduleLabel: string;
-      student_count: number;
-      total_fees: number;
-      sortDay: number;
-    })[]
-  >([]);
 
-  const load = useCallback(async () => {
-    const had = groups.length > 0;
-    if (!had) setLoading(true);
-    try {
-      const list = await listGroups();
-      const stats = await getGroupListStats();
-      const statsMap = new Map(stats.map((s) => [s.group_id, s]));
-      const enriched = await Promise.all(
-        list.map(async (g) => {
-          const patterns = await listPatterns(g.id);
-          const weekdays = patterns.map((p) => p.weekday as Weekday);
-          const scheduleLabel = patterns
-            .slice()
-            .sort(
-              (a, b) =>
-                (WEEKDAY_SORT[a.weekday] ?? 99) -
-                (WEEKDAY_SORT[b.weekday] ?? 99)
-            )
-            .map((p) => `${WEEKDAY_LABELS[p.weekday]} ${p.start_time}`)
-            .join(" · ");
-          const st = statsMap.get(g.id);
-          return {
-            ...g,
-            scheduleLabel,
-            student_count: Number(st?.student_count ?? 0),
-            total_fees: Number(st?.total_fees ?? 0),
-            sortDay: primaryWeekday(weekdays),
-          };
-        })
-      );
-      enriched.sort((a, b) => {
-        if (a.sortDay !== b.sortDay) return a.sortDay - b.sortDay;
-        return a.name.localeCompare(b.name, "ar");
-      });
-      setGroups(enriched);
-    } finally {
-      setLoading(false);
-    }
-  }, [groups.length]);
+  const fetcher = useCallback(async () => {
+    const [list, stats] = await Promise.all([
+      listGroupsWithPatterns(),
+      getGroupListStats(),
+    ]);
+    const statsMap = new Map(stats.map((s) => [s.group_id, s]));
+    const enriched: GroupRow[] = list.map((g) => {
+      const weekdays = g.patterns.map((p) => p.weekday as Weekday);
+      const scheduleLabel = g.patterns
+        .slice()
+        .sort(
+          (a, b) =>
+            (WEEKDAY_SORT[a.weekday] ?? 99) - (WEEKDAY_SORT[b.weekday] ?? 99)
+        )
+        .map((p) => `${WEEKDAY_LABELS[p.weekday]} ${p.start_time}`)
+        .join(" · ");
+      const st = statsMap.get(g.id);
+      return {
+        ...g,
+        scheduleLabel,
+        student_count: Number(st?.student_count ?? 0),
+        total_fees: Number(st?.total_fees ?? 0),
+        sortDay: primaryWeekday(weekdays),
+      };
+    });
+    enriched.sort((a, b) => {
+      if (a.sortDay !== b.sortDay) return a.sortDay - b.sortDay;
+      return a.name.localeCompare(b.name, "ar");
+    });
+    return enriched;
+  }, [revision]);
 
-  useFocusEffect(
-    useCallback(() => {
-      void load();
-    }, [load])
-  );
+  const { data: groups, loading, refreshing, reload } =
+    useRefreshableList(fetcher);
 
   const filtered = useMemo(() => {
     const q = query.trim();
@@ -102,7 +79,7 @@ export default function GroupsTab() {
     );
   }, [groups, query]);
 
-  if (loading && !groups.length) {
+  if (loading) {
     return (
       <Screen padded={false} style={{ flex: 1 }}>
         <SkeletonList />
@@ -169,9 +146,9 @@ export default function GroupsTab() {
         )}
         onRefresh={() => {
           bump();
-          void load();
+          void reload();
         }}
-        refreshing={loading}
+        refreshing={refreshing}
       />
     </Screen>
   );

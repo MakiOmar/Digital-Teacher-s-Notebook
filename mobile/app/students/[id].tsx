@@ -26,10 +26,7 @@ import { rtlText } from "@/src/theme/rtl";
 import { colors, spacing } from "@/src/theme/colors";
 import { fonts } from "@/src/theme/typography";
 import { formatDateTimeAr, formatMoney, formatRoundTitle } from "@/src/utils/date";
-
-function digitsOnly(phone: string): string {
-  return phone.replace(/[^\d+]/g, "");
-}
+import { telUrl, whatsappUrl } from "@/src/utils/phone";
 
 function attendanceLabel(status: string): string {
   if (status === "present") return t("present");
@@ -172,14 +169,13 @@ export default function StudentDetailsScreen() {
           <View style={{ gap: 10, marginBottom: spacing.lg }}>
             <PrimaryButton
               label={t("callGuardian")}
-              onPress={() => void Linking.openURL(`tel:${digitsOnly(phone)}`)}
+              onPress={() => void Linking.openURL(telUrl(phone))}
             />
             <PrimaryButton
               label={t("whatsappGuardian")}
               variant="ghost"
               onPress={() => {
-                const n = digitsOnly(phone).replace(/^\+/, "");
-                void Linking.openURL(`https://wa.me/${n}`);
+                void Linking.openURL(whatsappUrl(phone));
               }}
             />
           </View>

@@ -4,15 +4,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MenuCard, Screen, Title } from "@/src/components/ui";
 import { t } from "@/src/i18n/ar";
 import { colors, spacing } from "@/src/theme/colors";
+import { ICONS } from "@/src/theme/icons";
 import { rtlText } from "@/src/theme/rtl";
 import { useAppData } from "@/src/contexts/AppDataContext";
-
-const ICONS = {
-  years: require("../../assets/icons/icon-years.png"),
-  backup: require("../../assets/icons/icon-backup.png"),
-  more: require("../../assets/icons/icon-more.png"),
-  payments: require("../../assets/icons/icon-payments.png"),
-};
 
 /** Approximate default bottom tab bar content height (excluding safe area). */
 const TAB_BAR_CONTENT = 56;

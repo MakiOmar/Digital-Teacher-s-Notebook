@@ -380,6 +380,48 @@ export async function listStudents(): Promise<Student[]> {
   );
 }
 
+/** Students with active enrollment group name in one query (no N+1). */
+export async function listStudentsWithEnrollment(): Promise<
+  (Student & { group_name: string | null })[]
+> {
+  const db = await getDb();
+  return db.getAllAsync<Student & { group_name: string | null }>(
+    `SELECT s.*, g.name as group_name
+     FROM students s
+     LEFT JOIN enrollments e
+       ON e.student_id = s.id AND e.status = 'active'
+     LEFT JOIN groups g ON g.id = e.group_id
+     ORDER BY s.name COLLATE NOCASE`
+  );
+}
+
+/** Active groups with all schedule patterns in two queries (no per-group N+1). */
+export async function listGroupsWithPatterns(): Promise<
+  (StudyGroup & { patterns: SchedulePattern[] })[]
+> {
+  const db = await getDb();
+  const groups = await db.getAllAsync<StudyGroup>(
+    "SELECT * FROM groups WHERE status = 'active' ORDER BY name COLLATE NOCASE"
+  );
+  if (!groups.length) return [];
+  const patterns = await db.getAllAsync<SchedulePattern>(
+    `SELECT * FROM group_schedule_patterns
+     WHERE group_id IN (${groups.map(() => "?").join(",")})
+     ORDER BY group_id, weekday, start_time`,
+    groups.map((g) => g.id)
+  );
+  const byGroup = new Map<number, SchedulePattern[]>();
+  for (const p of patterns) {
+    const list = byGroup.get(p.group_id) ?? [];
+    list.push(p);
+    byGroup.set(p.group_id, list);
+  }
+  return groups.map((g) => ({
+    ...g,
+    patterns: byGroup.get(g.id) ?? [],
+  }));
+}
+
 /** Case-insensitive name search for autocomplete. */
 export async function searchStudentsByName(
   query: string,
@@ -713,15 +755,13 @@ export async function listStudentPayments(
   );
 }
 
-/** Open-round unpaid remaining total for a student. */
+/** Open-round unpaid remaining total for a student (scoped dues only). */
 export async function getStudentOpenRemaining(
   studentId: number
 ): Promise<number> {
-  const { getOpenRoundsPaymentSummary } = await import("../services/rounds");
-  const summary = await getOpenRoundsPaymentSummary();
-  return summary.dues
-    .filter((d) => d.student_id === studentId)
-    .reduce((sum, d) => sum + d.remaining, 0);
+  const { getRoundDuesForStudent } = await import("../services/rounds");
+  const dues = await getRoundDuesForStudent(studentId);
+  return dues.reduce((sum, d) => sum + d.remaining, 0);
 }
 
 /** Attendance rate per active enrollment student. */
@@ -1087,6 +1127,36 @@ export async function upsertAttendance(input: {
   if (session) {
     const { onAttendanceChanged } = await import("../services/rounds");
     await onAttendanceChanged(input.student_id, session.group_id);
+  }
+}
+
+/** Mark many students in one transaction, then refresh round counters once per student. */
+export async function upsertAttendanceBatch(
+  sessionId: number,
+  studentIds: number[],
+  status: AttendanceStatus
+): Promise<void> {
+  if (!studentIds.length) return;
+  const session = await (await getDb()).getFirstAsync<{ group_id: number }>(
+    "SELECT group_id FROM group_sessions WHERE id = ?",
+    [sessionId]
+  );
+  await withTransaction(async (db) => {
+    for (const studentId of studentIds) {
+      await db.runAsync(
+        `INSERT INTO attendances (session_id, student_id, status, notes)
+         VALUES (?, ?, ?, NULL)
+         ON CONFLICT(session_id, student_id) DO UPDATE SET
+           status = excluded.status`,
+        [sessionId, studentId, status]
+      );
+    }
+  });
+  if (session) {
+    const { onAttendanceChanged } = await import("../services/rounds");
+    for (const studentId of studentIds) {
+      await onAttendanceChanged(studentId, session.group_id);
+    }
   }
 }
 

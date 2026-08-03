@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { FlatList, Pressable, View } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { useFocusEffect, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import {
   Chip,
   EmptyState,
@@ -12,47 +12,49 @@ import {
 } from "@/src/components/ui";
 import { t } from "@/src/i18n/ar";
 import { getOpenRoundsPaymentSummary } from "@/src/services/rounds";
+import { useRefreshableList } from "@/src/hooks/useRefreshableList";
 import type { PaymentStatus, StudentDueRow } from "@/src/db/types";
 import { formatMoney, formatRoundTitle } from "@/src/utils/date";
 import { colors, spacing } from "@/src/theme/colors";
 import { rtlChipRow } from "@/src/theme/rtl";
 
+type PaymentListState = {
+  dues: StudentDueRow[];
+  totalCollected: number;
+  totalRemaining: number;
+};
+
 export default function PaymentsTab() {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<PaymentStatus | "all">("unpaid");
   const [groupFilter, setGroupFilter] = useState<number | "all">("all");
-  const [dues, setDues] = useState<StudentDueRow[]>([]);
-  const [totalCollected, setTotalCollected] = useState(0);
-  const [totalRemaining, setTotalRemaining] = useState(0);
 
-  const load = useCallback(async () => {
-    const had = dues.length > 0;
-    if (!had) setLoading(true);
-    try {
-      const summary = await getOpenRoundsPaymentSummary();
-      setDues(summary.dues);
-      setTotalCollected(summary.totalCollected);
-      setTotalRemaining(summary.totalRemaining);
-    } finally {
-      setLoading(false);
-    }
-  }, [dues.length]);
+  const fetcher = useCallback(async () => {
+    const summary = await getOpenRoundsPaymentSummary();
+    return [
+      {
+        dues: summary.dues,
+        totalCollected: summary.totalCollected,
+        totalRemaining: summary.totalRemaining,
+      } satisfies PaymentListState,
+    ];
+  }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      void load();
-    }, [load])
-  );
+  const { data, loading, refreshing, reload } = useRefreshableList(fetcher);
+  const state = data[0] ?? {
+    dues: [] as StudentDueRow[],
+    totalCollected: 0,
+    totalRemaining: 0,
+  };
 
   const groups = useMemo(() => {
     const map = new Map<number, string>();
-    for (const d of dues) map.set(d.group_id, d.group_name);
+    for (const d of state.dues) map.set(d.group_id, d.group_name);
     return [...map.entries()].map(([id, name]) => ({ id, name }));
-  }, [dues]);
+  }, [state.dues]);
 
   const filtered = useMemo(() => {
-    let rows = dues;
+    let rows = state.dues;
     if (groupFilter !== "all") {
       rows = rows.filter((d) => d.group_id === groupFilter);
     }
@@ -60,9 +62,9 @@ export default function PaymentsTab() {
       rows = rows.filter((d) => d.status === filter);
     }
     return rows;
-  }, [dues, filter, groupFilter]);
+  }, [state.dues, filter, groupFilter]);
 
-  if (loading && !dues.length) {
+  if (loading) {
     return (
       <Screen padded={false} style={{ flex: 1 }}>
         <SkeletonList />
@@ -75,12 +77,12 @@ export default function PaymentsTab() {
       <View style={{ padding: spacing.lg }}>
         <StatCard
           label={t("totalCollected")}
-          value={formatMoney(totalCollected)}
+          value={formatMoney(state.totalCollected)}
           tone="success"
         />
         <StatCard
           label={t("remaining")}
-          value={formatMoney(totalRemaining)}
+          value={formatMoney(state.totalRemaining)}
           tone="danger"
         />
         <View style={[rtlChipRow(), { marginBottom: 8 }]}>
@@ -168,8 +170,8 @@ export default function PaymentsTab() {
             }
           />
         )}
-        refreshing={loading}
-        onRefresh={() => void load()}
+        refreshing={refreshing}
+        onRefresh={() => void reload()}
       />
     </Screen>
   );

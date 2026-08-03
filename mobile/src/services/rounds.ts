@@ -508,6 +508,96 @@ export async function getRoundDues(groupId?: number): Promise<StudentDueRow[]> {
   return out;
 }
 
+/** Open-round dues for one student only (avoids full-app summary scan). */
+export async function getRoundDuesForStudent(
+  studentId: number
+): Promise<StudentDueRow[]> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<{
+    round_id: number;
+    round_number: number;
+    counted_classes: number;
+    target_classes: number;
+    started_at: string;
+    closed_at: string | null;
+    student_id: number;
+    student_name: string;
+    guardian_phone: string | null;
+    group_id: number;
+    group_name: string;
+    default_monthly_fee: number;
+    custom_monthly_fee: number | null;
+    paid: number | null;
+  }>(
+    `SELECT
+       br.id as round_id,
+       br.round_number,
+       br.counted_classes,
+       br.target_classes,
+       br.started_at,
+       br.closed_at,
+       s.id as student_id,
+       s.name as student_name,
+       s.guardian_phone,
+       g.id as group_id,
+       g.name as group_name,
+       g.default_monthly_fee,
+       e.custom_monthly_fee,
+       (
+         SELECT COALESCE(SUM(p.amount), 0)
+         FROM payments p
+         WHERE p.billing_round_id = br.id
+       ) as paid
+     FROM billing_rounds br
+     JOIN students s ON s.id = br.student_id
+     JOIN groups g ON g.id = br.group_id
+     JOIN enrollments e ON e.student_id = s.id AND e.group_id = g.id AND e.status = 'active'
+     WHERE br.status = 'open'
+       AND s.status = 'active'
+       AND br.student_id = ?
+     ORDER BY g.name COLLATE NOCASE`,
+    [studentId]
+  );
+
+  const mapped = rows.map((r) => {
+    const due =
+      r.custom_monthly_fee != null && r.custom_monthly_fee >= 0
+        ? r.custom_monthly_fee
+        : r.default_monthly_fee;
+    const paid = Number(r.paid ?? 0);
+    return {
+      student_id: r.student_id,
+      student_name: r.student_name,
+      guardian_phone: r.guardian_phone,
+      group_id: r.group_id,
+      group_name: r.group_name,
+      due,
+      paid,
+      remaining: Math.max(0, due - paid),
+      status: statusFor(due, paid),
+      round_id: r.round_id,
+      round_number: r.round_number,
+      counted_classes: r.counted_classes,
+      target_classes: r.target_classes,
+      remaining_classes: Math.max(0, r.target_classes - r.counted_classes),
+      started_at: r.started_at,
+      closed_at: r.closed_at,
+    };
+  });
+
+  const byGroup = new Map<number, StudentDueRow[]>();
+  for (const row of mapped) {
+    const list = byGroup.get(row.group_id) ?? [];
+    list.push(row);
+    byGroup.set(row.group_id, list);
+  }
+  const out: StudentDueRow[] = [];
+  for (const [gid, list] of byGroup) {
+    out.push(...(await attachSessionRoundDates(gid, list)));
+  }
+  return out;
+}
+
 export async function getOpenRoundsPaymentSummary(groupId?: number): Promise<{
   totalCollected: number;
   totalDue: number;

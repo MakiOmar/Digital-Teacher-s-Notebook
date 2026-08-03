@@ -30,18 +30,11 @@ import { formatDateTimeAr, formatMoney } from "@/src/utils/date";
 import type { GroupSession } from "@/src/db/types";
 import { colors, groupAccentColor, radii, spacing } from "@/src/theme/colors";
 import { fonts } from "@/src/theme/typography";
+import { ICONS } from "@/src/theme/icons";
 import { rtlRow, rtlText } from "@/src/theme/rtl";
 import { useTutorProfile } from "@/src/profile/TutorProfileContext";
 
 const LOGO = require("../../assets/images/logo.png");
-
-const ICONS = {
-  today: require("../../assets/icons/icon-today.png"),
-  schedule: require("../../assets/icons/icon-schedule.png"),
-  groups: require("../../assets/icons/icon-groups.png"),
-  students: require("../../assets/icons/icon-students.png"),
-  payments: require("../../assets/icons/icon-payments.png"),
-};
 
 /** Welcome line under logo/profile: waving hand + tutor name. */
 function WelcomeRow({ name }: { name: string }) {
@@ -94,10 +87,7 @@ export default function HomeScreen() {
         loadAutoBackupSettings(),
       ]);
       setNextSession(upcoming[0] ?? null);
-      setUnpaidCount(
-        summary.dues.filter((d) => d.status === "unpaid" || d.status === "partial")
-          .length
-      );
+      setUnpaidCount(summary.unpaidCount + summary.partialCount);
       setTotalRemaining(summary.totalRemaining);
       setTodayCount(today.length);
       setGroupCount(groups.length);

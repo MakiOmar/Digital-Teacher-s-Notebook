@@ -25,6 +25,22 @@ export const WEEKDAY_LABELS: Record<number, string> = {
   6: "السبت",
 };
 
+/** Sat → Fri sort order for Arabic week listings. */
+export const WEEKDAY_SORT: Record<number, number> = {
+  6: 0,
+  0: 1,
+  1: 2,
+  2: 3,
+  3: 4,
+  4: 5,
+  5: 6,
+};
+
+export function primaryWeekday(weekdays: number[]): number {
+  if (!weekdays.length) return 99;
+  return Math.min(...weekdays.map((d) => WEEKDAY_SORT[d] ?? 99));
+}
+
 export function pad2(n: number): string {
   return n.toString().padStart(2, "0");
 }

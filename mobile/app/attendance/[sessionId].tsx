@@ -17,6 +17,7 @@ import {
   listActiveStudentsInGroup,
   listAttendanceForSession,
   upsertAttendance,
+  upsertAttendanceBatch,
   updateSessionStatus,
   updateSessionNotes,
   setSessionStarStudent,
@@ -106,15 +107,13 @@ export default function AttendanceScreen() {
 
   async function setAllStatus(status: AttendanceStatus) {
     const next: Record<number, AttendanceStatus> = { ...map };
-    for (const s of students) {
-      next[s.id] = status;
-      await upsertAttendance({
-        session_id: id,
-        student_id: s.id,
-        status,
-      });
-    }
+    for (const s of students) next[s.id] = status;
     setMap(next);
+    await upsertAttendanceBatch(
+      id,
+      students.map((s) => s.id),
+      status
+    );
     bump();
   }
 

@@ -118,12 +118,22 @@ function Bootstrap({
   // Silent auto-backup + reminder reschedule when unlocked + setup done
   useEffect(() => {
     if (licenseStatus !== "unlocked" || !setupComplete) return;
+    let lastRemindersAt = 0;
+    const REMINDERS_MIN_MS = 60_000;
+
+    const runReminders = () => {
+      const now = Date.now();
+      if (now - lastRemindersAt < REMINDERS_MIN_MS) return;
+      lastRemindersAt = now;
+      void rescheduleReminders().catch(() => undefined);
+    };
+
     void runAutoBackupIfDue().catch(() => undefined);
-    void rescheduleReminders().catch(() => undefined);
+    runReminders();
     const sub = AppState.addEventListener("change", (state) => {
       if (state === "active") {
         void runAutoBackupIfDue().catch(() => undefined);
-        void rescheduleReminders().catch(() => undefined);
+        runReminders();
       }
     });
     return () => sub.remove();
@@ -234,7 +244,6 @@ export default function RootLayout() {
                       <Stack.Screen name="students/form" />
                       <Stack.Screen name="students/[id]" />
                       <Stack.Screen name="payments/form" />
-                      <Stack.Screen name="payments/dues" />
                       <Stack.Screen name="years/index" />
                       <Stack.Screen name="years/form" />
                       <Stack.Screen name="backup" />

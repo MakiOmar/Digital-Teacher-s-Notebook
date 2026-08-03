@@ -6,6 +6,7 @@ import {
   LoadingBlock,
   Screen,
 } from "@/src/components/ui";
+import { PaginationBar } from "@/src/components/PaginationBar";
 import {
   getSessionAttendanceCoverage,
   listSessionsForGroup,
@@ -13,12 +14,15 @@ import {
 import type { GroupSession } from "@/src/db/types";
 import { SessionClassButton } from "@/src/components/SessionClassButton";
 import { t } from "@/src/i18n/ar";
+import { useClientPagination } from "@/src/hooks/useClientPagination";
+import { useGeneralSettings } from "@/src/settings/GeneralSettingsContext";
 import { spacing } from "@/src/theme/colors";
 
 export default function GroupSessionsScreen() {
   const { groupId } = useLocalSearchParams<{ groupId: string }>();
   const id = Number(groupId);
   const router = useRouter();
+  const { pageSize } = useGeneralSettings();
   const [loading, setLoading] = useState(true);
   const [sessions, setSessions] = useState<GroupSession[]>([]);
   const [coverage, setCoverage] = useState<
@@ -41,6 +45,8 @@ export default function GroupSessionsScreen() {
     }, [load])
   );
 
+  const paging = useClientPagination(sessions, pageSize, id);
+
   if (loading) {
     return (
       <Screen>
@@ -54,10 +60,22 @@ export default function GroupSessionsScreen() {
       <FlatList
         style={{ flex: 1 }}
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40 }}
-        data={sessions}
+        data={paging.pageItems}
         keyExtractor={(item) => String(item.id)}
         ListEmptyComponent={<EmptyState message={t("noSessions")} />}
         ItemSeparatorComponent={() => <View style={{ height: spacing.xs }} />}
+        ListFooterComponent={
+          <PaginationBar
+            page={paging.page}
+            totalPages={paging.totalPages}
+            totalItems={paging.totalItems}
+            pageSize={paging.pageSize}
+            hasPrev={paging.hasPrev}
+            hasNext={paging.hasNext}
+            onPrev={paging.prevPage}
+            onNext={paging.nextPage}
+          />
+        }
         renderItem={({ item }) => (
           <SessionClassButton
             session={item}

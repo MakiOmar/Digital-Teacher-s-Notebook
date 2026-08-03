@@ -11,6 +11,7 @@ import {
   Screen,
   Title,
 } from "@/src/components/ui";
+import { PaginationBar } from "@/src/components/PaginationBar";
 import { useDialog } from "@/src/components/DialogProvider";
 import { t } from "@/src/i18n/ar";
 import { getAttendanceRatesByStudent } from "@/src/repositories";
@@ -19,9 +20,12 @@ import { formatMoney } from "@/src/utils/date";
 import { colors, spacing } from "@/src/theme/colors";
 import { fonts } from "@/src/theme/typography";
 import { rtlText } from "@/src/theme/rtl";
+import { useClientPagination } from "@/src/hooks/useClientPagination";
+import { useGeneralSettings } from "@/src/settings/GeneralSettingsContext";
 
 export default function ReportsScreen() {
   const dialog = useDialog();
+  const { pageSize } = useGeneralSettings();
   const [loading, setLoading] = useState(true);
   const [attendance, setAttendance] = useState<
     { student_id: number; student_name: string; present: number; total: number }[]
@@ -65,6 +69,9 @@ export default function ReportsScreen() {
       void load();
     }, [load])
   );
+
+  const attendancePage = useClientPagination(attendance, pageSize, "att");
+  const groupPage = useClientPagination(byGroup, pageSize, "grp");
 
   async function onShare() {
     const lines = [
@@ -117,32 +124,56 @@ export default function ReportsScreen() {
         {!attendance.length ? (
           <Muted>{t("empty")}</Muted>
         ) : (
-          attendance.map((a) => {
-            const pct = a.total ? Math.round((a.present / a.total) * 100) : 0;
-            return (
-              <Card key={a.student_id}>
-                <Text style={styles.line}>{a.student_name}</Text>
-                <Muted>
-                  {t("presentRate")}: {pct}% ({a.present}/{a.total})
-                </Muted>
-              </Card>
-            );
-          })
+          <>
+            {attendancePage.pageItems.map((a) => {
+              const pct = a.total ? Math.round((a.present / a.total) * 100) : 0;
+              return (
+                <Card key={a.student_id}>
+                  <Text style={styles.line}>{a.student_name}</Text>
+                  <Muted>
+                    {t("presentRate")}: {pct}% ({a.present}/{a.total})
+                  </Muted>
+                </Card>
+              );
+            })}
+            <PaginationBar
+              page={attendancePage.page}
+              totalPages={attendancePage.totalPages}
+              totalItems={attendancePage.totalItems}
+              pageSize={attendancePage.pageSize}
+              hasPrev={attendancePage.hasPrev}
+              hasNext={attendancePage.hasNext}
+              onPrev={attendancePage.prevPage}
+              onNext={attendancePage.nextPage}
+            />
+          </>
         )}
 
         <Text style={styles.section}>{t("reportRevenue")}</Text>
         {!byGroup.length ? (
           <Muted>{t("empty")}</Muted>
         ) : (
-          byGroup.map((g) => (
-            <Card key={g.group_id}>
-              <Text style={styles.line}>{g.group_name}</Text>
-              <Muted>
-                {formatMoney(g.collected)} · {t("remaining")}:{" "}
-                {formatMoney(g.remaining)}
-              </Muted>
-            </Card>
-          ))
+          <>
+            {groupPage.pageItems.map((g) => (
+              <Card key={g.group_id}>
+                <Text style={styles.line}>{g.group_name}</Text>
+                <Muted>
+                  {formatMoney(g.collected)} · {t("remaining")}:{" "}
+                  {formatMoney(g.remaining)}
+                </Muted>
+              </Card>
+            ))}
+            <PaginationBar
+              page={groupPage.page}
+              totalPages={groupPage.totalPages}
+              totalItems={groupPage.totalItems}
+              pageSize={groupPage.pageSize}
+              hasPrev={groupPage.hasPrev}
+              hasNext={groupPage.hasNext}
+              onPrev={groupPage.prevPage}
+              onNext={groupPage.nextPage}
+            />
+          </>
         )}
       </ScrollView>
     </Screen>

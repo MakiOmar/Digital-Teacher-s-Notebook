@@ -53,6 +53,12 @@ export default function MoreTab() {
             onPress={() => router.push("/backup")}
           />
           <MenuCard
+            title={t("generalSettings")}
+            icon={ICONS.more}
+            borderColor={colors.primary}
+            onPress={() => router.push("/general-settings" as never)}
+          />
+          <MenuCard
             title={t("reminders")}
             icon={ICONS.more}
             borderColor={colors.accent}

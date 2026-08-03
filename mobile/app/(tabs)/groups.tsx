@@ -10,10 +10,13 @@ import {
   SkeletonList,
 } from "@/src/components/ui";
 import { IconActionBar } from "@/src/components/IconActionBar";
+import { PaginationBar } from "@/src/components/PaginationBar";
 import { t } from "@/src/i18n/ar";
 import { listGroupsWithPatterns } from "@/src/repositories";
 import { getGroupListStats } from "@/src/services/rounds";
 import { useRefreshableList } from "@/src/hooks/useRefreshableList";
+import { useClientPagination } from "@/src/hooks/useClientPagination";
+import { useGeneralSettings } from "@/src/settings/GeneralSettingsContext";
 import type { StudyGroup, Weekday } from "@/src/db/types";
 import {
   WEEKDAY_LABELS,
@@ -34,6 +37,7 @@ type GroupRow = StudyGroup & {
 export default function GroupsTab() {
   const router = useRouter();
   const { bump, revision } = useAppData();
+  const { pageSize } = useGeneralSettings();
   const [query, setQuery] = useState("");
 
   const fetcher = useCallback(async () => {
@@ -79,6 +83,8 @@ export default function GroupsTab() {
     );
   }, [groups, query]);
 
+  const paging = useClientPagination(filtered, pageSize, query.trim());
+
   if (loading) {
     return (
       <Screen padded={false} style={{ flex: 1 }}>
@@ -113,13 +119,25 @@ export default function GroupsTab() {
           paddingHorizontal: spacing.lg,
           paddingBottom: 40,
         }}
-        data={filtered}
+        data={paging.pageItems}
         keyExtractor={(item) => String(item.id)}
         ListEmptyComponent={
           <EmptyState
             message={t("noGroups")}
             actionLabel={t("addGroupCta")}
             onAction={() => router.push("/groups/form")}
+          />
+        }
+        ListFooterComponent={
+          <PaginationBar
+            page={paging.page}
+            totalPages={paging.totalPages}
+            totalItems={paging.totalItems}
+            pageSize={paging.pageSize}
+            hasPrev={paging.hasPrev}
+            hasNext={paging.hasNext}
+            onPrev={paging.prevPage}
+            onNext={paging.nextPage}
           />
         }
         renderItem={({ item }) => (

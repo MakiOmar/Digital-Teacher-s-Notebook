@@ -16,6 +16,7 @@ import {
   Screen,
 } from "@/src/components/ui";
 import { IconActionBar } from "@/src/components/IconActionBar";
+import { PaginationBar } from "@/src/components/PaginationBar";
 import { t } from "@/src/i18n/ar";
 import {
   createPayment,
@@ -35,6 +36,8 @@ import { rtlChipRow, rtlRow, rtlText } from "@/src/theme/rtl";
 import { useAppData } from "@/src/contexts/AppDataContext";
 import { MonthStarTitle } from "@/src/components/MonthStarTitle";
 import { useDialog } from "@/src/components/DialogProvider";
+import { useClientPagination } from "@/src/hooks/useClientPagination";
+import { useGeneralSettings } from "@/src/settings/GeneralSettingsContext";
 
 const METHODS: { key: PaymentMethod; label: string }[] = [
   { key: "cash", label: t("cash") },
@@ -47,6 +50,7 @@ export default function GroupRoundPaymentsScreen() {
   const groupId = Number(groupIdParam);
   const navigation = useNavigation();
   const { bump } = useAppData();
+  const { pageSize } = useGeneralSettings();
   const dialog = useDialog();
 
   const [loading, setLoading] = useState(true);
@@ -69,6 +73,12 @@ export default function GroupRoundPaymentsScreen() {
   const selectedSummary = useMemo(
     () => roundSummaries.find((r) => r.round_number === selectedRound) ?? null,
     [roundSummaries, selectedRound]
+  );
+
+  const paging = useClientPagination(
+    rows,
+    pageSize,
+    `${groupId}:${selectedRound ?? 0}`
   );
 
   const roundHeading = useMemo(() => {
@@ -364,9 +374,21 @@ export default function GroupRoundPaymentsScreen() {
           paddingHorizontal: spacing.lg,
           paddingBottom: 40,
         }}
-        data={rows}
+        data={paging.pageItems}
         keyExtractor={(item) => String(item.round_id ?? item.student_id)}
         ListEmptyComponent={<EmptyState message={t("noStudentsInGroup")} />}
+        ListFooterComponent={
+          <PaginationBar
+            page={paging.page}
+            totalPages={paging.totalPages}
+            totalItems={paging.totalItems}
+            pageSize={paging.pageSize}
+            hasPrev={paging.hasPrev}
+            hasNext={paging.hasNext}
+            onPrev={paging.prevPage}
+            onNext={paging.nextPage}
+          />
+        }
         renderItem={({ item }) => {
           const isPaid = item.status === "paid";
           const busy = bulkBusy || busyStudentId === item.student_id;

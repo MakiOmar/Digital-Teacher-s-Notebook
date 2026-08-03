@@ -10,9 +10,12 @@ import {
   SkeletonList,
   StatCard,
 } from "@/src/components/ui";
+import { PaginationBar } from "@/src/components/PaginationBar";
 import { t } from "@/src/i18n/ar";
 import { getOpenRoundsPaymentSummary } from "@/src/services/rounds";
 import { useRefreshableList } from "@/src/hooks/useRefreshableList";
+import { useClientPagination } from "@/src/hooks/useClientPagination";
+import { useGeneralSettings } from "@/src/settings/GeneralSettingsContext";
 import type { PaymentStatus, StudentDueRow } from "@/src/db/types";
 import { formatMoney, formatRoundTitle } from "@/src/utils/date";
 import { colors, spacing } from "@/src/theme/colors";
@@ -26,6 +29,7 @@ type PaymentListState = {
 
 export default function PaymentsTab() {
   const router = useRouter();
+  const { pageSize } = useGeneralSettings();
   const [filter, setFilter] = useState<PaymentStatus | "all">("unpaid");
   const [groupFilter, setGroupFilter] = useState<number | "all">("all");
 
@@ -63,6 +67,9 @@ export default function PaymentsTab() {
     }
     return rows;
   }, [state.dues, filter, groupFilter]);
+
+  const resetKey = `${filter}:${groupFilter}`;
+  const paging = useClientPagination(filtered, pageSize, resetKey);
 
   if (loading) {
     return (
@@ -124,9 +131,21 @@ export default function PaymentsTab() {
           paddingHorizontal: spacing.lg,
           paddingBottom: 40,
         }}
-        data={filtered}
+        data={paging.pageItems}
         keyExtractor={(item) => `${item.student_id}-${item.round_id ?? 0}`}
         ListEmptyComponent={<EmptyState message={t("empty")} />}
+        ListFooterComponent={
+          <PaginationBar
+            page={paging.page}
+            totalPages={paging.totalPages}
+            totalItems={paging.totalItems}
+            pageSize={paging.pageSize}
+            hasPrev={paging.hasPrev}
+            hasNext={paging.hasNext}
+            onPrev={paging.prevPage}
+            onNext={paging.nextPage}
+          />
+        }
         renderItem={({ item }) => (
           <ListRow
             title={item.student_name}

@@ -37,6 +37,7 @@ import {
   useAppLock,
 } from "@/src/security/AppLockContext";
 import { AppLockScreen } from "@/src/security/AppLockScreen";
+import { GeneralSettingsProvider } from "@/src/settings/GeneralSettingsContext";
 
 const RTL_RELOAD_KEY = "tutoring.rtl.reload.v1";
 
@@ -219,6 +220,7 @@ export default function RootLayout() {
         <LicenseProvider>
           <TutorProfileProvider>
             <AppLockProvider>
+              <GeneralSettingsProvider>
               <DialogProvider>
                 <Bootstrap onAppReady={onAppReady}>
                   <AppShell>
@@ -252,11 +254,13 @@ export default function RootLayout() {
                       <Stack.Screen name="profile-edit" />
                       <Stack.Screen name="app-lock" />
                       <Stack.Screen name="reminders" />
+                      <Stack.Screen name="general-settings" />
                       <Stack.Screen name="reports" />
                     </Stack>
                   </AppShell>
                 </Bootstrap>
               </DialogProvider>
+              </GeneralSettingsProvider>
             </AppLockProvider>
           </TutorProfileProvider>
         </LicenseProvider>

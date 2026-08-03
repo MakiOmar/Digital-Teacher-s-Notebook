@@ -8,6 +8,7 @@ import {
   Screen,
 } from "@/src/components/ui";
 import { IconActionBar } from "@/src/components/IconActionBar";
+import { PaginationBar } from "@/src/components/PaginationBar";
 import { t } from "@/src/i18n/ar";
 import {
   deleteAcademicYear,
@@ -17,11 +18,14 @@ import {
 import type { AcademicYear } from "@/src/db/types";
 import { useAppData } from "@/src/contexts/AppDataContext";
 import { useDialog } from "@/src/components/DialogProvider";
+import { useClientPagination } from "@/src/hooks/useClientPagination";
+import { useGeneralSettings } from "@/src/settings/GeneralSettingsContext";
 import { spacing } from "@/src/theme/colors";
 
 export default function YearsScreen() {
   const router = useRouter();
   const { bump } = useAppData();
+  const { pageSize } = useGeneralSettings();
   const dialog = useDialog();
   const [loading, setLoading] = useState(true);
   const [years, setYears] = useState<AcademicYear[]>([]);
@@ -40,6 +44,8 @@ export default function YearsScreen() {
       void load();
     }, [load])
   );
+
+  const paging = useClientPagination(years, pageSize);
 
   if (loading) {
     return (
@@ -67,13 +73,25 @@ export default function YearsScreen() {
       <FlatList
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: 40 }}
-        data={years}
+        data={paging.pageItems}
         keyExtractor={(item) => String(item.id)}
         ListEmptyComponent={
           <EmptyState
             message={t("empty")}
             actionLabel={t("createYearCta")}
             onAction={() => router.push("/years/form")}
+          />
+        }
+        ListFooterComponent={
+          <PaginationBar
+            page={paging.page}
+            totalPages={paging.totalPages}
+            totalItems={paging.totalItems}
+            pageSize={paging.pageSize}
+            hasPrev={paging.hasPrev}
+            hasNext={paging.hasNext}
+            onPrev={paging.prevPage}
+            onNext={paging.nextPage}
           />
         }
         renderItem={({ item }) => (

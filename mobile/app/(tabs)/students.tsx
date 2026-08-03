@@ -10,14 +10,18 @@ import {
   SkeletonList,
 } from "@/src/components/ui";
 import { IconActionBar } from "@/src/components/IconActionBar";
+import { PaginationBar } from "@/src/components/PaginationBar";
 import { t } from "@/src/i18n/ar";
 import { listStudentsWithEnrollment } from "@/src/repositories";
 import { useRefreshableList } from "@/src/hooks/useRefreshableList";
+import { useClientPagination } from "@/src/hooks/useClientPagination";
+import { useGeneralSettings } from "@/src/settings/GeneralSettingsContext";
 import { telUrl } from "@/src/utils/phone";
 import { spacing, colors } from "@/src/theme/colors";
 
 export default function StudentsTab() {
   const router = useRouter();
+  const { pageSize } = useGeneralSettings();
   const [query, setQuery] = useState("");
   const fetcher = useCallback(() => listStudentsWithEnrollment(), []);
   const { data: rows, loading, refreshing, reload } =
@@ -28,6 +32,8 @@ export default function StudentsTab() {
     if (!q) return rows;
     return rows.filter((r) => r.name.includes(q));
   }, [rows, query]);
+
+  const paging = useClientPagination(filtered, pageSize, query.trim());
 
   if (loading) {
     return (
@@ -63,13 +69,25 @@ export default function StudentsTab() {
           paddingHorizontal: spacing.lg,
           paddingBottom: 40,
         }}
-        data={filtered}
+        data={paging.pageItems}
         keyExtractor={(item) => String(item.id)}
         ListEmptyComponent={
           <EmptyState
             message={t("noStudents")}
             actionLabel={t("addStudentCta")}
             onAction={() => router.push("/students/form")}
+          />
+        }
+        ListFooterComponent={
+          <PaginationBar
+            page={paging.page}
+            totalPages={paging.totalPages}
+            totalItems={paging.totalItems}
+            pageSize={paging.pageSize}
+            hasPrev={paging.hasPrev}
+            hasNext={paging.hasNext}
+            onPrev={paging.prevPage}
+            onNext={paging.nextPage}
           />
         }
         renderItem={({ item }) => (

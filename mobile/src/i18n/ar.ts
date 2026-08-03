@@ -239,6 +239,15 @@ export const ar = {
   reminderTodayEnable: "تذكير بحصص اليوم",
   reminderUnpaidEnable: "تذكير أسبوعي بالمستحقات",
   remindersSaved: "تم حفظ التذكيرات",
+  generalSettings: "إعدادات عامة",
+  generalSettingsHint: "تتحكم هذه الإعدادات في سلوك القوائم عبر التطبيق.",
+  pageSize: "عدد العناصر في الصفحة",
+  pageSizeHint: "يُستخدم في قوائم الطلاب والمجموعات والمدفوعات والتقارير وغيرها.",
+  generalSettingsSaved: "تم حفظ الإعدادات العامة",
+  paginationPrev: "السابق",
+  paginationNext: "التالي",
+  paginationPageOf: "صفحة {page} من {totalPages}",
+  paginationRange: "{from}–{to} من {total}",
   reminderTodayTitle: "حصص اليوم",
   reminderTodayBody: "لديك حصص مجدولة اليوم. راجع جدول اليوم.",
   reminderUnpaidTitle: "مستحقات معلّقة",
@@ -349,6 +358,16 @@ export const ar = {
 
 export type ArKey = keyof typeof ar;
 
-export function t(key: ArKey): string {
-  return ar[key];
+/** Look up an Arabic string; optional `{name}` placeholders via vars. */
+export function t(
+  key: ArKey,
+  vars?: Record<string, string | number>
+): string {
+  let value: string = ar[key];
+  if (vars) {
+    for (const [name, raw] of Object.entries(vars)) {
+      value = value.split(`{${name}}`).join(String(raw));
+    }
+  }
+  return value;
 }

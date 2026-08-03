@@ -69,7 +69,13 @@ export default function YearsScreen() {
         contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: 40 }}
         data={years}
         keyExtractor={(item) => String(item.id)}
-        ListEmptyComponent={<EmptyState message={t("empty")} />}
+        ListEmptyComponent={
+          <EmptyState
+            message={t("empty")}
+            actionLabel={t("createYearCta")}
+            onAction={() => router.push("/years/form")}
+          />
+        }
         renderItem={({ item }) => (
           <ListRow
             title={item.name}

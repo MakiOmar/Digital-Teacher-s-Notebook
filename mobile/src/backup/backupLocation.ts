@@ -147,7 +147,8 @@ export async function writeBackupToLocation(
   prefix = "auto-backup"
 ): Promise<string> {
   const payload = await buildBackup();
-  const json = JSON.stringify(payload, null, 2);
+  // Compact JSON keeps auto-backup fast on large datasets
+  const json = JSON.stringify(payload);
   const fileName = `${prefix}-${Date.now()}.json`;
 
   if (directoryUri) {

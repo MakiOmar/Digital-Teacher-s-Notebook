@@ -28,6 +28,7 @@ import { colors, radii, spacing } from "@/src/theme/colors";
 import { rtlChipRow, rtlRow, rtlText } from "@/src/theme/rtl";
 
 const FALLBACK = require("../../assets/images/profile.png");
+const BRAND_LOGO = require("../../assets/images/logo.png");
 
 type Step = "profile" | "backup";
 
@@ -83,13 +84,11 @@ export function SetupWizardScreen() {
     }
     setBusy(true);
     try {
-      // Persist draft name/photo before backup step (setup not complete yet)
       await saveProfile({
         name: name.trim(),
         profileUri,
         completeSetup: false,
       });
-      // Ensure setupCompletedAt stays null until finish — saveProfile preserves it
       setStep("backup");
     } catch (e) {
       await dialog.alert({
@@ -139,6 +138,10 @@ export function SetupWizardScreen() {
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
       >
+        {/* Brand mark — matches splash / home wordmark */}
+        <Image source={BRAND_LOGO} style={styles.brandLogo} resizeMode="contain" />
+        <Text style={styles.brandName}>{t("appName")}</Text>
+
         <Title>
           {step === "profile" ? t("setupWizardTitle") : t("autoBackup")}
         </Title>
@@ -237,6 +240,22 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: spacing.lg,
     paddingBottom: 48,
+  },
+  brandLogo: {
+    width: "100%",
+    height: 88,
+    alignSelf: "center",
+    marginBottom: spacing.sm,
+    backgroundColor: "transparent",
+  },
+  brandName: {
+    ...rtlText,
+    width: "100%",
+    textAlign: "center",
+    fontSize: 18,
+    fontWeight: "800",
+    color: colors.primary,
+    marginBottom: spacing.lg,
   },
   avatarWrap: {
     alignItems: "center",

@@ -201,6 +201,13 @@ export const ar = {
   exportDone: "تم تصدير النسخة الاحتياطية",
   importDone: "تم استيراد النسخة الاحتياطية",
   importConfirm: "سيتم استبدال كل البيانات الحالية. هل أنت متأكد؟",
+  backupProgressImport: "جاري استيراد النسخة الاحتياطية...",
+  backupProgressExport: "جاري تجهيز النسخة الاحتياطية...",
+  backupProgressRead: "جاري قراءة الملف...",
+  backupProgressParse: "جاري تحليل البيانات...",
+  backupProgressClear: "جاري مسح البيانات الحالية...",
+  backupProgressInsert: "جاري حفظ البيانات...",
+  backupProgressWrite: "جاري كتابة الملف...",
   about: "عن التطبيق",
   aboutText:
     "مدير الدروس الخصوصية — تطبيق محلي لإدارة مجموعات التدريس والاشتراكات والحضور بدون سيرفر.",

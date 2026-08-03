@@ -19,17 +19,64 @@ const TABLES = [
   "payments",
 ] as const;
 
+/** Yield to the JS event loop so React can paint progress. */
+function yieldToUi(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 export type BackupPayload = {
   version: 1;
   exported_at: string;
   tables: Record<string, unknown[]>;
 };
 
-export async function buildBackup(): Promise<BackupPayload> {
+export type BackupProgressPhase =
+  | "read"
+  | "parse"
+  | "clear"
+  | "insert"
+  | "export"
+  | "write";
+
+export type BackupProgress = {
+  phase: BackupProgressPhase;
+  done: number;
+  total: number;
+  /** 0–100 */
+  percent: number;
+};
+
+export type BackupProgressCallback = (p: BackupProgress) => void;
+
+function report(
+  onProgress: BackupProgressCallback | undefined,
+  phase: BackupProgressPhase,
+  done: number,
+  total: number,
+  /** Map phase-local progress into overall 0–100 band */
+  bandStart: number,
+  bandEnd: number
+) {
+  if (!onProgress) return;
+  const local = total <= 0 ? 1 : done / total;
+  const percent = Math.max(
+    0,
+    Math.min(100, Math.round(bandStart + local * (bandEnd - bandStart)))
+  );
+  onProgress({ phase, done, total, percent });
+}
+
+export async function buildBackup(
+  onProgress?: BackupProgressCallback
+): Promise<BackupPayload> {
   const db = await getDb();
   const tables: Record<string, unknown[]> = {};
-  for (const t of TABLES) {
+  const total = TABLES.length;
+  for (let i = 0; i < TABLES.length; i++) {
+    const t = TABLES[i];
     tables[t] = await db.getAllAsync(`SELECT * FROM ${t}`);
+    report(onProgress, "export", i + 1, total, 0, 70);
+    if ((i + 1) % 2 === 0) await yieldToUi();
   }
   return {
     version: 1,
@@ -38,9 +85,16 @@ export async function buildBackup(): Promise<BackupPayload> {
   };
 }
 
-export async function exportBackupFile(): Promise<string> {
-  const payload = await buildBackup();
-  const json = JSON.stringify(payload, null, 2);
+export async function exportBackupFile(
+  onProgress?: BackupProgressCallback
+): Promise<string> {
+  const payload = await buildBackup(onProgress);
+  report(onProgress, "write", 0, 1, 70, 85);
+  await yieldToUi();
+  // Compact JSON — much faster/smaller than pretty-print for large DBs
+  const json = JSON.stringify(payload);
+  report(onProgress, "write", 1, 2, 85, 95);
+  await yieldToUi();
   const name = `tutoring-backup-${Date.now()}.json`;
   const dir = FileSystem.cacheDirectory ?? FileSystem.documentDirectory;
   if (!dir) throw new Error("لا يمكن الوصول لمجلد الملفات");
@@ -48,6 +102,7 @@ export async function exportBackupFile(): Promise<string> {
   await FileSystem.writeAsStringAsync(path, json, {
     encoding: FileSystem.EncodingType.UTF8,
   });
+  report(onProgress, "write", 2, 2, 95, 100);
   if (await Sharing.isAvailableAsync()) {
     await Sharing.shareAsync(path, {
       mimeType: "application/json",
@@ -69,7 +124,9 @@ export async function writeBackupToDocuments(
   return writeBackupToLocation(null, prefix);
 }
 
-export async function importBackupFromPicker(): Promise<void> {
+export async function importBackupFromPicker(
+  onProgress?: BackupProgressCallback
+): Promise<void> {
   const result = await DocumentPicker.getDocumentAsync({
     type: "application/json",
     copyToCacheDirectory: true,
@@ -78,38 +135,83 @@ export async function importBackupFromPicker(): Promise<void> {
     throw new Error("تم إلغاء الاختيار");
   }
   const uri = result.assets[0].uri;
+  report(onProgress, "read", 0, 1, 0, 5);
+  await yieldToUi();
   const raw = await FileSystem.readAsStringAsync(uri, {
     encoding: FileSystem.EncodingType.UTF8,
   });
+  report(onProgress, "read", 1, 1, 5, 10);
+  await yieldToUi();
+
+  report(onProgress, "parse", 0, 1, 10, 18);
+  await yieldToUi();
   const payload = JSON.parse(raw) as BackupPayload;
+  report(onProgress, "parse", 1, 1, 18, 20);
+  await yieldToUi();
+
   if (!payload?.tables || payload.version !== 1) {
     throw new Error("ملف النسخة الاحتياطية غير صالح");
   }
-  await restoreBackup(payload);
+  await restoreBackup(payload, onProgress);
 }
 
-async function restoreBackup(payload: BackupPayload): Promise<void> {
+/** SQLite default max variables ~999; keep headroom for multi-column rows. */
+const MAX_VARS = 900;
+/** Yield every N rows so UI progress can paint. */
+const YIELD_EVERY = 250;
+
+async function restoreBackup(
+  payload: BackupPayload,
+  onProgress?: BackupProgressCallback
+): Promise<void> {
+  const totalRows = TABLES.reduce(
+    (sum, t) => sum + (payload.tables[t]?.length ?? 0),
+    0
+  );
+  let inserted = 0;
+
   await withTransaction(async (db) => {
     const dropOrder = [...TABLES].reverse();
-    for (const t of dropOrder) {
-      await db.execAsync(`DELETE FROM ${t}`);
+    report(onProgress, "clear", 0, dropOrder.length, 20, 28);
+    for (let i = 0; i < dropOrder.length; i++) {
+      await db.execAsync(`DELETE FROM ${dropOrder[i]}`);
+      report(onProgress, "clear", i + 1, dropOrder.length, 20, 28);
     }
+    await yieldToUi();
 
     for (const t of TABLES) {
-      const rows = payload.tables[t] ?? [];
-      for (const row of rows) {
-        const obj = row as Record<string, unknown>;
-        const keys = Object.keys(obj);
-        if (!keys.length) continue;
-        const placeholders = keys.map(() => "?").join(", ");
-        const cols = keys.join(", ");
-        await db.runAsync(
-          `INSERT INTO ${t} (${cols}) VALUES (${placeholders})`,
-          keys.map((k) => obj[k] as string | number | null)
+      const rows = (payload.tables[t] ?? []) as Record<string, unknown>[];
+      if (!rows.length) continue;
+
+      // Backups use a stable column set per table — key off the first row.
+      const keys = Object.keys(rows[0] ?? {});
+      if (!keys.length) continue;
+      const cols = keys.join(", ");
+      const oneRow = `(${keys.map(() => "?").join(", ")})`;
+      const batchSize = Math.max(1, Math.floor(MAX_VARS / keys.length));
+
+      for (let i = 0; i < rows.length; i += batchSize) {
+        const chunk = rows.slice(i, i + batchSize);
+        const valuesSql = chunk.map(() => oneRow).join(", ");
+        const params = chunk.flatMap((r) =>
+          keys.map((k) => (r[k] as string | number | null) ?? null)
         );
+        await db.runAsync(
+          `INSERT INTO ${t} (${cols}) VALUES ${valuesSql}`,
+          params
+        );
+        inserted += chunk.length;
+        report(onProgress, "insert", inserted, Math.max(totalRows, 1), 28, 98);
+        if (inserted % YIELD_EVERY < batchSize) {
+          await yieldToUi();
+        }
       }
     }
   });
+
+  report(onProgress, "insert", totalRows, Math.max(totalRows, 1), 98, 100);
+  await yieldToUi();
   const db = await reopenDb();
   await db.execAsync(SCHEMA_SQL);
+  report(onProgress, "insert", totalRows, Math.max(totalRows, 1), 100, 100);
 }

@@ -265,7 +265,8 @@ const styles = StyleSheet.create({
   },
   logo: {
     width: "100%",
-    height: 64,
+    height: 92,
+    backgroundColor: "transparent",
   },
   profileCol: {
     alignItems: "center",

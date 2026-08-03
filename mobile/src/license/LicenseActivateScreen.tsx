@@ -1,5 +1,6 @@
 import { useState } from "react";
 import {
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -19,6 +20,8 @@ import { useDialog } from "@/src/components/DialogProvider";
 import { t } from "@/src/i18n/ar";
 import { colors, spacing } from "@/src/theme/colors";
 import { rtlText } from "@/src/theme/rtl";
+
+const BRAND_LOGO = require("../../assets/images/logo.png");
 
 /** Full-screen activate gate when the app is locked. */
 export function LicenseActivateScreen() {
@@ -59,6 +62,12 @@ export function LicenseActivateScreen() {
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
         >
+          <Image
+            source={BRAND_LOGO}
+            style={styles.brandLogo}
+            resizeMode="contain"
+          />
+          <Text style={styles.brandName}>{t("appName")}</Text>
           <Title>{t("licenseActivateTitle")}</Title>
           <Muted style={{ marginBottom: spacing.lg }}>
             {t("licenseActivateHint")}
@@ -91,6 +100,22 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: spacing.lg,
     paddingBottom: 48,
+  },
+  brandLogo: {
+    width: "100%",
+    height: 88,
+    alignSelf: "center",
+    marginBottom: spacing.sm,
+    backgroundColor: "transparent",
+  },
+  brandName: {
+    ...rtlText,
+    width: "100%",
+    textAlign: "center",
+    fontSize: 18,
+    fontWeight: "800",
+    color: colors.primary,
+    marginBottom: spacing.lg,
   },
   reason: {
     ...rtlText,

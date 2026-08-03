@@ -65,8 +65,15 @@ export function GeneralSettingsProvider({ children }: { children: ReactNode }) {
 
 export function useGeneralSettings(): GeneralSettingsContextValue {
   const ctx = useContext(GeneralSettingsContext);
+  // Fail soft during boot / tests so a missing provider never kills the app
   if (!ctx) {
-    throw new Error("useGeneralSettings must be used within GeneralSettingsProvider");
+    return {
+      ready: false,
+      pageSize: 25,
+      settings: { pageSize: 25 },
+      setPageSize: async () => undefined,
+      refresh: async () => undefined,
+    };
   }
   return ctx;
 }

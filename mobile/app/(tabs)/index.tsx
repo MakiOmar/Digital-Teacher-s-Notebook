@@ -79,16 +79,13 @@ export default function HomeScreen() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [upcoming, summary, today, groups, backup] = await Promise.all([
+      const [upcoming, today, groups, backup] = await Promise.all([
         listUpcomingSessions(1),
-        getOpenRoundsPaymentSummary(),
         listTodaysSessions(),
         listGroups(),
         loadAutoBackupSettings(),
       ]);
       setNextSession(upcoming[0] ?? null);
-      setUnpaidCount(summary.unpaidCount + summary.partialCount);
-      setTotalRemaining(summary.totalRemaining);
       setTodayCount(today.length);
       setGroupCount(groups.length);
       setLastBackupLabel(
@@ -96,6 +93,15 @@ export default function HomeScreen() {
           ? formatDateTimeAr(backup.lastRunAt)
           : t("autoBackupNever")
       );
+      // Payment summary can be heavy after a large import — load after shell paints
+      try {
+        const summary = await getOpenRoundsPaymentSummary();
+        setUnpaidCount(summary.unpaidCount + summary.partialCount);
+        setTotalRemaining(summary.totalRemaining);
+      } catch {
+        setUnpaidCount(0);
+        setTotalRemaining(0);
+      }
     } finally {
       setLoading(false);
     }

@@ -8,12 +8,12 @@ import {
   StyleProp,
 } from "react-native";
 
-/** Brand wordmark for launch splash (transparent PNG on white). */
-export const SPLASH_BRAND = require("../../assets/images/logo.png");
+/** Boot splash mark — square icon (wordmark is used on Home / setup, not native splash). */
+export const SPLASH_BRAND = require("../../assets/images/splash-icon.png");
 export const BLUEPRINT_BG = require("../../assets/images/blueprint-bg.png");
 export const SPLASH_LETTERBOX = "#FFFFFF";
 
-/** Launch splash: brand wordmark centered on white. */
+/** Launch splash: brand icon centered on white. */
 export function SplashBackground({
   onLoadEnd,
   style,
@@ -23,7 +23,6 @@ export function SplashBackground({
 }) {
   return (
     <View style={[styles.splashRoot, style]}>
-      {/* Wordmark only — no full-bleed background.png on entrance */}
       <Image
         source={SPLASH_BRAND}
         style={styles.splashImage}
@@ -59,9 +58,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   splashImage: {
-    width: "92%",
-    maxWidth: 420,
-    height: 160,
+    width: "70%",
+    maxWidth: 220,
+    height: 220,
   },
   shell: {
     flex: 1,

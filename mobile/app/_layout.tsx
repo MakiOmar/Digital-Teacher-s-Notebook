@@ -84,10 +84,12 @@ function Bootstrap({
         }
         const already = await AsyncStorage.getItem(RTL_RELOAD_KEY);
         if (already === "1") {
+          // Already attempted a reload — do not kill the process again
           if (!cancelled) setRtlReady(true);
           return;
         }
         await AsyncStorage.setItem(RTL_RELOAD_KEY, "1");
+        // One-time reload for native RTL chrome; if it fails, continue booting
         await reloadAppAsync();
       } catch {
         if (!cancelled) setRtlReady(true);
@@ -116,11 +118,13 @@ function Bootstrap({
     return () => clearTimeout(id);
   }, [onAppReady]);
 
-  // Silent auto-backup + reminder reschedule when unlocked + setup done
+  // Silent auto-backup + reminder reschedule when unlocked + setup done.
+  // Deferred so splash → first paint is not blocked / killed by heavy DB work.
   useEffect(() => {
     if (licenseStatus !== "unlocked" || !setupComplete) return;
     let lastRemindersAt = 0;
     const REMINDERS_MIN_MS = 60_000;
+    let cancelled = false;
 
     const runReminders = () => {
       const now = Date.now();
@@ -129,15 +133,23 @@ function Bootstrap({
       void rescheduleReminders().catch(() => undefined);
     };
 
-    void runAutoBackupIfDue().catch(() => undefined);
-    runReminders();
+    const bootWork = setTimeout(() => {
+      if (cancelled) return;
+      void runAutoBackupIfDue().catch(() => undefined);
+      runReminders();
+    }, 1500);
+
     const sub = AppState.addEventListener("change", (state) => {
       if (state === "active") {
         void runAutoBackupIfDue().catch(() => undefined);
         runReminders();
       }
     });
-    return () => sub.remove();
+    return () => {
+      cancelled = true;
+      clearTimeout(bootWork);
+      sub.remove();
+    };
   }, [licenseStatus, setupComplete]);
 
   if (!bootReady && !forceShow) {

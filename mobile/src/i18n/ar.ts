@@ -1,6 +1,6 @@
 /** Arabic UI strings for the tutoring manager app. */
 export const ar = {
-  appName: "إدارة الحصص",
+  appName: "مدير الدروس الخصوصية",
   home: "الرئيسية",
   groups: "المجموعات",
   students: "الطلاب",

@@ -33,6 +33,8 @@ Headers: `Accept`, `Content-Type: application/json`, `X-API-Key: {ULSP_API_KEY}`
 
 Unlock only when `valid === true` **and** `activation_valid === true` (when device fields were sent).
 
+Store after activate **or** start-trial: `license_key`, `activation_hash`, `device_id`, `last_validated_at`, optional `expires_at` in **SecureStore only** — never SQLite / backups / AsyncStorage for secrets.
+
 After **start-trial** (201): persist `license.license_key` + `activation.activation_hash` (and `expires_at` when present) via `saveLicenseActivation`, then treat like a normal unlock (optional validate for freshest expiry). Map 422 `errors.trial` (already used / disabled / no product) and 401 API-key errors to Arabic UI strings on the activate screen trial button.
 
 ## Module layout

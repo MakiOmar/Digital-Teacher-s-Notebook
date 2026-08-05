@@ -53,6 +53,7 @@ export default function StudentsTab() {
               icon: "plus",
               label: t("actionAdd"),
               tone: "accent",
+              tourId: "studentsAdd",
               onPress: () => router.push("/students/form"),
             },
           ]}

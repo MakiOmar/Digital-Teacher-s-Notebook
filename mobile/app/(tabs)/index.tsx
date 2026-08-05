@@ -33,6 +33,7 @@ import { fonts } from "@/src/theme/typography";
 import { ICONS } from "@/src/theme/icons";
 import { rtlRow, rtlText } from "@/src/theme/rtl";
 import { useTutorProfile } from "@/src/profile/TutorProfileContext";
+import { TourAnchor } from "@/src/tour/TourAnchor";
 
 const LOGO = require("../../assets/images/logo.png");
 
@@ -116,19 +117,22 @@ export default function HomeScreen() {
   if (!activeYear) {
     return (
       <Screen>
-        <View style={styles.header}>
-          <View style={styles.profileCol}>
-            <View style={styles.profileRing}>
-              <Image source={profileSource} style={styles.profile} />
+        <TourAnchor id="homeHeader">
+          <View style={styles.header}>
+            <View style={styles.profileCol}>
+              <View style={styles.profileRing}>
+                <Image source={profileSource} style={styles.profile} />
+              </View>
             </View>
+            <Image source={LOGO} style={styles.logo} resizeMode="contain" />
           </View>
-          <Image source={LOGO} style={styles.logo} resizeMode="contain" />
-        </View>
+        </TourAnchor>
         <WelcomeRow name={tutorName} />
         <EmptyState
           message={t("noActiveYear")}
           actionLabel={t("createYearCta")}
           onAction={() => router.push("/years/form")}
+          tourAnchorId="homeYearCta"
         />
       </Screen>
     );
@@ -150,17 +154,19 @@ export default function HomeScreen() {
           <RefreshControl refreshing={loading} onRefresh={() => void load()} />
         }
       >
-        <View style={styles.header}>
-          <View style={styles.profileCol}>
-            <View style={styles.profileRing}>
-              <Image source={profileSource} style={styles.profile} />
+        <TourAnchor id="homeHeader">
+          <View style={styles.header}>
+            <View style={styles.profileCol}>
+              <View style={styles.profileRing}>
+                <Image source={profileSource} style={styles.profile} />
+              </View>
+            </View>
+            <View style={styles.logoCol}>
+              <Image source={LOGO} style={styles.logo} resizeMode="contain" />
+              <Muted>{activeYear.name}</Muted>
             </View>
           </View>
-          <View style={styles.logoCol}>
-            <Image source={LOGO} style={styles.logo} resizeMode="contain" />
-            <Muted>{activeYear.name}</Muted>
-          </View>
-        </View>
+        </TourAnchor>
         <WelcomeRow name={tutorName} />
 
         {groupCount === 0 ? (

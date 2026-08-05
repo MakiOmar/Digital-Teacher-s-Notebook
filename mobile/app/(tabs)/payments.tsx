@@ -11,6 +11,7 @@ import {
   StatCard,
 } from "@/src/components/ui";
 import { PaginationBar } from "@/src/components/PaginationBar";
+import { TourAnchor } from "@/src/tour/TourAnchor";
 import { t } from "@/src/i18n/ar";
 import { getOpenRoundsPaymentSummary } from "@/src/services/rounds";
 import { useRefreshableList } from "@/src/hooks/useRefreshableList";
@@ -82,16 +83,20 @@ export default function PaymentsTab() {
   return (
     <Screen padded={false} style={{ flex: 1 }}>
       <View style={{ padding: spacing.lg }}>
-        <StatCard
-          label={t("totalCollected")}
-          value={formatMoney(state.totalCollected)}
-          tone="success"
-        />
-        <StatCard
-          label={t("remaining")}
-          value={formatMoney(state.totalRemaining)}
-          tone="danger"
-        />
+        <TourAnchor id="paymentsHeader">
+          <View>
+            <StatCard
+              label={t("totalCollected")}
+              value={formatMoney(state.totalCollected)}
+              tone="success"
+            />
+            <StatCard
+              label={t("remaining")}
+              value={formatMoney(state.totalRemaining)}
+              tone="danger"
+            />
+          </View>
+        </TourAnchor>
         <View style={[rtlChipRow(), { marginBottom: 8 }]}>
           <Chip
             label={t("filterAllGroups")}

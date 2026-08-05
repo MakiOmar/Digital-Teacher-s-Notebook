@@ -1,9 +1,11 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import type { ComponentProps } from "react";
+import React, { type ComponentProps } from "react";
 import { colors, radii, spacing } from "../theme/colors";
 import { fonts } from "../theme/typography";
 import { rtlRow, rtlText } from "../theme/rtl";
+import { TourAnchor } from "@/src/tour/TourAnchor";
+import type { TourTargetId } from "@/src/tour/tourSteps";
 
 export type IconAction = {
   key: string;
@@ -13,6 +15,8 @@ export type IconAction = {
   onPress: () => void;
   tone?: "default" | "danger" | "accent";
   disabled?: boolean;
+  /** Optional spotlight anchor id for onboarding tour */
+  tourId?: TourTargetId;
 };
 
 /** Compact icon+caption action row for page-top toolbars. */
@@ -28,9 +32,8 @@ export function IconActionBar({ actions }: { actions: IconAction[] }) {
             : tone === "accent"
               ? colors.primary
               : colors.text;
-        return (
+        const btn = (
           <Pressable
-            key={a.key}
             onPress={a.onPress}
             disabled={a.disabled}
             accessibilityLabel={a.label}
@@ -54,6 +57,14 @@ export function IconActionBar({ actions }: { actions: IconAction[] }) {
             </Text>
           </Pressable>
         );
+        if (a.tourId) {
+          return (
+            <TourAnchor key={a.key} id={a.tourId}>
+              {btn}
+            </TourAnchor>
+          );
+        }
+        return <React.Fragment key={a.key}>{btn}</React.Fragment>;
       })}
     </View>
   );

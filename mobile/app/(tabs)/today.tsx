@@ -9,6 +9,7 @@ import {
   Title,
 } from "@/src/components/ui";
 import { PaginationBar } from "@/src/components/PaginationBar";
+import { TourAnchor } from "@/src/tour/TourAnchor";
 import { t } from "@/src/i18n/ar";
 import { listTodaysSessions } from "@/src/repositories";
 import type { GroupSession } from "@/src/db/types";
@@ -60,7 +61,11 @@ export default function TodayScreen() {
         refreshControl={
           <RefreshControl refreshing={loading} onRefresh={() => void load()} />
         }
-        ListHeaderComponent={<Title>{t("todaySchedule")}</Title>}
+        ListHeaderComponent={
+          <TourAnchor id="todayHeader">
+            <Title>{t("todaySchedule")}</Title>
+          </TourAnchor>
+        }
         ListEmptyComponent={<EmptyState message={t("noSessionsToday")} />}
         ListFooterComponent={
           <PaginationBar

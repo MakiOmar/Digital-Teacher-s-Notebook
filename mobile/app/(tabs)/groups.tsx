@@ -103,6 +103,7 @@ export default function GroupsTab() {
               icon: "plus",
               label: t("actionAdd"),
               tone: "accent",
+              tourId: "groupsAdd",
               onPress: () => router.push("/groups/form"),
             },
           ]}

@@ -263,6 +263,39 @@ export const ar = {
   addGroupCta: "إضافة مجموعة",
   addStudentCta: "إضافة طالب",
 
+  // Onboarding spotlight tour
+  tourGuide: "دليل الاستخدام",
+  tourRestart: "إعادة دليل الاستخدام",
+  tourSkip: "تخطّي",
+  tourNext: "التالي",
+  tourCreateNow: "أنشئ الآن",
+  tourFinish: "إنهاء",
+  tourProgress: "خطوة {current} من {total}",
+  tourWelcomeTitle: "مرحباً بك في مدير الدروس",
+  tourWelcomeBody:
+    "سنرشدك خطوة بخطوة لإنشاء سنة دراسية ثم مجموعة ثم طلاب. يمكنك التخطي في أي وقت وإعادة الدليل لاحقاً من المزيد.",
+  tourYearTitle: "أنشئ سنة دراسية",
+  tourYearBody:
+    "السنة الدراسية هي الأساس. أنشئها أولاً حتى يمكن جدولة الحصص والاشتراكات.",
+  tourGroupTitle: "أضف مجموعة",
+  tourGroupBody:
+    "المجموعة تحدد المادة وجدول الحصص والرسوم. اضغط إضافة لإنشاء أول مجموعة.",
+  tourStudentTitle: "أضف طالباً",
+  tourStudentBody:
+    "أضف طالباً واربطه بمجموعة. بعدها يمكنك تسجيل الحضور والمتابعة المالية.",
+  tourTodayTitle: "حصص اليوم",
+  tourTodayBody:
+    "من هنا تفتح حصص اليوم وتسجّل الحضور بضغطة واحدة لكل طالب.",
+  tourPaymentsTitle: "المدفوعات",
+  tourPaymentsBody:
+    "تابع من سدّد ومن عليه متبقي لكل جولة اشتراك، مع فلترة حسب المجموعة والحالة.",
+  tourMoreTitle: "المزيد والإعدادات",
+  tourMoreBody:
+    "من هنا: السنوات، النسخ الاحتياطي، التذكيرات، الإعدادات العامة، والتقارير.",
+  tourDoneTitle: "أنت جاهز",
+  tourDoneBody:
+    "أحسنت! ابدأ بإدارة مجموعاتك. يمكنك فتح دليل الاستخدام مرة أخرى من «المزيد».",
+
   // Setup / profile
   setupWizardTitle: "إعداد المدرس",
   setupWizardHint: "أدخل اسمك وصورة شخصية (اختيارية) للظهور في الصفحة الرئيسية.",

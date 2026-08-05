@@ -14,6 +14,8 @@ import {
 import { colors, radii, spacing } from "../theme/colors";
 import { fonts, fontBold, fontExtraBold, fontSemiBold } from "../theme/typography";
 import { rtlRow, rtlText, rtlBlock, rtlChipRow, inputShell, inputTextAlign } from "../theme/rtl";
+import { TourAnchor } from "@/src/tour/TourAnchor";
+import type { TourTargetId } from "@/src/tour/tourSteps";
 
 export function Screen({
   children,
@@ -71,19 +73,29 @@ export function EmptyState({
   message,
   actionLabel,
   onAction,
+  tourAnchorId,
 }: {
   message: string;
   actionLabel?: string;
   onAction?: () => void;
+  /** Optional spotlight anchor around the CTA */
+  tourAnchorId?: TourTargetId;
 }) {
+  const button =
+    actionLabel && onAction ? (
+      <View style={{ marginTop: spacing.md, width: "100%", maxWidth: 280 }}>
+        <PrimaryButton label={actionLabel} onPress={onAction} />
+      </View>
+    ) : null;
+
   return (
     <View style={styles.center}>
       <Text style={styles.muted}>{message}</Text>
-      {actionLabel && onAction ? (
-        <View style={{ marginTop: spacing.md, width: "100%", maxWidth: 280 }}>
-          <PrimaryButton label={actionLabel} onPress={onAction} />
-        </View>
-      ) : null}
+      {tourAnchorId && button ? (
+        <TourAnchor id={tourAnchorId}>{button}</TourAnchor>
+      ) : (
+        button
+      )}
     </View>
   );
 }

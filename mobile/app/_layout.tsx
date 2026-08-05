@@ -38,6 +38,8 @@ import {
 } from "@/src/security/AppLockContext";
 import { AppLockScreen } from "@/src/security/AppLockScreen";
 import { GeneralSettingsProvider } from "@/src/settings/GeneralSettingsContext";
+import { TourProvider } from "@/src/tour/TourContext";
+import { TourSpotlight } from "@/src/tour/TourSpotlight";
 
 const RTL_RELOAD_KEY = "tutoring.rtl.reload.v1";
 
@@ -233,6 +235,7 @@ export default function RootLayout() {
           <TutorProfileProvider>
             <AppLockProvider>
               <GeneralSettingsProvider>
+              <TourProvider>
               <DialogProvider>
                 <Bootstrap onAppReady={onAppReady}>
                   <AppShell>
@@ -269,9 +272,11 @@ export default function RootLayout() {
                       <Stack.Screen name="general-settings" />
                       <Stack.Screen name="reports" />
                     </Stack>
+                    <TourSpotlight />
                   </AppShell>
                 </Bootstrap>
               </DialogProvider>
+              </TourProvider>
               </GeneralSettingsProvider>
             </AppLockProvider>
           </TutorProfileProvider>

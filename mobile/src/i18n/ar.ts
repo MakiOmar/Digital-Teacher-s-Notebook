@@ -356,6 +356,16 @@ export const ar = {
   licenseKeyRequired: "أدخل مفتاح الترخيص",
   licenseActivate: "تفعيل",
   licenseActivated: "تم تفعيل الترخيص بنجاح",
+  licenseStartTrial: "ابدأ الفترة التجريبية",
+  licenseStartTrialHint:
+    "جرّب التطبيق مجاناً لفترة محدودة على هذا الجهاز. يمكن استخدام التجربة مرة واحدة لكل منتج.",
+  licenseTrialStarted: "تم تفعيل الفترة التجريبية بنجاح",
+  licenseTrialAlreadyUsed:
+    "تم استخدام الفترة التجريبية مسبقاً على هذا الجهاز لهذا المنتج.",
+  licenseTrialDisabled: "الفترة التجريبية غير مفعّلة لهذا المنتج حالياً.",
+  licenseTrialNoProduct:
+    "مفتاح الـ API غير مرتبط بمنتج، ولا يمكن إصدار تجربة.",
+  licenseTrialApiKey: "تعذر بدء التجربة بسبب مفتاح الـ API غير صالح.",
   licenseInvalid: "الترخيص غير صالح",
   licenseNetworkError: "تعذر الاتصال بخادم الترخيص. تحقق من الإنترنت وحاول مرة أخرى.",
   licenseGraceExpired:

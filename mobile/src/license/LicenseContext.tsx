@@ -10,8 +10,10 @@ import { ULSP_GRACE_MS } from "../config/ulsp";
 import { t } from "../i18n/ar";
 import {
   activateLicense,
+  classifyTrialError,
   deactivateLicense,
   isNetworkFailure,
+  startTrialLicense,
   UlspApiError,
   validateLicense,
 } from "./api";
@@ -35,6 +37,7 @@ type LicenseContextValue = {
   lastValidatedAt: string | null;
   lockReason: string | null;
   activate: (licenseKey: string) => Promise<void>;
+  startTrial: () => Promise<void>;
   refresh: () => Promise<void>;
   removeLicense: () => Promise<void>;
 };
@@ -191,6 +194,54 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
     [applyUnlocked]
   );
 
+  const startTrial = useCallback(async () => {
+    const deviceId = await getOrCreateDeviceId();
+    try {
+      const res = await startTrialLicense(deviceId);
+      const licenseKey = res.license?.license_key?.trim();
+      const activationHash = res.activation?.activation_hash?.trim();
+      if (!licenseKey || !activationHash) {
+        throw new Error(t("licenseInvalid"));
+      }
+
+      let expiresAt =
+        res.expires_at ?? res.license.expires_at ?? null;
+      try {
+        const v = await validateLicense(licenseKey, deviceId);
+        expiresAt = v.expires_at ?? expiresAt;
+      } catch {
+        // Trial issued; validate optional for freshest expires_at
+      }
+
+      await saveLicenseActivation({
+        licenseKey,
+        activationHash,
+        expiresAt,
+      });
+      const next = await loadLicenseState();
+      await applyUnlocked(next);
+    } catch (e) {
+      if (isNetworkFailure(e)) {
+        throw new Error(t("licenseNetworkError"));
+      }
+      if (e instanceof UlspApiError) {
+        switch (classifyTrialError(e)) {
+          case "api_key":
+            throw new Error(t("licenseTrialApiKey"));
+          case "already_used":
+            throw new Error(t("licenseTrialAlreadyUsed"));
+          case "disabled":
+            throw new Error(t("licenseTrialDisabled"));
+          case "no_product":
+            throw new Error(t("licenseTrialNoProduct"));
+          default:
+            throw new Error(e.message || t("licenseInvalid"));
+        }
+      }
+      throw e instanceof Error ? e : new Error(t("licenseInvalid"));
+    }
+  }, [applyUnlocked]);
+
   const removeLicense = useCallback(async () => {
     const state = await loadLicenseState();
     if (state.licenseKey && state.activationHash) {
@@ -216,6 +267,7 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
       lastValidatedAt: local.lastValidatedAt,
       lockReason,
       activate,
+      startTrial,
       refresh,
       removeLicense,
     }),
@@ -226,6 +278,7 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
       local.lastValidatedAt,
       lockReason,
       activate,
+      startTrial,
       refresh,
       removeLicense,
     ]

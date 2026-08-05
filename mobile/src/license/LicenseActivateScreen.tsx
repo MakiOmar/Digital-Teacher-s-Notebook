@@ -25,7 +25,7 @@ const BRAND_LOGO = require("../../assets/images/logo.png");
 
 /** Full-screen activate gate when the app is locked. */
 export function LicenseActivateScreen() {
-  const { activate, lockReason } = useLicense();
+  const { activate, startTrial, lockReason } = useLicense();
   const dialog = useDialog();
   const [key, setKey] = useState("");
   const [busy, setBusy] = useState(false);
@@ -42,6 +42,21 @@ export function LicenseActivateScreen() {
     try {
       await activate(key);
       dialog.toast(t("licenseActivated"), "success");
+    } catch (e) {
+      await dialog.alert({
+        title: t("error"),
+        message: e instanceof Error ? e.message : t("licenseInvalid"),
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onStartTrial() {
+    setBusy(true);
+    try {
+      await startTrial();
+      dialog.toast(t("licenseTrialStarted"), "success");
     } catch (e) {
       await dialog.alert({
         title: t("error"),
@@ -81,10 +96,17 @@ export function LicenseActivateScreen() {
             onChangeText={setKey}
             placeholder="XXXX-XXXX-XXXX-XXXX"
           />
-          <View style={{ marginTop: spacing.md }}>
+          <View style={{ marginTop: spacing.md, gap: 12 }}>
             <PrimaryButton
               label={busy ? t("loading") : t("licenseActivate")}
               onPress={() => void onSubmit()}
+              disabled={busy}
+            />
+            <Muted style={{ marginTop: 4 }}>{t("licenseStartTrialHint")}</Muted>
+            <PrimaryButton
+              label={busy ? t("loading") : t("licenseStartTrial")}
+              variant="ghost"
+              onPress={() => void onStartTrial()}
               disabled={busy}
             />
           </View>

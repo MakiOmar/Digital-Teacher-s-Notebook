@@ -27,12 +27,13 @@ Headers: `Accept`, `Content-Type: application/json`, `X-API-Key: {ULSP_API_KEY}`
 | Action | Method | Path | Body |
 |--------|--------|------|------|
 | Activate | POST | `/licenses/activate` | `license_key`, `activation_type`, `activation_value` |
+| Start trial | POST | `/licenses/start-trial` | `activation_type`, `activation_value`, `device_name`, `platform`, `app_version` |
 | Validate | POST | `/licenses/validate` | same (device fields **required** on mobile) |
 | Deactivate | POST | `/licenses/deactivate` | `license_key`, `activation_hash` |
 
 Unlock only when `valid === true` **and** `activation_valid === true` (when device fields were sent).
 
-Store after activate: `license_key`, `activation_hash`, `device_id`, `last_validated_at`, optional `expires_at` in **SecureStore only** — never SQLite / backups / AsyncStorage for secrets.
+After **start-trial** (201): persist `license.license_key` + `activation.activation_hash` (and `expires_at` when present) via `saveLicenseActivation`, then treat like a normal unlock (optional validate for freshest expiry). Map 422 `errors.trial` (already used / disabled / no product) and 401 API-key errors to Arabic UI strings on the activate screen trial button.
 
 ## Module layout
 
@@ -60,7 +61,7 @@ On launch when key exists but `activation_valid === false`, re-call activate the
 
 ## UI
 
-- Locked: full-screen activate (paste key, submit, show API/`reason` errors).
+- Locked: full-screen activate (paste key, submit, show API/`reason` errors) **plus** «ابدأ الفترة التجريبية» calling `startTrial` → `POST /licenses/start-trial`.
 - Unlocked: More / Settings entry → manage screen (masked key, expiry, re-check, remove/deactivate).
 - Use existing app dialogs/toasts — do not use `Alert.alert`.
 

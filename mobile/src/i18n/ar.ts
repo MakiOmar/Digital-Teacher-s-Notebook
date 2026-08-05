@@ -357,8 +357,11 @@ export const ar = {
   licenseActivate: "تفعيل",
   licenseActivated: "تم تفعيل الترخيص بنجاح",
   licenseStartTrial: "ابدأ الفترة التجريبية",
+  licenseStartTrialDays: "ابدأ تجربة {days} يوماً",
   licenseStartTrialHint:
     "جرّب التطبيق مجاناً لفترة محدودة على هذا الجهاز. يمكن استخدام التجربة مرة واحدة لكل منتج.",
+  licenseStartTrialHintDays:
+    "جرّب التطبيق مجاناً لمدة {days} يوماً على هذا الجهاز. يمكن استخدام التجربة مرة واحدة لكل منتج.",
   licenseTrialStarted: "تم تفعيل الفترة التجريبية بنجاح",
   licenseTrialAlreadyUsed:
     "تم استخدام الفترة التجريبية مسبقاً على هذا الجهاز لهذا المنتج.",
@@ -366,6 +369,8 @@ export const ar = {
   licenseTrialNoProduct:
     "مفتاح الـ API غير مرتبط بمنتج، ولا يمكن إصدار تجربة.",
   licenseTrialApiKey: "تعذر بدء التجربة بسبب مفتاح الـ API غير صالح.",
+  licenseTrialActive: "نوع الترخيص: فترة تجريبية",
+  licenseDaysRemaining: "متبقي {days} يوماً",
   licenseInvalid: "الترخيص غير صالح",
   licenseNetworkError: "تعذر الاتصال بخادم الترخيص. تحقق من الإنترنت وحاول مرة أخرى.",
   licenseGraceExpired:

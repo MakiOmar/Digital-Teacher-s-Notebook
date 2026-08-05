@@ -26,6 +26,7 @@ Headers: `Accept`, `Content-Type: application/json`, `X-API-Key: {ULSP_API_KEY}`
 
 | Action | Method | Path | Body |
 |--------|--------|------|------|
+| Trial info | GET | `/licenses/trial-info` | — (API key scopes product) |
 | Activate | POST | `/licenses/activate` | `license_key`, `activation_type`, `activation_value` |
 | Start trial | POST | `/licenses/start-trial` | `activation_type`, `activation_value`, `device_name`, `platform`, `app_version` |
 | Validate | POST | `/licenses/validate` | same (device fields **required** on mobile) |
@@ -33,9 +34,15 @@ Headers: `Accept`, `Content-Type: application/json`, `X-API-Key: {ULSP_API_KEY}`
 
 Unlock only when `valid === true` **and** `activation_valid === true` (when device fields were sent).
 
-Store after activate **or** start-trial: `license_key`, `activation_hash`, `device_id`, `last_validated_at`, optional `expires_at` in **SecureStore only** — never SQLite / backups / AsyncStorage for secrets.
+**Trial length UX**
 
-After **start-trial** (201): persist `license.license_key` + `activation.activation_hash` (and `expires_at` when present) via `saveLicenseActivation`, then treat like a normal unlock (optional validate for freshest expiry). Map 422 `errors.trial` (already used / disabled / no product) and 401 API-key errors to Arabic UI strings on the activate screen trial button.
+- Before start: `GET /licenses/trial-info` → `{ enabled, trial_days, product }` — activate screen shows «تجربة {trial_days} يوماً» (hide CTA when `enabled === false`).
+- After start: `POST /licenses/start-trial` may return `trial_days` + `days_remaining` (and nested `license` / `activation`).
+- On validate: response may include `is_trial` + `days_remaining` — persist with SecureStore and show on manage screen.
+
+Store after activate **or** start-trial: `license_key`, `activation_hash`, `device_id`, `last_validated_at`, optional `expires_at`, `is_trial`, `days_remaining` in **SecureStore only** — never SQLite / backups / AsyncStorage for secrets.
+
+After **start-trial** (201): persist `license.license_key` + `activation.activation_hash` (and `expires_at` / trial meta when present) via `saveLicenseActivation`, then treat like a normal unlock (optional validate for freshest expiry). Map 422 `errors.trial` (already used / disabled / no product) and 401 API-key errors to Arabic UI strings on the activate screen trial button.
 
 ## Module layout
 
@@ -43,7 +50,7 @@ After **start-trial** (201): persist `license.license_key` + `activation.activat
 src/license/
   deviceId.ts      # getOrCreateDeviceId() → UUID in SecureStore
   storage.ts       # load/save/clear + maskLicenseKey
-  api.ts           # activate / validate / deactivate + UlspApiError
+  api.ts           # trial-info / activate / start-trial / validate / deactivate + UlspApiError
   LicenseContext.tsx
   LicenseActivateScreen.tsx
 app/license-manage.tsx   # status, re-check, deactivate
@@ -63,8 +70,8 @@ On launch when key exists but `activation_valid === false`, re-call activate the
 
 ## UI
 
-- Locked: full-screen activate (paste key, submit, show API/`reason` errors) **plus** «ابدأ الفترة التجريبية» calling `startTrial` → `POST /licenses/start-trial`.
-- Unlocked: More / Settings entry → manage screen (masked key, expiry, re-check, remove/deactivate).
+- Locked: full-screen activate (paste key, submit, show API/`reason` errors) **plus** «ابدأ الفترة التجريبية» / «ابدأ تجربة N يوماً» after `GET /licenses/trial-info` (hide when trials disabled).
+- Unlocked: More / Settings entry → manage screen (masked key, trial badge + days remaining when `is_trial`, expiry, re-check, remove/deactivate).
 - Use existing app dialogs/toasts — do not use `Alert.alert`.
 
 ## Do / Don't

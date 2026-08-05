@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Image,
   KeyboardAvoidingView,
@@ -15,6 +15,7 @@ import {
   Screen,
   Title,
 } from "@/src/components/ui";
+import { fetchTrialInfo } from "@/src/license/api";
 import { useLicense } from "@/src/license/LicenseContext";
 import { useDialog } from "@/src/components/DialogProvider";
 import { t } from "@/src/i18n/ar";
@@ -23,12 +24,46 @@ import { rtlText } from "@/src/theme/rtl";
 
 const BRAND_LOGO = require("../../assets/images/logo.png");
 
+type TrialOffer = {
+  /** undefined = still loading / unknown; false = disabled by API */
+  enabled: boolean | undefined;
+  trialDays: number | null;
+};
+
 /** Full-screen activate gate when the app is locked. */
 export function LicenseActivateScreen() {
   const { activate, startTrial, lockReason } = useLicense();
   const dialog = useDialog();
   const [key, setKey] = useState("");
   const [busy, setBusy] = useState(false);
+  const [trialOffer, setTrialOffer] = useState<TrialOffer>({
+    enabled: undefined,
+    trialDays: null,
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const info = await fetchTrialInfo();
+        if (cancelled) return;
+        setTrialOffer({
+          enabled: info.enabled === true,
+          trialDays:
+            typeof info.trial_days === "number" && info.trial_days > 0
+              ? info.trial_days
+              : null,
+        });
+      } catch {
+        if (cancelled) return;
+        // Keep the CTA; length unknown until start-trial succeeds
+        setTrialOffer({ enabled: true, trialDays: null });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function onSubmit() {
     if (!key.trim()) {
@@ -67,6 +102,18 @@ export function LicenseActivateScreen() {
     }
   }
 
+  const showTrial = trialOffer.enabled !== false;
+  const trialHint =
+    trialOffer.trialDays != null
+      ? t("licenseStartTrialHintDays", { days: trialOffer.trialDays })
+      : t("licenseStartTrialHint");
+  const trialLabel =
+    busy
+      ? t("loading")
+      : trialOffer.trialDays != null
+        ? t("licenseStartTrialDays", { days: trialOffer.trialDays })
+        : t("licenseStartTrial");
+
   return (
     <Screen padded={false} style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
       <KeyboardAvoidingView
@@ -102,13 +149,17 @@ export function LicenseActivateScreen() {
               onPress={() => void onSubmit()}
               disabled={busy}
             />
-            <Muted style={{ marginTop: 4 }}>{t("licenseStartTrialHint")}</Muted>
-            <PrimaryButton
-              label={busy ? t("loading") : t("licenseStartTrial")}
-              variant="ghost"
-              onPress={() => void onStartTrial()}
-              disabled={busy}
-            />
+            {showTrial ? (
+              <>
+                <Muted style={{ marginTop: 4 }}>{trialHint}</Muted>
+                <PrimaryButton
+                  label={trialLabel}
+                  variant="ghost"
+                  onPress={() => void onStartTrial()}
+                  disabled={busy}
+                />
+              </>
+            ) : null}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

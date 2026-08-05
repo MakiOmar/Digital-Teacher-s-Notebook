@@ -25,7 +25,20 @@ export type ValidateResponse = {
   activations_used?: number;
   max_activations?: number;
   expires_at?: string | null;
+  days_remaining?: number | null;
+  is_trial?: boolean;
   license?: Record<string, unknown>;
+};
+
+export type TrialInfoResponse = {
+  enabled: boolean;
+  trial_days: number | null;
+  product_id?: number | null;
+  product?: {
+    id?: number;
+    name?: string;
+    slug?: string;
+  } | null;
 };
 
 export type StartTrialResponse = {
@@ -54,6 +67,8 @@ export type StartTrialResponse = {
     last_check_at?: string;
   };
   expires_at?: string | null;
+  trial_days?: number | null;
+  days_remaining?: number | null;
 };
 
 export type StartTrialMeta = {
@@ -72,6 +87,48 @@ export class UlspApiError extends Error {
     this.status = status;
     this.reason = reason;
   }
+}
+
+function parseJsonError(json: unknown, status: number): never {
+  const obj = (json ?? {}) as {
+    message?: string;
+    errors?: Record<string, string[]>;
+    reason?: string;
+  };
+  const fieldError =
+    obj.errors?.trial?.[0] ||
+    obj.errors?.license_key?.[0] ||
+    obj.errors?.activation_hash?.[0] ||
+    obj.errors?.activation_value?.[0] ||
+    obj.errors?.activation_type?.[0];
+  throw new UlspApiError(
+    fieldError || obj.message || `HTTP ${status}`,
+    status,
+    obj.reason ?? null
+  );
+}
+
+async function getJson<T>(path: string): Promise<T> {
+  const res = await fetch(`${ULSP_API_BASE}${path}`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "X-API-Key": ULSP_API_KEY,
+    },
+  });
+
+  let json: unknown = null;
+  try {
+    json = await res.json();
+  } catch {
+    json = null;
+  }
+
+  if (!res.ok) {
+    parseJsonError(json, res.status);
+  }
+
+  return json as T;
 }
 
 async function postJson<T>(
@@ -96,25 +153,15 @@ async function postJson<T>(
   }
 
   if (!res.ok) {
-    const obj = (json ?? {}) as {
-      message?: string;
-      errors?: Record<string, string[]>;
-      reason?: string;
-    };
-    const fieldError =
-      obj.errors?.trial?.[0] ||
-      obj.errors?.license_key?.[0] ||
-      obj.errors?.activation_hash?.[0] ||
-      obj.errors?.activation_value?.[0] ||
-      obj.errors?.activation_type?.[0];
-    throw new UlspApiError(
-      fieldError || obj.message || `HTTP ${res.status}`,
-      res.status,
-      obj.reason ?? null
-    );
+    parseJsonError(json, res.status);
   }
 
   return json as T;
+}
+
+/** Public trial length for this product API key (before start-trial). */
+export async function fetchTrialInfo(): Promise<TrialInfoResponse> {
+  return getJson<TrialInfoResponse>("/licenses/trial-info");
 }
 
 export async function activateLicense(

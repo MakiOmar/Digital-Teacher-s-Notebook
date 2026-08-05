@@ -35,6 +35,8 @@ type LicenseContextValue = {
   licenseKeyMasked: string | null;
   expiresAt: string | null;
   lastValidatedAt: string | null;
+  isTrial: boolean;
+  daysRemaining: number | null;
   lockReason: string | null;
   activate: (licenseKey: string) => Promise<void>;
   startTrial: () => Promise<void>;
@@ -73,6 +75,8 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
     activationHash: null,
     lastValidatedAt: null,
     expiresAt: null,
+    isTrial: false,
+    daysRemaining: null,
   });
   const [lockReason, setLockReason] = useState<string | null>(null);
 
@@ -110,7 +114,18 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
           result.activation_valid === true);
 
       if (ok) {
-        await touchLastValidated(result.expires_at ?? null);
+        const isTrial =
+          result.is_trial != null ? result.is_trial : state.isTrial;
+        const daysRemaining =
+          result.days_remaining != null
+            ? result.days_remaining
+            : isTrial
+              ? state.daysRemaining
+              : null;
+        await touchLastValidated(result.expires_at ?? null, {
+          isTrial,
+          daysRemaining,
+        });
         const next = await loadLicenseState();
         await applyUnlocked(next);
         return;
@@ -120,10 +135,20 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
       if (result.valid && result.activation_valid === false) {
         try {
           const act = await activateLicense(state.licenseKey, deviceId);
+          const isTrial =
+            result.is_trial != null ? result.is_trial : state.isTrial;
+          const daysRemaining =
+            result.days_remaining != null
+              ? result.days_remaining
+              : isTrial
+                ? state.daysRemaining
+                : null;
           await saveLicenseActivation({
             licenseKey: state.licenseKey,
             activationHash: act.data.activation_hash,
             expiresAt: result.expires_at ?? state.expiresAt,
+            isTrial,
+            daysRemaining,
           });
           const next = await loadLicenseState();
           await applyUnlocked(next);
@@ -168,16 +193,22 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
       try {
         const act = await activateLicense(key, deviceId);
         let expiresAt: string | null = null;
+        let isTrial = false;
+        let daysRemaining: number | null = null;
         try {
           const v = await validateLicense(key, deviceId);
           expiresAt = v.expires_at ?? null;
+          isTrial = v.is_trial === true;
+          daysRemaining = v.days_remaining ?? null;
         } catch {
-          // activation succeeded; validate optional for expires_at
+          // activation succeeded; validate optional for expires_at / trial meta
         }
         await saveLicenseActivation({
           licenseKey: key,
           activationHash: act.data.activation_hash,
           expiresAt,
+          isTrial,
+          daysRemaining,
         });
         const next = await loadLicenseState();
         await applyUnlocked(next);
@@ -204,19 +235,25 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
         throw new Error(t("licenseInvalid"));
       }
 
-      let expiresAt =
-        res.expires_at ?? res.license.expires_at ?? null;
+      let expiresAt = res.expires_at ?? res.license.expires_at ?? null;
+      let isTrial = res.license.is_trial ?? true;
+      let daysRemaining =
+        res.days_remaining ?? res.trial_days ?? null;
       try {
         const v = await validateLicense(licenseKey, deviceId);
         expiresAt = v.expires_at ?? expiresAt;
+        if (v.is_trial != null) isTrial = v.is_trial;
+        if (v.days_remaining != null) daysRemaining = v.days_remaining;
       } catch {
-        // Trial issued; validate optional for freshest expires_at
+        // Trial issued; validate optional for freshest expiry / days left
       }
 
       await saveLicenseActivation({
         licenseKey,
         activationHash,
         expiresAt,
+        isTrial,
+        daysRemaining,
       });
       const next = await loadLicenseState();
       await applyUnlocked(next);
@@ -265,6 +302,8 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
         : null,
       expiresAt: local.expiresAt,
       lastValidatedAt: local.lastValidatedAt,
+      isTrial: local.isTrial,
+      daysRemaining: local.daysRemaining,
       lockReason,
       activate,
       startTrial,
@@ -276,6 +315,8 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
       local.licenseKey,
       local.expiresAt,
       local.lastValidatedAt,
+      local.isTrial,
+      local.daysRemaining,
       lockReason,
       activate,
       startTrial,

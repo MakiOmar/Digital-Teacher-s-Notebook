@@ -26,6 +26,8 @@ export default function LicenseManageScreen() {
     licenseKeyMasked,
     expiresAt,
     lastValidatedAt,
+    isTrial,
+    daysRemaining,
     refresh,
     removeLicense,
   } = useLicense();
@@ -96,6 +98,16 @@ export default function LicenseManageScreen() {
         <Text style={styles.line}>
           {t("licenseKey")}: {licenseKeyMasked ?? "—"}
         </Text>
+        {isTrial ? (
+          <View style={{ marginBottom: 6 }}>
+            <Muted>{t("licenseTrialActive")}</Muted>
+            {daysRemaining != null ? (
+              <Muted>
+                {t("licenseDaysRemaining", { days: daysRemaining })}
+              </Muted>
+            ) : null}
+          </View>
+        ) : null}
         <Muted>
           {t("licenseExpires")}: {formatIsoDate(expiresAt)}
         </Muted>

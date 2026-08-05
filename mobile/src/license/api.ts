@@ -5,6 +5,7 @@ import {
   ULSP_API_BASE,
   ULSP_API_KEY,
 } from "../config/ulsp";
+import { getDeviceDisplayName } from "./deviceId";
 
 export type ActivateResponse = {
   data: {
@@ -207,7 +208,8 @@ export async function startTrialLicense(
     Constants.nativeApplicationVersion ??
     Constants.expoConfig?.version ??
     "1.0.0";
-  const deviceName = meta?.device_name ?? platform;
+  // Prefer real model (Honor 6xb); never fall back to Platform.OS alone when possible
+  const deviceName = meta?.device_name?.trim() || getDeviceDisplayName();
 
   return postJson<StartTrialResponse>("/licenses/start-trial", {
     activation_type: ULSP_ACTIVATION_TYPE,

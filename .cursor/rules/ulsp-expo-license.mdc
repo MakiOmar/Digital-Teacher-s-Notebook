@@ -48,7 +48,7 @@ After **start-trial** (201): persist `license.license_key` + `activation.activat
 
 ```
 src/license/
-  deviceId.ts      # getOrCreateDeviceId() → UUID in SecureStore
+  deviceId.ts      # getOrCreateDeviceId() + getDeviceDisplayName() (expo-device model)
   storage.ts       # load/save/clear + maskLicenseKey
   api.ts           # trial-info / activate / start-trial / validate / deactivate + UlspApiError
   LicenseContext.tsx
@@ -77,6 +77,7 @@ On launch when key exists but `activation_valid === false`, re-call activate the
 ## Do / Don't
 
 - Do send `device_id` on every validate.
+- Do send a real `device_name` (expo-device `modelName` / brand) on start-trial — not `Platform.OS`.
 - Do clear SecureStore after deactivate (even if API fails).
 - Do keep license out of backup export tables.
 - Don't gate only individual tabs — use root layout gate.

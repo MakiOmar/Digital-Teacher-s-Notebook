@@ -33,12 +33,14 @@ type TrialOffer = {
   trialDays: number | null;
 };
 
+type BusyAction = "activate" | "trial" | null;
+
 /** Full-screen activate gate when the app is locked. */
 export function LicenseActivateScreen() {
   const { activate, startTrial, lockReason } = useLicense();
   const dialog = useDialog();
   const [key, setKey] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<BusyAction>(null);
   const [trialOffer, setTrialOffer] = useState<TrialOffer>({
     enabled: undefined,
     trialDays: null,
@@ -76,7 +78,7 @@ export function LicenseActivateScreen() {
       });
       return;
     }
-    setBusy(true);
+    setBusy("activate");
     try {
       await activate(key);
       dialog.toast(t("licenseActivated"), "success");
@@ -86,12 +88,12 @@ export function LicenseActivateScreen() {
         message: e instanceof Error ? e.message : t("licenseInvalid"),
       });
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   }
 
   async function onStartTrial() {
-    setBusy(true);
+    setBusy("trial");
     try {
       await startTrial();
       dialog.toast(t("licenseTrialStarted"), "success");
@@ -101,7 +103,7 @@ export function LicenseActivateScreen() {
         message: e instanceof Error ? e.message : t("licenseInvalid"),
       });
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   }
 
@@ -125,8 +127,9 @@ export function LicenseActivateScreen() {
     trialOffer.trialDays != null
       ? t("licenseStartTrialHintDays", { days: trialOffer.trialDays })
       : t("licenseStartTrialHint");
+  const anyBusy = busy != null;
   const trialLabel =
-    busy
+    busy === "trial"
       ? t("loading")
       : trialOffer.trialDays != null
         ? t("licenseStartTrialDays", { days: trialOffer.trialDays })
@@ -163,9 +166,9 @@ export function LicenseActivateScreen() {
           />
           <View style={{ marginTop: spacing.md, gap: 12 }}>
             <PrimaryButton
-              label={busy ? t("loading") : t("licenseActivate")}
+              label={busy === "activate" ? t("loading") : t("licenseActivate")}
               onPress={() => void onSubmit()}
-              disabled={busy}
+              disabled={anyBusy}
             />
             {showTrial ? (
               <>
@@ -174,7 +177,7 @@ export function LicenseActivateScreen() {
                   label={trialLabel}
                   variant="ghost"
                   onPress={() => void onStartTrial()}
-                  disabled={busy}
+                  disabled={anyBusy}
                 />
               </>
             ) : null}
@@ -185,7 +188,7 @@ export function LicenseActivateScreen() {
               label={t("licenseRequestWhatsApp")}
               variant="ghost"
               onPress={() => void onRequestLicense()}
-              disabled={busy}
+              disabled={anyBusy}
             />
           </View>
         </ScrollView>

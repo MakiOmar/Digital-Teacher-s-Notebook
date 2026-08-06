@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Image,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -27,6 +29,7 @@ const FALLBACK = require("../assets/images/profile.webp");
 export default function ProfileEditScreen() {
   const router = useRouter();
   const dialog = useDialog();
+  const scrollRef = useRef<ScrollView>(null);
   const { name: savedName, profileUri: savedUri, saveProfile, pickImage } =
     useTutorProfile();
   const [name, setName] = useState(savedName);
@@ -83,42 +86,68 @@ export default function ProfileEditScreen() {
   const avatarSource = profileUri ? { uri: profileUri } : FALLBACK;
 
   return (
-    <Screen>
-      <ScrollView keyboardShouldPersistTaps="handled">
-        <Title>{t("editProfile")}</Title>
-        <Muted style={{ marginBottom: spacing.lg }}>
-          {t("setupWizardHint")}
-        </Muted>
+    <Screen style={{ flex: 1 }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
+      >
+        <ScrollView
+          ref={scrollRef}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          contentContainerStyle={styles.content}
+        >
+          <Title>{t("editProfile")}</Title>
+          <Muted style={{ marginBottom: spacing.lg }}>
+            {t("setupWizardHint")}
+          </Muted>
 
-        <Pressable onPress={() => void onPickPhoto()} style={styles.avatarWrap}>
-          <View style={styles.avatarRing}>
-            <Image source={avatarSource} style={styles.avatar} />
-          </View>
-          <Text style={styles.pickLabel}>
-            {profileUri ? t("changeProfilePhoto") : t("pickProfilePhoto")}
-          </Text>
-        </Pressable>
-        {profileUri ? (
           <Pressable
-            onPress={() => setProfileUri(null)}
-            style={{ marginBottom: spacing.md }}
+            onPress={() => void onPickPhoto()}
+            style={styles.avatarWrap}
           >
-            <Text style={styles.removePhoto}>{t("removeProfilePhoto")}</Text>
+            <View style={styles.avatarRing}>
+              <Image source={avatarSource} style={styles.avatar} />
+            </View>
+            <Text style={styles.pickLabel}>
+              {profileUri ? t("changeProfilePhoto") : t("pickProfilePhoto")}
+            </Text>
           </Pressable>
-        ) : null}
+          {profileUri ? (
+            <Pressable
+              onPress={() => setProfileUri(null)}
+              style={{ marginBottom: spacing.md }}
+            >
+              <Text style={styles.removePhoto}>{t("removeProfilePhoto")}</Text>
+            </Pressable>
+          ) : null}
 
-        <FormField label={t("tutorName")} value={name} onChangeText={setName} />
-        <PrimaryButton
-          label={busy ? t("loading") : t("save")}
-          onPress={() => void onSave()}
-          disabled={busy}
-        />
-      </ScrollView>
+          <FormField
+            label={t("tutorName")}
+            value={name}
+            onChangeText={setName}
+            onFocus={() => {
+              setTimeout(() => {
+                scrollRef.current?.scrollToEnd({ animated: true });
+              }, 100);
+            }}
+          />
+          <PrimaryButton
+            label={busy ? t("loading") : t("save")}
+            onPress={() => void onSave()}
+            disabled={busy}
+          />
+        </ScrollView>
+      </KeyboardAvoidingView>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  content: {
+    paddingBottom: 120,
+  },
   avatarWrap: {
     alignItems: "center",
     marginBottom: spacing.md,

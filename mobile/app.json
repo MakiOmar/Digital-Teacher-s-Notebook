@@ -23,6 +23,7 @@
     "android": {
       "package": "com.tutoringmanager.app",
       "supportsRtl": true,
+      "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

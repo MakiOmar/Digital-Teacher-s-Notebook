@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Image,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -37,6 +39,7 @@ export function SetupWizardScreen() {
   const { name: savedName, profileUri: savedUri, saveProfile, pickImage } =
     useTutorProfile();
   const dialog = useDialog();
+  const scrollRef = useRef<ScrollView>(null);
   const [step, setStep] = useState<Step>("profile");
   const [name, setName] = useState(savedName);
   const [profileUri, setProfileUri] = useState<string | null>(savedUri);
@@ -134,102 +137,130 @@ export function SetupWizardScreen() {
 
   return (
     <Screen padded={false} style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 12 : 0}
       >
-        {/* Brand mark — matches splash / home wordmark */}
-        <Image source={BRAND_LOGO} style={styles.brandLogo} resizeMode="contain" />
-        <Text style={styles.brandName}>{t("appName")}</Text>
+        <ScrollView
+          ref={scrollRef}
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+        >
+          {/* Brand mark — matches splash / home wordmark */}
+          <Image
+            source={BRAND_LOGO}
+            style={styles.brandLogo}
+            resizeMode="contain"
+          />
+          <Text style={styles.brandName}>{t("appName")}</Text>
 
-        <Title>
-          {step === "profile" ? t("setupWizardTitle") : t("autoBackup")}
-        </Title>
-        <Muted style={{ marginBottom: spacing.lg }}>
-          {step === "profile" ? t("setupWizardHint") : t("autoBackupHint")}
-        </Muted>
+          <Title>
+            {step === "profile" ? t("setupWizardTitle") : t("autoBackup")}
+          </Title>
+          <Muted style={{ marginBottom: spacing.lg }}>
+            {step === "profile" ? t("setupWizardHint") : t("autoBackupHint")}
+          </Muted>
 
-        {step === "profile" ? (
-          <>
-            <Pressable onPress={() => void onPickPhoto()} style={styles.avatarWrap}>
-              <View style={styles.avatarRing}>
-                <Image source={avatarSource} style={styles.avatar} />
-              </View>
-              <Text style={styles.pickLabel}>
-                {profileUri ? t("changeProfilePhoto") : t("pickProfilePhoto")}
-              </Text>
-            </Pressable>
-            {profileUri ? (
+          {step === "profile" ? (
+            <>
               <Pressable
-                onPress={() => setProfileUri(null)}
-                style={{ marginBottom: spacing.md }}
+                onPress={() => void onPickPhoto()}
+                style={styles.avatarWrap}
               >
-                <Text style={styles.removePhoto}>{t("removeProfilePhoto")}</Text>
+                <View style={styles.avatarRing}>
+                  <Image source={avatarSource} style={styles.avatar} />
+                </View>
+                <Text style={styles.pickLabel}>
+                  {profileUri
+                    ? t("changeProfilePhoto")
+                    : t("pickProfilePhoto")}
+                </Text>
               </Pressable>
-            ) : null}
-            <FormField
-              label={t("tutorName")}
-              value={name}
-              onChangeText={setName}
-            />
-            <PrimaryButton
-              label={busy ? t("loading") : t("setupNext")}
-              onPress={() => void onProfileNext()}
-              disabled={busy}
-            />
-          </>
-        ) : (
-          <>
-            <View style={styles.switchRow}>
-              <Text style={styles.switchLabel}>{t("autoBackupEnable")}</Text>
-              <Switch
-                value={backup.enabled}
-                onValueChange={(enabled) =>
-                  setBackup((prev) => ({ ...prev, enabled }))
-                }
-                trackColor={{ false: colors.border, true: colors.primarySoft }}
-                thumbColor={backup.enabled ? colors.primary : colors.textMuted}
+              {profileUri ? (
+                <Pressable
+                  onPress={() => setProfileUri(null)}
+                  style={{ marginBottom: spacing.md }}
+                >
+                  <Text style={styles.removePhoto}>
+                    {t("removeProfilePhoto")}
+                  </Text>
+                </Pressable>
+              ) : null}
+              <FormField
+                label={t("tutorName")}
+                value={name}
+                onChangeText={setName}
+                onFocus={() => {
+                  // Keep the name field above the keyboard
+                  setTimeout(() => {
+                    scrollRef.current?.scrollToEnd({ animated: true });
+                  }, 100);
+                }}
               />
-            </View>
-            <Text style={styles.freqLabel}>{t("autoBackupFrequency")}</Text>
-            <View style={styles.freqRow}>
-              {(["daily", "weekly"] as AutoBackupFrequency[]).map((f) => {
-                const selected = backup.frequency === f;
-                return (
-                  <Pressable
-                    key={f}
-                    onPress={() =>
-                      setBackup((prev) => ({ ...prev, frequency: f }))
-                    }
-                    style={[styles.chip, selected && styles.chipOn]}
-                  >
-                    <Text
-                      style={[styles.chipText, selected && styles.chipTextOn]}
+              <PrimaryButton
+                label={busy ? t("loading") : t("setupNext")}
+                onPress={() => void onProfileNext()}
+                disabled={busy}
+              />
+            </>
+          ) : (
+            <>
+              <View style={styles.switchRow}>
+                <Text style={styles.switchLabel}>{t("autoBackupEnable")}</Text>
+                <Switch
+                  value={backup.enabled}
+                  onValueChange={(enabled) =>
+                    setBackup((prev) => ({ ...prev, enabled }))
+                  }
+                  trackColor={{ false: colors.border, true: colors.primarySoft }}
+                  thumbColor={backup.enabled ? colors.primary : colors.textMuted}
+                />
+              </View>
+              <Text style={styles.freqLabel}>{t("autoBackupFrequency")}</Text>
+              <View style={styles.freqRow}>
+                {(["daily", "weekly"] as AutoBackupFrequency[]).map((f) => {
+                  const selected = backup.frequency === f;
+                  return (
+                    <Pressable
+                      key={f}
+                      onPress={() =>
+                        setBackup((prev) => ({ ...prev, frequency: f }))
+                      }
+                      style={[styles.chip, selected && styles.chipOn]}
                     >
-                      {f === "daily"
-                        ? t("autoBackupDaily")
-                        : t("autoBackupWeekly")}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-            <View style={{ gap: 10, marginTop: spacing.lg }}>
-              <PrimaryButton
-                label={busy ? t("loading") : t("setupFinish")}
-                onPress={() => void onFinish()}
-                disabled={busy}
-              />
-              <PrimaryButton
-                label={t("back")}
-                variant="ghost"
-                onPress={() => setStep("profile")}
-                disabled={busy}
-              />
-            </View>
-          </>
-        )}
-      </ScrollView>
+                      <Text
+                        style={[
+                          styles.chipText,
+                          selected && styles.chipTextOn,
+                        ]}
+                      >
+                        {f === "daily"
+                          ? t("autoBackupDaily")
+                          : t("autoBackupWeekly")}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <View style={{ gap: 10, marginTop: spacing.lg }}>
+                <PrimaryButton
+                  label={busy ? t("loading") : t("setupFinish")}
+                  onPress={() => void onFinish()}
+                  disabled={busy}
+                />
+                <PrimaryButton
+                  label={t("back")}
+                  variant="ghost"
+                  onPress={() => setStep("profile")}
+                  disabled={busy}
+                />
+              </View>
+            </>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
     </Screen>
   );
 }
@@ -237,9 +268,11 @@ export function SetupWizardScreen() {
 const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
-    justifyContent: "center",
+    // Top-align so KeyboardAvoidingView / resize can lift the name field
+    justifyContent: "flex-start",
     padding: spacing.lg,
-    paddingBottom: 48,
+    paddingTop: spacing.xl,
+    paddingBottom: 120,
   },
   brandLogo: {
     width: "100%",

@@ -177,6 +177,7 @@ export function FormField({
   placeholder,
   keyboardType,
   multiline,
+  onFocus,
 }: {
   label: string;
   value: string;
@@ -184,6 +185,7 @@ export function FormField({
   placeholder?: string;
   keyboardType?: "default" | "numeric" | "phone-pad";
   multiline?: boolean;
+  onFocus?: () => void;
 }) {
   return (
     <View style={[styles.field, rtlBlock]}>
@@ -196,6 +198,7 @@ export function FormField({
           placeholderTextColor={colors.textMuted}
           keyboardType={keyboardType}
           multiline={multiline}
+          onFocus={onFocus}
           style={[
             styles.input,
             multiline && { minHeight: 80, textAlignVertical: "top" },

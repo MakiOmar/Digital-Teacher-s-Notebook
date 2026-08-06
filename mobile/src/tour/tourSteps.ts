@@ -9,9 +9,15 @@ export type TourTargetId =
   | "homeYearCta"
   | "homeHeader"
   | "groupsAdd"
+  | "groupsList"
   | "studentsAdd"
   | "todayHeader"
+  | "scheduleHeader"
   | "paymentsHeader"
+  | "moreBackup"
+  | "moreReports"
+  | "moreReminders"
+  | "moreSettings"
   | "moreMenu";
 
 export type TourStep = {
@@ -58,6 +64,14 @@ export const TOUR_STEPS: TourStep[] = [
     requirement: async () => (await listGroups()).length > 0,
   },
   {
+    id: "groupHubHint",
+    titleKey: "tourGroupHubTitle",
+    bodyKey: "tourGroupHubBody",
+    targetId: "groupsList",
+    tabHref: "/(tabs)/groups",
+    allowNext: true,
+  },
+  {
     id: "createStudent",
     titleKey: "tourStudentTitle",
     bodyKey: "tourStudentBody",
@@ -78,6 +92,14 @@ export const TOUR_STEPS: TourStep[] = [
     allowNext: true,
   },
   {
+    id: "scheduleHint",
+    titleKey: "tourScheduleTitle",
+    bodyKey: "tourScheduleBody",
+    targetId: "scheduleHeader",
+    tabHref: "/(tabs)/schedule",
+    allowNext: true,
+  },
+  {
     id: "paymentsHint",
     titleKey: "tourPaymentsTitle",
     bodyKey: "tourPaymentsBody",
@@ -86,10 +108,34 @@ export const TOUR_STEPS: TourStep[] = [
     allowNext: true,
   },
   {
+    id: "backupHint",
+    titleKey: "tourBackupTitle",
+    bodyKey: "tourBackupBody",
+    targetId: "moreBackup",
+    tabHref: "/(tabs)/more",
+    allowNext: true,
+  },
+  {
+    id: "reportsHint",
+    titleKey: "tourReportsTitle",
+    bodyKey: "tourReportsBody",
+    targetId: "moreReports",
+    tabHref: "/(tabs)/more",
+    allowNext: true,
+  },
+  {
+    id: "remindersHint",
+    titleKey: "tourRemindersTitle",
+    bodyKey: "tourRemindersBody",
+    targetId: "moreReminders",
+    tabHref: "/(tabs)/more",
+    allowNext: true,
+  },
+  {
     id: "moreHint",
     titleKey: "tourMoreTitle",
     bodyKey: "tourMoreBody",
-    targetId: "moreMenu",
+    targetId: "moreSettings",
     tabHref: "/(tabs)/more",
     allowNext: true,
   },
@@ -113,4 +159,8 @@ export function getNextTourStepId(id: string): string | null {
   const i = getTourStepIndex(id);
   if (i < 0 || i >= TOUR_STEPS.length - 1) return null;
   return TOUR_STEPS[i + 1].id;
+}
+
+export function isKnownTourStepId(id: string): boolean {
+  return TOUR_STEPS.some((s) => s.id === id);
 }

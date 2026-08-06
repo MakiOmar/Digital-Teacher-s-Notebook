@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { EmptyState, LoadingBlock, Screen, Title } from "@/src/components/ui";
+import { TourAnchor } from "@/src/tour/TourAnchor";
 import { t } from "@/src/i18n/ar";
 import { listWeekSessions } from "@/src/repositories";
 import type { GroupSession, Weekday } from "@/src/db/types";
@@ -92,7 +93,9 @@ export default function WeeklyScheduleScreen() {
         }
         horizontal={false}
       >
-        <Title>{t("weeklySchedule")}</Title>
+        <TourAnchor id="scheduleHeader">
+          <Title>{t("weeklySchedule")}</Title>
+        </TourAnchor>
         {!rows.length ? <EmptyState message={t("noSessions")} /> : null}
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <View style={styles.table}>

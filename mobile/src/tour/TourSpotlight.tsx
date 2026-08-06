@@ -1,10 +1,10 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  Dimensions,
   Modal,
   Pressable,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -12,13 +12,14 @@ import { t } from "@/src/i18n/ar";
 import { colors, radii, spacing } from "@/src/theme/colors";
 import { fonts } from "@/src/theme/typography";
 import { rtlText } from "@/src/theme/rtl";
-import { getTourStep } from "./tourSteps";
+import { getTourStep, TOUR_STEPS } from "./tourSteps";
 import { useTour } from "./TourContext";
 
-const PAD = 10;
+const PAD = 12;
 
 /**
- * Dimmed overlay with a “hole” around the current TourAnchor and a tooltip card.
+ * Dimmed overlay with a spotlight hole around the current TourAnchor
+ * and a guided tooltip card (rotation-aware).
  */
 export function TourSpotlight() {
   const {
@@ -33,9 +34,9 @@ export function TourSpotlight() {
     finish,
   } = useTour();
   const insets = useSafeAreaInsets();
+  const { width: screenW, height: screenH } = useWindowDimensions();
   const step = getTourStep(stepId);
-
-  const { width: screenW, height: screenH } = Dimensions.get("window");
+  const [cardH, setCardH] = useState(200);
 
   const hole = useMemo(() => {
     if (!step?.targetId) return null;
@@ -44,29 +45,38 @@ export function TourSpotlight() {
     return {
       x: Math.max(0, r.x - PAD),
       y: Math.max(0, r.y - PAD),
-      width: Math.min(screenW, r.width + PAD * 2),
-      height: r.height + PAD * 2,
+      width: Math.min(screenW - 8, r.width + PAD * 2),
+      height: Math.min(screenH - 8, r.height + PAD * 2),
     };
-  }, [step?.targetId, targets, screenW]);
+  }, [step?.targetId, targets, screenW, screenH]);
+
+  // Recompute card placement when window size changes (rotation)
+  useEffect(() => {
+    setCardH((h) => h);
+  }, [screenW, screenH]);
 
   if (!active || !step) return null;
 
   const isDone = stepId === "done";
   const hasCreate = Boolean(step.createRoute);
   const canNext = Boolean(step.allowNext) || isDone;
+  const isLandscape = screenW > screenH;
+  const cardMaxW = Math.min(420, screenW - spacing.lg * 2);
 
   const cardTop = (() => {
-    if (!hole) return Math.max(insets.top + 80, screenH * 0.28);
-    const below = hole.y + hole.height + 16;
-    const cardH = 220;
-    if (below + cardH < screenH - insets.bottom - 24) return below;
-    return Math.max(insets.top + 24, hole.y - cardH - 16);
+    if (!hole) return Math.max(insets.top + 72, screenH * 0.26);
+    const below = hole.y + hole.height + 14;
+    if (below + cardH < screenH - insets.bottom - 20) return below;
+    return Math.max(insets.top + 16, hole.y - cardH - 14);
   })();
+
+  const cardLeft = isLandscape
+    ? Math.max(spacing.md, (screenW - cardMaxW) / 2)
+    : spacing.lg;
 
   return (
     <Modal visible transparent animationType="fade" statusBarTranslucent>
       <View style={styles.root} pointerEvents="box-none">
-        {/* Four-panel dim around the hole */}
         {hole ? (
           <>
             <View
@@ -126,59 +136,76 @@ export function TourSpotlight() {
         )}
 
         <View
+          onLayout={(e) => setCardH(e.nativeEvent.layout.height)}
           style={[
             styles.card,
             {
               top: cardTop,
-              marginHorizontal: spacing.lg,
+              left: cardLeft,
+              width: cardMaxW,
+              maxWidth: cardMaxW,
             },
           ]}
         >
-          <Text style={styles.progress}>
-            {t("tourProgress", {
-              current: stepIndex + 1,
-              total: stepCount,
-            })}
-          </Text>
-          <Text style={styles.title}>{t(step.titleKey)}</Text>
-          <Text style={styles.body}>{t(step.bodyKey)}</Text>
-
-          <View style={styles.actions}>
-            {!isDone ? (
-              <Pressable onPress={() => void skip()} hitSlop={8}>
-                <Text style={styles.skip}>{t("tourSkip")}</Text>
-              </Pressable>
-            ) : (
-              <View />
-            )}
-
-            <View style={styles.primaryCol}>
-              {hasCreate ? (
-                <Pressable
-                  style={styles.primaryBtn}
-                  onPress={goCreate}
-                >
-                  <Text style={styles.primaryText}>{t("tourCreateNow")}</Text>
-                </Pressable>
-              ) : null}
-              {canNext ? (
-                <Pressable
-                  style={[
-                    styles.primaryBtn,
-                    hasCreate && styles.secondaryBtn,
-                  ]}
-                  onPress={() => void (isDone ? finish() : next())}
-                >
-                  <Text
+          <View style={styles.accentBar} />
+          <View style={styles.cardInner}>
+            <View style={styles.metaRow}>
+              <Text style={styles.progress}>
+                {t("tourProgress", {
+                  current: stepIndex + 1,
+                  total: stepCount,
+                })}
+              </Text>
+              <View style={styles.dots}>
+                {TOUR_STEPS.map((s, i) => (
+                  <View
+                    key={s.id}
                     style={[
-                      styles.primaryText,
-                      hasCreate && styles.secondaryText,
+                      styles.dot,
+                      i === stepIndex && styles.dotActive,
+                      i < stepIndex && styles.dotDone,
                     ]}
-                  >
-                    {isDone ? t("tourFinish") : t("tourNext")}
-                  </Text>
+                  />
+                ))}
+              </View>
+            </View>
+            <Text style={styles.title}>{t(step.titleKey)}</Text>
+            <Text style={styles.body}>{t(step.bodyKey)}</Text>
+
+            <View style={styles.actions}>
+              {!isDone ? (
+                <Pressable onPress={() => void skip()} hitSlop={10}>
+                  <Text style={styles.skip}>{t("tourSkip")}</Text>
                 </Pressable>
-              ) : null}
+              ) : (
+                <View />
+              )}
+
+              <View style={styles.primaryCol}>
+                {hasCreate ? (
+                  <Pressable style={styles.primaryBtn} onPress={goCreate}>
+                    <Text style={styles.primaryText}>{t("tourCreateNow")}</Text>
+                  </Pressable>
+                ) : null}
+                {canNext ? (
+                  <Pressable
+                    style={[
+                      styles.primaryBtn,
+                      hasCreate && styles.secondaryBtn,
+                    ]}
+                    onPress={() => void (isDone ? finish() : next())}
+                  >
+                    <Text
+                      style={[
+                        styles.primaryText,
+                        hasCreate && styles.secondaryText,
+                      ]}
+                    >
+                      {isDone ? t("tourFinish") : t("tourNext")}
+                    </Text>
+                  </Pressable>
+                ) : null}
+              </View>
             </View>
           </View>
         </View>
@@ -193,44 +220,72 @@ const styles = StyleSheet.create({
   },
   dim: {
     position: "absolute",
-    backgroundColor: "rgba(15, 23, 42, 0.62)",
+    backgroundColor: "rgba(15, 23, 42, 0.72)",
   },
   holeRing: {
     position: "absolute",
     borderRadius: radii.lg,
-    borderWidth: 2,
+    borderWidth: 2.5,
     borderColor: colors.primary,
     backgroundColor: "transparent",
   },
   card: {
     position: "absolute",
-    left: 0,
-    right: 0,
     backgroundColor: colors.surface,
     borderRadius: radii.xl,
-    padding: spacing.lg,
-    gap: spacing.sm,
+    overflow: "hidden",
     borderWidth: 1,
     borderColor: colors.border,
-    // Soft elevation
-    shadowColor: "#000",
-    shadowOpacity: 0.18,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 8,
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.22,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 10,
+  },
+  accentBar: {
+    height: 4,
+    backgroundColor: colors.primary,
+    width: "100%",
+  },
+  cardInner: {
+    padding: spacing.lg,
+    gap: spacing.sm,
+  },
+  metaRow: {
+    gap: 8,
+    marginBottom: 2,
   },
   progress: {
     ...rtlText,
     width: "100%",
-    color: colors.textMuted,
+    color: colors.primary,
     fontFamily: fonts.semiBold,
     fontSize: 12,
+  },
+  dots: {
+    flexDirection: "row-reverse",
+    flexWrap: "wrap",
+    gap: 4,
+    justifyContent: "flex-start",
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.border,
+  },
+  dotActive: {
+    width: 16,
+    backgroundColor: colors.primary,
+  },
+  dotDone: {
+    backgroundColor: colors.accent,
   },
   title: {
     ...rtlText,
     width: "100%",
-    fontFamily: fonts.extraBold,
-    fontWeight: "800",
+    fontFamily: fonts.bold,
+    fontWeight: "700",
     fontSize: 18,
     color: colors.text,
   },
@@ -239,9 +294,9 @@ const styles = StyleSheet.create({
     width: "100%",
     fontFamily: fonts.regular,
     fontSize: 14,
-    lineHeight: 22,
+    lineHeight: 23,
     color: colors.textMuted,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
   actions: {
     flexDirection: "row-reverse",
@@ -266,8 +321,8 @@ const styles = StyleSheet.create({
   },
   primaryBtn: {
     backgroundColor: colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 18,
+    paddingVertical: 11,
     borderRadius: radii.md,
   },
   secondaryBtn: {

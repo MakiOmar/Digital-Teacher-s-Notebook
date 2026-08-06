@@ -1,6 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { isKnownTourStepId } from "./tourSteps";
 
-const SETTINGS_KEY = "tutor.tour.v1";
+/** Bumped when step IDs / flow change so stale step pointers reset. */
+const SETTINGS_KEY = "tutor.tour.v2";
 
 export type TourStatus = "pending" | "skipped" | "completed";
 
@@ -21,6 +23,10 @@ export async function loadTourState(): Promise<TourState> {
     const raw = await AsyncStorage.getItem(SETTINGS_KEY);
     if (!raw) return { ...DEFAULTS };
     const parsed = JSON.parse(raw) as Partial<TourState>;
+    const stepId =
+      typeof parsed.stepId === "string" && isKnownTourStepId(parsed.stepId)
+        ? parsed.stepId
+        : TOUR_FIRST_STEP_ID;
     return {
       status:
         parsed.status === "skipped" ||
@@ -28,10 +34,7 @@ export async function loadTourState(): Promise<TourState> {
         parsed.status === "pending"
           ? parsed.status
           : "pending",
-      stepId:
-        typeof parsed.stepId === "string" && parsed.stepId.length
-          ? parsed.stepId
-          : TOUR_FIRST_STEP_ID,
+      stepId,
     };
   } catch {
     return { ...DEFAULTS };

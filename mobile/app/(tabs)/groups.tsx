@@ -11,6 +11,7 @@ import {
 } from "@/src/components/ui";
 import { IconActionBar } from "@/src/components/IconActionBar";
 import { PaginationBar } from "@/src/components/PaginationBar";
+import { TourAnchor } from "@/src/tour/TourAnchor";
 import { t } from "@/src/i18n/ar";
 import { listGroupsWithPatterns } from "@/src/repositories";
 import { getGroupListStats } from "@/src/services/rounds";
@@ -114,6 +115,7 @@ export default function GroupsTab() {
           placeholder={t("searchPlaceholder")}
         />
       </View>
+      <TourAnchor id="groupsList" style={{ flex: 1 }}>
       <FlatList
         style={{ flex: 1 }}
         contentContainerStyle={{
@@ -169,6 +171,7 @@ export default function GroupsTab() {
         }}
         refreshing={refreshing}
       />
+      </TourAnchor>
     </Screen>
   );
 }

@@ -264,14 +264,17 @@ export function MenuCard({
   icon,
   borderColor,
   onPress,
+  tourId,
 }: {
   title: string;
   subtitle?: string;
   icon?: number;
   borderColor?: string;
   onPress: () => void;
+  /** Optional spotlight target for the onboarding tour */
+  tourId?: TourTargetId;
 }) {
-  return (
+  const body = (
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [
@@ -292,6 +295,11 @@ export function MenuCard({
       </View>
     </Pressable>
   );
+
+  if (tourId) {
+    return <TourAnchor id={tourId}>{body}</TourAnchor>;
+  }
+  return body;
 }
 
 export function BorderedCard({

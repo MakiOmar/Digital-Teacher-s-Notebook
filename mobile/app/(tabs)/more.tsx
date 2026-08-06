@@ -57,76 +57,83 @@ export default function MoreTab() {
             {t("activeYear")}: {activeYear.name}
           </Text>
         ) : null}
-        <TourAnchor id="moreMenu">
-          <View style={{ marginTop: spacing.md }}>
+        <View style={{ marginTop: spacing.md }}>
+          <TourAnchor id="moreMenu">
             <MenuCard
               title={t("tourGuide")}
               icon={ICONS.more}
               borderColor={colors.primary}
               onPress={() => void onRestartTour()}
             />
-            <MenuCard
-              title={t("academicYears")}
-              icon={ICONS.years}
-              borderColor={colors.accent}
-              onPress={() => router.push("/years")}
-            />
-            <MenuCard
-              title={t("tutorProfile")}
-              icon={ICONS.more}
-              borderColor={colors.primary}
-              onPress={() => router.push("/profile-edit" as never)}
-            />
-            <MenuCard
-              title={t("backup")}
-              icon={ICONS.backup}
-              borderColor={colors.warning}
-              onPress={() => router.push("/backup")}
-            />
-            <MenuCard
-              title={t("generalSettings")}
-              icon={ICONS.more}
-              borderColor={colors.primary}
-              onPress={() => router.push("/general-settings" as never)}
-            />
-            <MenuCard
-              title={t("reminders")}
-              icon={ICONS.more}
-              borderColor={colors.accent}
-              onPress={() => router.push("/reminders" as never)}
-            />
-            <MenuCard
-              title={t("reports")}
-              icon={ICONS.payments}
-              borderColor="#14B8A6"
-              onPress={() => router.push("/reports" as never)}
-            />
-            <MenuCard
-              title={t("appLock")}
-              icon={ICONS.more}
-              borderColor={colors.danger}
-              onPress={() => router.push("/app-lock" as never)}
-            />
-            <MenuCard
-              title={t("license")}
-              icon={ICONS.more}
-              borderColor={colors.success}
-              onPress={() => router.push("/license-manage" as never)}
-            />
-            <MenuCard
-              title={t("supportWhatsApp")}
-              icon={ICONS.more}
-              borderColor="#25D366"
-              onPress={() => void onSupportWhatsApp()}
-            />
-            <MenuCard
-              title={t("about")}
-              icon={ICONS.more}
-              borderColor={colors.textMuted}
-              onPress={() => router.push("/about")}
-            />
-          </View>
-        </TourAnchor>
+          </TourAnchor>
+          <TourAnchor id="moreSettings">
+            <View>
+              <MenuCard
+                title={t("academicYears")}
+                icon={ICONS.years}
+                borderColor={colors.accent}
+                onPress={() => router.push("/years")}
+              />
+              <MenuCard
+                title={t("tutorProfile")}
+                icon={ICONS.more}
+                borderColor={colors.primary}
+                onPress={() => router.push("/profile-edit" as never)}
+              />
+              <MenuCard
+                title={t("generalSettings")}
+                icon={ICONS.more}
+                borderColor={colors.primary}
+                onPress={() => router.push("/general-settings" as never)}
+              />
+              <MenuCard
+                title={t("appLock")}
+                icon={ICONS.more}
+                borderColor={colors.danger}
+                onPress={() => router.push("/app-lock" as never)}
+              />
+              <MenuCard
+                title={t("license")}
+                icon={ICONS.more}
+                borderColor={colors.success}
+                onPress={() => router.push("/license-manage" as never)}
+              />
+            </View>
+          </TourAnchor>
+          <MenuCard
+            title={t("backup")}
+            icon={ICONS.backup}
+            borderColor={colors.warning}
+            tourId="moreBackup"
+            onPress={() => router.push("/backup")}
+          />
+          <MenuCard
+            title={t("reminders")}
+            icon={ICONS.more}
+            borderColor={colors.accent}
+            tourId="moreReminders"
+            onPress={() => router.push("/reminders" as never)}
+          />
+          <MenuCard
+            title={t("reports")}
+            icon={ICONS.payments}
+            borderColor="#14B8A6"
+            tourId="moreReports"
+            onPress={() => router.push("/reports" as never)}
+          />
+          <MenuCard
+            title={t("supportWhatsApp")}
+            icon={ICONS.more}
+            borderColor="#25D366"
+            onPress={() => void onSupportWhatsApp()}
+          />
+          <MenuCard
+            title={t("about")}
+            icon={ICONS.more}
+            borderColor={colors.textMuted}
+            onPress={() => router.push("/about")}
+          />
+        </View>
       </ScrollView>
     </Screen>
   );

@@ -274,6 +274,7 @@ export function MenuCard({
   /** Optional spotlight target for the onboarding tour */
   tourId?: TourTargetId;
 }) {
+  // Keep margin outside TourAnchor so the spotlight measures the card only
   const body = (
     <Pressable
       onPress={onPress}
@@ -296,10 +297,8 @@ export function MenuCard({
     </Pressable>
   );
 
-  if (tourId) {
-    return <TourAnchor id={tourId}>{body}</TourAnchor>;
-  }
-  return body;
+  const card = tourId ? <TourAnchor id={tourId}>{body}</TourAnchor> : body;
+  return <View style={styles.menuCardWrap}>{card}</View>;
 }
 
 export function BorderedCard({
@@ -516,6 +515,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
+  menuCardWrap: {
+    marginBottom: spacing.md,
+  },
   menuCard: {
     alignItems: "center",
     gap: 14,
@@ -523,7 +525,6 @@ const styles = StyleSheet.create({
     borderRadius: radii.xl,
     paddingVertical: spacing.lg,
     paddingHorizontal: spacing.lg,
-    marginBottom: spacing.md,
     borderWidth: 2,
     shadowColor: "#0F172A",
     shadowOpacity: 0.08,

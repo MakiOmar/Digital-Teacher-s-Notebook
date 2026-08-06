@@ -15,8 +15,11 @@ import { rtlText } from "@/src/theme/rtl";
 import { getTourStep, TOUR_STEPS } from "./tourSteps";
 import { useTour } from "./TourContext";
 
-const PAD = 8;
-const MAX_HOLE_H_RATIO = 0.32;
+const PAD_DEFAULT = 6;
+const PAD_COMPACT = 3;
+/** Compact toolbar actions (إضافة) — avoid oversized padded holes. */
+const COMPACT_MAX = 96;
+const MAX_HOLE_H_RATIO = 0.38;
 
 /**
  * Place a rect using physical window coordinates.
@@ -73,20 +76,33 @@ export function TourSpotlight() {
       return null;
     }
 
-    const maxH = Math.max(64, screenH * MAX_HOLE_H_RATIO);
-    let width = Math.min(screenW - 16, r.width + PAD * 2);
-    let height = Math.min(r.height + PAD * 2, maxH);
-    let x = Math.max(8, Math.min(r.x - PAD, screenW - width - 8));
-    let y = r.y - PAD;
+    const compact = r.width <= COMPACT_MAX && r.height <= COMPACT_MAX;
+    const pad = compact ? PAD_COMPACT : PAD_DEFAULT;
+    // Tall clusters (settings group) may use more viewport; compact actions stay tight
+    const maxH = Math.max(
+      64,
+      screenH * (compact ? 0.22 : r.height > 200 ? 0.48 : MAX_HOLE_H_RATIO)
+    );
 
-    // Soft-clamp only — keep hole tied to the measured target
+    // Grow from the measured rect; only trim overflow edges (don't shift the center)
+    let x = r.x - pad;
+    let y = r.y - pad;
+    let width = r.width + pad * 2;
+    let height = Math.min(r.height + pad * 2, maxH);
+
+    if (x < 4) {
+      width -= 4 - x;
+      x = 4;
+    }
+    if (x + width > screenW - 4) {
+      width = Math.max(32, screenW - 4 - x);
+    }
     if (y < usableTop) {
-      const cut = usableTop - y;
+      height -= usableTop - y;
       y = usableTop;
-      height = Math.max(40, height - cut);
     }
     if (y + height > usableBottom) {
-      height = Math.max(40, usableBottom - y);
+      height = Math.max(32, usableBottom - y);
     }
 
     return { x, y, width, height };

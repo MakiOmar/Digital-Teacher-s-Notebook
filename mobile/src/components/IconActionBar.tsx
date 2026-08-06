@@ -59,7 +59,11 @@ export function IconActionBar({ actions }: { actions: IconAction[] }) {
         );
         if (a.tourId) {
           return (
-            <TourAnchor key={a.key} id={a.tourId}>
+            <TourAnchor
+              key={a.key}
+              id={a.tourId}
+              style={styles.tourWrap}
+            >
               {btn}
             </TourAnchor>
           );
@@ -77,6 +81,10 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: spacing.md,
     width: "100%",
+  },
+  /** Keep TourAnchor sized to the button (no stretch in the action row). */
+  tourWrap: {
+    alignSelf: "flex-start",
   },
   btn: {
     alignItems: "center",

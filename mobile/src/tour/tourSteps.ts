@@ -18,6 +18,7 @@ export type TourTargetId =
   | "moreReports"
   | "moreReminders"
   | "moreSettings"
+  | "moreSettingsCluster"
   | "moreMenu";
 
 export type TourStep = {
@@ -138,7 +139,7 @@ export const TOUR_STEPS: TourStep[] = [
     id: "moreHint",
     titleKey: "tourMoreTitle",
     bodyKey: "tourMoreBody",
-    targetId: "moreSettings",
+    targetId: "moreSettingsCluster",
     tabHref: "/(tabs)/more",
     allowNext: true,
   },

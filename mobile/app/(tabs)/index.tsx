@@ -53,16 +53,27 @@ function ProfileWelcome({
   name,
   yearName,
   profileSource,
+  onPressProfile,
 }: {
   name: string;
   yearName?: string | null;
   profileSource: ReturnType<typeof useTutorProfile>["profileSource"];
+  onPressProfile: () => void;
 }) {
   return (
     <View style={styles.profileWelcome}>
-      <View style={styles.profileRing}>
+      {/* Tap avatar → profile settings */}
+      <Pressable
+        onPress={onPressProfile}
+        accessibilityRole="button"
+        accessibilityLabel={t("tutorProfile")}
+        style={({ pressed }) => [
+          styles.profileRing,
+          pressed ? { opacity: 0.85 } : null,
+        ]}
+      >
         <Image source={profileSource} style={styles.profile} />
-      </View>
+      </Pressable>
       <View style={styles.welcomeCol}>
         {name.trim() ? (
           <View style={styles.welcomeRow}>
@@ -134,7 +145,11 @@ export default function HomeScreen() {
           <View style={styles.header}>
             {/* Logo on the start edge (right in RTL); profile+welcome on the other */}
             <Image source={LOGO} style={styles.logo} resizeMode="contain" />
-            <ProfileWelcome name={tutorName} profileSource={profileSource} />
+            <ProfileWelcome
+              name={tutorName}
+              profileSource={profileSource}
+              onPressProfile={() => router.push("/profile-edit" as never)}
+            />
           </View>
         </TourAnchor>
         <EmptyState
@@ -170,6 +185,7 @@ export default function HomeScreen() {
               name={tutorName}
               yearName={activeYear.name}
               profileSource={profileSource}
+              onPressProfile={() => router.push("/profile-edit" as never)}
             />
           </View>
         </TourAnchor>

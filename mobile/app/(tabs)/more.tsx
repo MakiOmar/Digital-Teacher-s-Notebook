@@ -23,12 +23,15 @@ import { whatsappUrl } from "@/src/utils/phone";
 /** Approximate default bottom tab bar content height (excluding safe area). */
 const TAB_BAR_CONTENT = 56;
 
-/** Approximate scroll offsets so the active More tour target is on-screen. */
+/**
+ * Scroll offsets for tour targets after frequency-based reorder:
+ * Profile → Years → Backup → Reports → Reminders → Settings cluster → …
+ */
 const MORE_SCROLL_Y: Record<string, number> = {
-  moreHint: 120,
-  backupHint: 380,
-  remindersHint: 440,
-  reportsHint: 500,
+  moreHint: 360,
+  backupHint: 200,
+  remindersHint: 320,
+  reportsHint: 260,
 };
 
 export default function MoreTab() {
@@ -85,13 +88,13 @@ export default function MoreTab() {
             {t("activeYear")}: {activeYear.name}
           </Text>
         ) : null}
+        {/* Frequency order: everyday tools first, rare/help last */}
         <View style={{ marginTop: spacing.sm }}>
           <MenuCard
-            title={t("tourGuide")}
-            icon={ICONS.guide}
+            title={t("tutorProfile")}
+            icon={ICONS.profile}
             borderColor={colors.primary}
-            tourId="moreMenu"
-            onPress={() => void onRestartTour()}
+            onPress={() => router.push("/profile-edit" as never)}
           />
           <MenuCard
             title={t("academicYears")}
@@ -100,13 +103,28 @@ export default function MoreTab() {
             tourId="moreSettings"
             onPress={() => router.push("/years")}
           />
+          <MenuCard
+            title={t("backup")}
+            icon={ICONS.backup}
+            borderColor={colors.warning}
+            tourId="moreBackup"
+            onPress={() => router.push("/backup")}
+          />
+          <MenuCard
+            title={t("reports")}
+            icon={ICONS.reports}
+            borderColor="#14B8A6"
+            tourId="moreReports"
+            onPress={() => router.push("/reports" as never)}
+          />
+          <MenuCard
+            title={t("reminders")}
+            icon={ICONS.reminders}
+            borderColor={colors.accent}
+            tourId="moreReminders"
+            onPress={() => router.push("/reminders" as never)}
+          />
           <TourAnchor id="moreSettingsCluster">
-            <MenuCard
-              title={t("tutorProfile")}
-              icon={ICONS.profile}
-              borderColor={colors.primary}
-              onPress={() => router.push("/profile-edit" as never)}
-            />
             <MenuCard
               title={t("generalSettings")}
               icon={ICONS.settings}
@@ -127,27 +145,6 @@ export default function MoreTab() {
             />
           </TourAnchor>
           <MenuCard
-            title={t("backup")}
-            icon={ICONS.backup}
-            borderColor={colors.warning}
-            tourId="moreBackup"
-            onPress={() => router.push("/backup")}
-          />
-          <MenuCard
-            title={t("reminders")}
-            icon={ICONS.reminders}
-            borderColor={colors.accent}
-            tourId="moreReminders"
-            onPress={() => router.push("/reminders" as never)}
-          />
-          <MenuCard
-            title={t("reports")}
-            icon={ICONS.reports}
-            borderColor="#14B8A6"
-            tourId="moreReports"
-            onPress={() => router.push("/reports" as never)}
-          />
-          <MenuCard
             title={t("supportWhatsApp")}
             icon={ICONS.support}
             borderColor="#25D366"
@@ -158,6 +155,13 @@ export default function MoreTab() {
             icon={ICONS.about}
             borderColor={colors.textMuted}
             onPress={() => router.push("/about")}
+          />
+          <MenuCard
+            title={t("tourGuide")}
+            icon={ICONS.guide}
+            borderColor={colors.primary}
+            tourId="moreMenu"
+            onPress={() => void onRestartTour()}
           />
         </View>
       </ScrollView>

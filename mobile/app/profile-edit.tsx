@@ -18,6 +18,7 @@ import {
   Title,
 } from "@/src/components/ui";
 import { useDialog } from "@/src/components/DialogProvider";
+import { useKeyboardBottomInset } from "@/src/hooks/useKeyboardBottomInset";
 import { useTutorProfile } from "@/src/profile/TutorProfileContext";
 import { t } from "@/src/i18n/ar";
 import { colors, spacing } from "@/src/theme/colors";
@@ -30,6 +31,8 @@ export default function ProfileEditScreen() {
   const router = useRouter();
   const dialog = useDialog();
   const scrollRef = useRef<ScrollView>(null);
+  const nameAnchorY = useRef(0);
+  const keyboardInset = useKeyboardBottomInset();
   const { name: savedName, profileUri: savedUri, saveProfile, pickImage } =
     useTutorProfile();
   const [name, setName] = useState(savedName);
@@ -40,6 +43,15 @@ export default function ProfileEditScreen() {
     setName(savedName);
     setProfileUri(savedUri);
   }, [savedName, savedUri]);
+
+  useEffect(() => {
+    if (keyboardInset <= 0) return;
+    const y = Math.max(0, nameAnchorY.current - 24);
+    const timer = setTimeout(() => {
+      scrollRef.current?.scrollTo({ y, animated: true });
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [keyboardInset]);
 
   async function onPickPhoto() {
     try {
@@ -96,12 +108,34 @@ export default function ProfileEditScreen() {
           ref={scrollRef}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
-          contentContainerStyle={styles.content}
+          contentContainerStyle={{
+            paddingBottom: Math.max(48, keyboardInset + 24),
+          }}
         >
           <Title>{t("editProfile")}</Title>
-          <Muted style={{ marginBottom: spacing.lg }}>
+          <Muted style={{ marginBottom: spacing.md }}>
             {t("setupWizardHint")}
           </Muted>
+
+          <View
+            onLayout={(e) => {
+              nameAnchorY.current = e.nativeEvent.layout.y;
+            }}
+          >
+            <FormField
+              label={t("tutorName")}
+              value={name}
+              onChangeText={setName}
+              onFocus={() => {
+                setTimeout(() => {
+                  scrollRef.current?.scrollTo({
+                    y: Math.max(0, nameAnchorY.current - 24),
+                    animated: true,
+                  });
+                }, 120);
+              }}
+            />
+          </View>
 
           <Pressable
             onPress={() => void onPickPhoto()}
@@ -123,16 +157,6 @@ export default function ProfileEditScreen() {
             </Pressable>
           ) : null}
 
-          <FormField
-            label={t("tutorName")}
-            value={name}
-            onChangeText={setName}
-            onFocus={() => {
-              setTimeout(() => {
-                scrollRef.current?.scrollToEnd({ animated: true });
-              }, 100);
-            }}
-          />
           <PrimaryButton
             label={busy ? t("loading") : t("save")}
             onPress={() => void onSave()}
@@ -145,18 +169,16 @@ export default function ProfileEditScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: {
-    paddingBottom: 120,
-  },
   avatarWrap: {
     alignItems: "center",
+    marginTop: spacing.md,
     marginBottom: spacing.md,
   },
   avatarRing: {
-    width: 112,
-    height: 112,
-    borderRadius: 56,
-    borderWidth: 4,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    borderWidth: 3,
     borderColor: colors.primary,
     overflow: "hidden",
     backgroundColor: colors.backgroundAlt,

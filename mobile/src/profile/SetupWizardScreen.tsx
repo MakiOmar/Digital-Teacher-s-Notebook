@@ -25,6 +25,7 @@ import {
   type AutoBackupSettings,
 } from "@/src/backup/autoBackup";
 import { useDialog } from "@/src/components/DialogProvider";
+import { useKeyboardBottomInset } from "@/src/hooks/useKeyboardBottomInset";
 import { t } from "@/src/i18n/ar";
 import { colors, radii, spacing } from "@/src/theme/colors";
 import { rtlChipRow, rtlRow, rtlText } from "@/src/theme/rtl";
@@ -40,6 +41,8 @@ export function SetupWizardScreen() {
     useTutorProfile();
   const dialog = useDialog();
   const scrollRef = useRef<ScrollView>(null);
+  const nameAnchorY = useRef(0);
+  const keyboardInset = useKeyboardBottomInset();
   const [step, setStep] = useState<Step>("profile");
   const [name, setName] = useState(savedName);
   const [profileUri, setProfileUri] = useState<string | null>(savedUri);
@@ -61,6 +64,16 @@ export function SetupWizardScreen() {
   useEffect(() => {
     void loadAutoBackupSettings().then(setBackup);
   }, []);
+
+  // When keyboard opens, scroll the name field into the visible area
+  useEffect(() => {
+    if (keyboardInset <= 0 || step !== "profile") return;
+    const y = Math.max(0, nameAnchorY.current - 24);
+    const t = setTimeout(() => {
+      scrollRef.current?.scrollTo({ y, animated: true });
+    }, 50);
+    return () => clearTimeout(t);
+  }, [keyboardInset, step]);
 
   async function onPickPhoto() {
     try {
@@ -144,11 +157,13 @@ export function SetupWizardScreen() {
       >
         <ScrollView
           ref={scrollRef}
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[
+            styles.content,
+            { paddingBottom: Math.max(48, keyboardInset + 24) },
+          ]}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
         >
-          {/* Brand mark — matches splash / home wordmark */}
           <Image
             source={BRAND_LOGO}
             style={styles.brandLogo}
@@ -159,12 +174,33 @@ export function SetupWizardScreen() {
           <Title>
             {step === "profile" ? t("setupWizardTitle") : t("autoBackup")}
           </Title>
-          <Muted style={{ marginBottom: spacing.lg }}>
+          <Muted style={{ marginBottom: spacing.md }}>
             {step === "profile" ? t("setupWizardHint") : t("autoBackupHint")}
           </Muted>
 
           {step === "profile" ? (
             <>
+              {/* Name first so it stays above the keyboard */}
+              <View
+                onLayout={(e) => {
+                  nameAnchorY.current = e.nativeEvent.layout.y;
+                }}
+              >
+                <FormField
+                  label={t("tutorName")}
+                  value={name}
+                  onChangeText={setName}
+                  onFocus={() => {
+                    setTimeout(() => {
+                      scrollRef.current?.scrollTo({
+                        y: Math.max(0, nameAnchorY.current - 24),
+                        animated: true,
+                      });
+                    }, 120);
+                  }}
+                />
+              </View>
+
               <Pressable
                 onPress={() => void onPickPhoto()}
                 style={styles.avatarWrap}
@@ -188,17 +224,7 @@ export function SetupWizardScreen() {
                   </Text>
                 </Pressable>
               ) : null}
-              <FormField
-                label={t("tutorName")}
-                value={name}
-                onChangeText={setName}
-                onFocus={() => {
-                  // Keep the name field above the keyboard
-                  setTimeout(() => {
-                    scrollRef.current?.scrollToEnd({ animated: true });
-                  }, 100);
-                }}
-              />
+
               <PrimaryButton
                 label={busy ? t("loading") : t("setupNext")}
                 onPress={() => void onProfileNext()}
@@ -268,37 +294,36 @@ export function SetupWizardScreen() {
 const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
-    // Top-align so KeyboardAvoidingView / resize can lift the name field
     justifyContent: "flex-start",
-    padding: spacing.lg,
-    paddingTop: spacing.xl,
-    paddingBottom: 120,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
   },
   brandLogo: {
     width: "100%",
-    height: 88,
+    height: 64,
     alignSelf: "center",
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
     backgroundColor: "transparent",
   },
   brandName: {
     ...rtlText,
     width: "100%",
     textAlign: "center",
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "800",
     color: colors.primary,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
   },
   avatarWrap: {
     alignItems: "center",
+    marginTop: spacing.md,
     marginBottom: spacing.md,
   },
   avatarRing: {
-    width: 112,
-    height: 112,
-    borderRadius: 56,
-    borderWidth: 4,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    borderWidth: 3,
     borderColor: colors.primary,
     overflow: "hidden",
     backgroundColor: colors.backgroundAlt,

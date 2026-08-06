@@ -25,10 +25,10 @@ const TAB_BAR_CONTENT = 56;
 
 /** Approximate scroll offsets so the active More tour target is on-screen. */
 const MORE_SCROLL_Y: Record<string, number> = {
-  moreHint: 160,
-  backupHint: 528,
-  remindersHint: 616,
-  reportsHint: 704,
+  moreHint: 120,
+  backupHint: 380,
+  remindersHint: 440,
+  reportsHint: 500,
 };
 
 export default function MoreTab() {
@@ -85,10 +85,10 @@ export default function MoreTab() {
             {t("activeYear")}: {activeYear.name}
           </Text>
         ) : null}
-        <View style={{ marginTop: spacing.md }}>
+        <View style={{ marginTop: spacing.sm }}>
           <MenuCard
             title={t("tourGuide")}
-            icon={ICONS.more}
+            icon={ICONS.guide}
             borderColor={colors.primary}
             tourId="moreMenu"
             onPress={() => void onRestartTour()}
@@ -103,25 +103,25 @@ export default function MoreTab() {
           <TourAnchor id="moreSettingsCluster">
             <MenuCard
               title={t("tutorProfile")}
-              icon={ICONS.more}
+              icon={ICONS.profile}
               borderColor={colors.primary}
               onPress={() => router.push("/profile-edit" as never)}
             />
             <MenuCard
               title={t("generalSettings")}
-              icon={ICONS.more}
+              icon={ICONS.settings}
               borderColor={colors.primary}
               onPress={() => router.push("/general-settings" as never)}
             />
             <MenuCard
               title={t("appLock")}
-              icon={ICONS.more}
+              icon={ICONS.lock}
               borderColor={colors.danger}
               onPress={() => router.push("/app-lock" as never)}
             />
             <MenuCard
               title={t("license")}
-              icon={ICONS.more}
+              icon={ICONS.license}
               borderColor={colors.success}
               onPress={() => router.push("/license-manage" as never)}
             />
@@ -135,27 +135,27 @@ export default function MoreTab() {
           />
           <MenuCard
             title={t("reminders")}
-            icon={ICONS.more}
+            icon={ICONS.reminders}
             borderColor={colors.accent}
             tourId="moreReminders"
             onPress={() => router.push("/reminders" as never)}
           />
           <MenuCard
             title={t("reports")}
-            icon={ICONS.payments}
+            icon={ICONS.reports}
             borderColor="#14B8A6"
             tourId="moreReports"
             onPress={() => router.push("/reports" as never)}
           />
           <MenuCard
             title={t("supportWhatsApp")}
-            icon={ICONS.more}
+            icon={ICONS.support}
             borderColor="#25D366"
             onPress={() => void onSupportWhatsApp()}
           />
           <MenuCard
             title={t("about")}
-            icon={ICONS.more}
+            icon={ICONS.about}
             borderColor={colors.textMuted}
             onPress={() => router.push("/about")}
           />

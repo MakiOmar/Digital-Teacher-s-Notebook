@@ -78,20 +78,22 @@ async function toWebp(relPng, maxEdge, quality) {
     console.log("wrote assets/images/splash-logo.png from logo-full");
   }
 
-  // Flat UI / launcher icons stay PNG (palette)
+  // Menu icons → WebP (see scripts/icons-to-webp.js)
+  await new Promise((resolve, reject) => {
+    const { spawn } = require("child_process");
+    const child = spawn(process.execPath, [path.join(__dirname, "icons-to-webp.js")], {
+      cwd: root,
+      stdio: "inherit",
+    });
+    child.on("exit", (code) => (code === 0 ? resolve() : reject(new Error("icons-to-webp failed"))));
+  });
+
+  // Flat launcher assets stay PNG
   for (const [rel, edge] of [
     ["assets/images/splash-icon.png", 512],
     ["assets/images/icon.png", 512],
     ["assets/images/android-icon-foreground.png", 512],
     ["assets/images/star.png", 128],
-    ["assets/icons/icon-today.png", 192],
-    ["assets/icons/icon-schedule.png", 192],
-    ["assets/icons/icon-groups.png", 192],
-    ["assets/icons/icon-students.png", 192],
-    ["assets/icons/icon-payments.png", 192],
-    ["assets/icons/icon-years.png", 192],
-    ["assets/icons/icon-backup.png", 192],
-    ["assets/icons/icon-more.png", 192],
   ]) {
     await pngIcon(rel, edge);
   }

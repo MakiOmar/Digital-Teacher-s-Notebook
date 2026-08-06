@@ -109,13 +109,14 @@ export default function GroupsTab() {
             },
           ]}
         />
-        <SearchField
-          value={query}
-          onChangeText={setQuery}
-          placeholder={t("searchPlaceholder")}
-        />
+        <TourAnchor id="groupsList">
+          <SearchField
+            value={query}
+            onChangeText={setQuery}
+            placeholder={t("searchPlaceholder")}
+          />
+        </TourAnchor>
       </View>
-      <TourAnchor id="groupsList" style={{ flex: 1 }}>
       <FlatList
         style={{ flex: 1 }}
         contentContainerStyle={{
@@ -171,7 +172,6 @@ export default function GroupsTab() {
         }}
         refreshing={refreshing}
       />
-      </TourAnchor>
     </Screen>
   );
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Modal,
   Pressable,
@@ -15,11 +15,13 @@ import { rtlText } from "@/src/theme/rtl";
 import { getTourStep, TOUR_STEPS } from "./tourSteps";
 import { useTour } from "./TourContext";
 
-const PAD = 12;
+const PAD = 10;
+/** Cap spotlight hole so a tall list/menu does not swallow the screen. */
+const MAX_HOLE_H_RATIO = 0.28;
 
 /**
- * Dimmed overlay with a spotlight hole around the current TourAnchor
- * and a guided tooltip card (rotation-aware).
+ * Dimmed overlay with a spotlight hole + fixed bottom action sheet
+ * (always on-screen — never positions the CTAs under the fold).
  */
 export function TourSpotlight() {
   const {
@@ -36,24 +38,30 @@ export function TourSpotlight() {
   const insets = useSafeAreaInsets();
   const { width: screenW, height: screenH } = useWindowDimensions();
   const step = getTourStep(stepId);
-  const [cardH, setCardH] = useState(200);
+  const [sheetH, setSheetH] = useState(0);
 
   const hole = useMemo(() => {
     if (!step?.targetId) return null;
     const r = targets[step.targetId];
-    if (!r) return null;
+    if (!r || r.width <= 0 || r.height <= 0) return null;
+
+    const maxH = Math.max(72, screenH * MAX_HOLE_H_RATIO);
+    let height = Math.min(r.height + PAD * 2, maxH);
+    let y = Math.max(0, r.y - PAD);
+    // Keep hole above the bottom sheet
+    const sheetReserve = Math.max(sheetH, 200) + insets.bottom + 12;
+    const maxBottom = screenH - sheetReserve;
+    if (y + height > maxBottom) {
+      y = Math.max(insets.top + 8, maxBottom - height);
+    }
+
     return {
       x: Math.max(0, r.x - PAD),
-      y: Math.max(0, r.y - PAD),
+      y,
       width: Math.min(screenW - 8, r.width + PAD * 2),
-      height: Math.min(screenH - 8, r.height + PAD * 2),
+      height,
     };
-  }, [step?.targetId, targets, screenW, screenH]);
-
-  // Recompute card placement when window size changes (rotation)
-  useEffect(() => {
-    setCardH((h) => h);
-  }, [screenW, screenH]);
+  }, [step?.targetId, targets, screenW, screenH, sheetH, insets.bottom, insets.top]);
 
   if (!active || !step) return null;
 
@@ -61,18 +69,7 @@ export function TourSpotlight() {
   const hasCreate = Boolean(step.createRoute);
   const canNext = Boolean(step.allowNext) || isDone;
   const isLandscape = screenW > screenH;
-  const cardMaxW = Math.min(420, screenW - spacing.lg * 2);
-
-  const cardTop = (() => {
-    if (!hole) return Math.max(insets.top + 72, screenH * 0.26);
-    const below = hole.y + hole.height + 14;
-    if (below + cardH < screenH - insets.bottom - 20) return below;
-    return Math.max(insets.top + 16, hole.y - cardH - 14);
-  })();
-
-  const cardLeft = isLandscape
-    ? Math.max(spacing.md, (screenW - cardMaxW) / 2)
-    : spacing.lg;
+  const sheetMaxW = Math.min(480, screenW);
 
   return (
     <Modal visible transparent animationType="fade" statusBarTranslucent>
@@ -135,46 +132,48 @@ export function TourSpotlight() {
           <View style={[styles.dim, StyleSheet.absoluteFill]} />
         )}
 
+        {/* Fixed bottom sheet — always within safe area / reachable */}
         <View
-          onLayout={(e) => setCardH(e.nativeEvent.layout.height)}
+          onLayout={(e) => {
+            const h = e.nativeEvent.layout.height;
+            setSheetH((prev) => (Math.abs(prev - h) > 2 ? h : prev));
+          }}
           style={[
-            styles.card,
+            styles.sheet,
             {
-              top: cardTop,
-              left: cardLeft,
-              width: cardMaxW,
-              maxWidth: cardMaxW,
+              paddingBottom: Math.max(insets.bottom, spacing.md),
+              maxWidth: sheetMaxW,
+              alignSelf: "center",
+              width: isLandscape ? sheetMaxW : "100%",
             },
           ]}
         >
-          <View style={styles.accentBar} />
+          <View style={styles.sheetHandle} />
           <View style={styles.cardInner}>
-            <View style={styles.metaRow}>
-              <Text style={styles.progress}>
-                {t("tourProgress", {
-                  current: stepIndex + 1,
-                  total: stepCount,
-                })}
-              </Text>
-              <View style={styles.dots}>
-                {TOUR_STEPS.map((s, i) => (
-                  <View
-                    key={s.id}
-                    style={[
-                      styles.dot,
-                      i === stepIndex && styles.dotActive,
-                      i < stepIndex && styles.dotDone,
-                    ]}
-                  />
-                ))}
-              </View>
+            <Text style={styles.progress}>
+              {t("tourProgress", {
+                current: stepIndex + 1,
+                total: stepCount,
+              })}
+            </Text>
+            <View style={styles.dots}>
+              {TOUR_STEPS.map((s, i) => (
+                <View
+                  key={s.id}
+                  style={[
+                    styles.dot,
+                    i === stepIndex && styles.dotActive,
+                    i < stepIndex && styles.dotDone,
+                  ]}
+                />
+              ))}
             </View>
             <Text style={styles.title}>{t(step.titleKey)}</Text>
             <Text style={styles.body}>{t(step.bodyKey)}</Text>
 
             <View style={styles.actions}>
               {!isDone ? (
-                <Pressable onPress={() => void skip()} hitSlop={10}>
+                <Pressable onPress={() => void skip()} hitSlop={12}>
                   <Text style={styles.skip}>{t("tourSkip")}</Text>
                 </Pressable>
               ) : (
@@ -217,6 +216,7 @@ export function TourSpotlight() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+    justifyContent: "flex-end",
   },
   dim: {
     position: "absolute",
@@ -229,31 +229,32 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
     backgroundColor: "transparent",
   },
-  card: {
-    position: "absolute",
+  sheet: {
     backgroundColor: colors.surface,
-    borderRadius: radii.xl,
-    overflow: "hidden",
+    borderTopLeftRadius: radii.xl,
+    borderTopRightRadius: radii.xl,
     borderWidth: 1,
+    borderBottomWidth: 0,
     borderColor: colors.border,
     shadowColor: "#0F172A",
-    shadowOpacity: 0.22,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 10,
+    shadowOpacity: 0.25,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: -6 },
+    elevation: 16,
   },
-  accentBar: {
+  sheetHandle: {
+    alignSelf: "center",
+    width: 40,
     height: 4,
-    backgroundColor: colors.primary,
-    width: "100%",
+    borderRadius: 2,
+    backgroundColor: colors.border,
+    marginTop: 10,
+    marginBottom: 4,
   },
   cardInner: {
-    padding: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
     gap: spacing.sm,
-  },
-  metaRow: {
-    gap: 8,
-    marginBottom: 2,
   },
   progress: {
     ...rtlText,
@@ -304,6 +305,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: spacing.md,
     marginTop: spacing.sm,
+    marginBottom: spacing.sm,
   },
   skip: {
     ...rtlText,

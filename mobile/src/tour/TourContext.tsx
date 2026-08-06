@@ -110,33 +110,15 @@ export function TourProvider({ children }: { children: ReactNode }) {
     [router]
   );
 
-  /** Skip create steps that are already satisfied (e.g. imported backup). */
-  const resolveStepForward = useCallback(async (fromId: string): Promise<string> => {
-    let id = fromId;
-    // Cap iterations to step count
-    for (let i = 0; i < TOUR_STEPS.length; i++) {
-      const step = getTourStep(id);
-      if (!step) return TOUR_FIRST_STEP_ID;
-      if (step.id === "done") return id;
-      if (!step.requirement) return id;
-      const met = await step.requirement();
-      if (!met) return id;
-      const nextId = getNextTourStepId(id);
-      if (!nextId) return id;
-      id = nextId;
-    }
-    return id;
-  }, []);
-
   const applyStep = useCallback(
     async (id: string, opts?: { navigate?: boolean }) => {
-      const resolved = await resolveStepForward(id);
-      await persist({ status: "pending", stepId: resolved });
+      // Do not skip ahead — every step is shown so the guide doesn't jump 1→4
+      await persist({ status: "pending", stepId: id });
       if (opts?.navigate !== false) {
-        navigateForStep(resolved);
+        navigateForStep(id);
       }
     },
-    [navigateForStep, persist, resolveStepForward]
+    [navigateForStep, persist]
   );
 
   useEffect(() => {
@@ -157,25 +139,24 @@ export function TourProvider({ children }: { children: ReactNode }) {
     }
     if (bootNavRef.current) return;
     bootNavRef.current = true;
-    void (async () => {
-      const resolved = await resolveStepForward(stepId || TOUR_FIRST_STEP_ID);
-      if (resolved !== stepId) {
-        await persist({ stepId: resolved });
-      }
-      navigateForStep(resolved);
-    })();
+    navigateForStep(stepId || TOUR_FIRST_STEP_ID);
   }, [ready, setupComplete, dataReady, status]);
 
-  // Re-check requirements when data changes (after create forms)
+  const stepIdRef = useRef(stepId);
+  stepIdRef.current = stepId;
+
+  // After a create form saves (revision / year change), advance the current create step.
+  // Does not run on step enter — prevents jumping 1→4 when data already exists.
   useEffect(() => {
     if (!ready || status !== "pending" || !setupComplete) return;
     if (advancingRef.current) return;
     void (async () => {
-      const step = getTourStep(stepId);
-      if (!step?.requirement) return;
+      const id = stepIdRef.current;
+      const step = getTourStep(id);
+      if (!step?.requirement || !step.createRoute) return;
       const met = await step.requirement();
       if (!met) return;
-      const nextId = getNextTourStepId(stepId);
+      const nextId = getNextTourStepId(id);
       if (!nextId) {
         await persist({ status: "completed", stepId: "done" });
         return;
@@ -187,7 +168,8 @@ export function TourProvider({ children }: { children: ReactNode }) {
         advancingRef.current = false;
       }
     })();
-  }, [revision, activeYear?.id, stepId, status, ready, setupComplete]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only data changes
+  }, [revision, activeYear?.id]);
 
   const start = useCallback(async () => {
     bootNavRef.current = true;
@@ -203,15 +185,24 @@ export function TourProvider({ children }: { children: ReactNode }) {
   }, [persist]);
 
   const next = useCallback(async () => {
-    const step = getTourStep(stepId);
     if (stepId === "done" || !getNextTourStepId(stepId)) {
       await finish();
+      return;
+    }
+    const step = getTourStep(stepId);
+    // Create steps: "التالي" continues the guide; "أنشئ الآن" opens the form
+    if (step?.allowNext) {
+      const nextId = getNextTourStepId(stepId);
+      if (!nextId) {
+        await finish();
+        return;
+      }
+      await applyStep(nextId);
       return;
     }
     if (step?.requirement) {
       const met = await step.requirement();
       if (!met) {
-        // Still blocked — nudge to create route if any
         if (step.createRoute) {
           router.push(step.createRoute as never);
         }

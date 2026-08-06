@@ -32,7 +32,7 @@ export type TourStep = {
   createRoute?: string;
   /** When true, primary CTA advances without create */
   allowNext?: boolean;
-  /** Skip forward automatically when already satisfied */
+  /** Auto-advance only after the user completes a create step (not for boot skip-ahead). */
   requirement?: () => Promise<boolean>;
 };
 
@@ -52,6 +52,7 @@ export const TOUR_STEPS: TourStep[] = [
     targetId: "homeYearCta",
     tabHref: "/(tabs)",
     createRoute: "/years/form",
+    allowNext: true,
     requirement: async () => Boolean(await getActiveYear()),
   },
   {
@@ -61,6 +62,7 @@ export const TOUR_STEPS: TourStep[] = [
     targetId: "groupsAdd",
     tabHref: "/(tabs)/groups",
     createRoute: "/groups/form",
+    allowNext: true,
     requirement: async () => (await listGroups()).length > 0,
   },
   {
@@ -78,6 +80,7 @@ export const TOUR_STEPS: TourStep[] = [
     targetId: "studentsAdd",
     tabHref: "/(tabs)/students",
     createRoute: "/students/form",
+    allowNext: true,
     requirement: async () => {
       const rows = await listStudentsWithEnrollment();
       return rows.some((r) => r.group_name != null && r.status === "active");

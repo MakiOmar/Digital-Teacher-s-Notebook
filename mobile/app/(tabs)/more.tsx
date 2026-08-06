@@ -67,39 +67,37 @@ export default function MoreTab() {
             />
           </TourAnchor>
           <TourAnchor id="moreSettings">
-            <View>
-              <MenuCard
-                title={t("academicYears")}
-                icon={ICONS.years}
-                borderColor={colors.accent}
-                onPress={() => router.push("/years")}
-              />
-              <MenuCard
-                title={t("tutorProfile")}
-                icon={ICONS.more}
-                borderColor={colors.primary}
-                onPress={() => router.push("/profile-edit" as never)}
-              />
-              <MenuCard
-                title={t("generalSettings")}
-                icon={ICONS.more}
-                borderColor={colors.primary}
-                onPress={() => router.push("/general-settings" as never)}
-              />
-              <MenuCard
-                title={t("appLock")}
-                icon={ICONS.more}
-                borderColor={colors.danger}
-                onPress={() => router.push("/app-lock" as never)}
-              />
-              <MenuCard
-                title={t("license")}
-                icon={ICONS.more}
-                borderColor={colors.success}
-                onPress={() => router.push("/license-manage" as never)}
-              />
-            </View>
+            <MenuCard
+              title={t("academicYears")}
+              icon={ICONS.years}
+              borderColor={colors.accent}
+              onPress={() => router.push("/years")}
+            />
           </TourAnchor>
+          <MenuCard
+            title={t("tutorProfile")}
+            icon={ICONS.more}
+            borderColor={colors.primary}
+            onPress={() => router.push("/profile-edit" as never)}
+          />
+          <MenuCard
+            title={t("generalSettings")}
+            icon={ICONS.more}
+            borderColor={colors.primary}
+            onPress={() => router.push("/general-settings" as never)}
+          />
+          <MenuCard
+            title={t("appLock")}
+            icon={ICONS.more}
+            borderColor={colors.danger}
+            onPress={() => router.push("/app-lock" as never)}
+          />
+          <MenuCard
+            title={t("license")}
+            icon={ICONS.more}
+            borderColor={colors.success}
+            onPress={() => router.push("/license-manage" as never)}
+          />
           <MenuCard
             title={t("backup")}
             icon={ICONS.backup}

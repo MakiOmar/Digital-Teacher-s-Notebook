@@ -109,8 +109,32 @@ function parseJsonError(json: unknown, status: number): never {
   );
 }
 
+/** Avoid indefinite hang on some Android networks (blocks boot splash otherwise). */
+const ULSP_FETCH_TIMEOUT_MS = 8_000;
+
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ULSP_FETCH_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (e) {
+    if (
+      e instanceof Error &&
+      (e.name === "AbortError" || /aborted/i.test(e.message))
+    ) {
+      throw new TypeError("Network request failed");
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function getJson<T>(path: string): Promise<T> {
-  const res = await fetch(`${ULSP_API_BASE}${path}`, {
+  const res = await fetchWithTimeout(`${ULSP_API_BASE}${path}`, {
     method: "GET",
     headers: {
       Accept: "application/json",
@@ -136,7 +160,7 @@ async function postJson<T>(
   path: string,
   body: Record<string, unknown>
 ): Promise<T> {
-  const res = await fetch(`${ULSP_API_BASE}${path}`, {
+  const res = await fetchWithTimeout(`${ULSP_API_BASE}${path}`, {
     method: "POST",
     headers: {
       Accept: "application/json",

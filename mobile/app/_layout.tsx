@@ -109,13 +109,13 @@ function Bootstrap({
     }
   }, [bootReady, onAppReady]);
 
-  // Fail-safe: never stay on splash if init hangs.
+  // Fail-safe: never stay on splash if init hangs (license/db/rtl).
   useEffect(() => {
     const id = setTimeout(() => {
       setRtlReady(true);
       setForceShow(true);
       onAppReady();
-    }, 8000);
+    }, 10_000);
     return () => clearTimeout(id);
   }, [onAppReady]);
 
@@ -172,6 +172,17 @@ function Bootstrap({
   if (licenseStatus === "locked") {
     return <LicenseActivateScreen />;
   }
+  // Never stay on splash forever if validate hangs — fail-safe forces exit from loading
+  if (licenseStatus === "loading") {
+    if (forceShow) {
+      return <LicenseActivateScreen />;
+    }
+    return (
+      <View style={styles.bootPlaceholder}>
+        <SplashBackground />
+      </View>
+    );
+  }
   if (licenseStatus !== "unlocked") {
     return (
       <View style={styles.bootPlaceholder}>
@@ -201,23 +212,31 @@ export default function RootLayout() {
     Cairo_600SemiBold,
     Cairo_700Bold,
   });
+  const [fontsTimedOut, setFontsTimedOut] = useState(false);
 
   useEffect(() => {
-    if (!appReady || !fontsLoaded) return;
+    const id = setTimeout(() => setFontsTimedOut(true), 5000);
+    return () => clearTimeout(id);
+  }, []);
+
+  const fontsOk = fontsLoaded || fontsTimedOut;
+
+  useEffect(() => {
+    if (!appReady || !fontsOk) return;
     const id = setTimeout(() => {
       void SplashScreen.hideAsync().catch(() => undefined);
     }, 16);
     return () => clearTimeout(id);
-  }, [appReady, fontsLoaded]);
+  }, [appReady, fontsOk]);
 
   useEffect(() => {
     const id = setTimeout(() => {
       void SplashScreen.hideAsync().catch(() => undefined);
-    }, 4000);
+    }, 3500);
     return () => clearTimeout(id);
   }, []);
 
-  if (!fontsLoaded) {
+  if (!fontsOk) {
     return (
       <View style={styles.root}>
         <SplashBackground />

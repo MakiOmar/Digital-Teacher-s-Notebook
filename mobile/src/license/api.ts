@@ -78,6 +78,24 @@ export type StartTrialMeta = {
   app_version: string;
 };
 
+/** Shared device metadata for activate / start-trial / validate. */
+export function buildDeviceMeta(
+  meta?: Partial<StartTrialMeta>
+): StartTrialMeta {
+  const platform = meta?.platform ?? Platform.OS;
+  const appVersion =
+    meta?.app_version ??
+    Constants.nativeApplicationVersion ??
+    Constants.expoConfig?.version ??
+    "1.0.0";
+  const deviceName = meta?.device_name?.trim() || getDeviceDisplayName();
+  return {
+    device_name: deviceName,
+    platform,
+    app_version: appVersion,
+  };
+}
+
 export class UlspApiError extends Error {
   status: number;
   reason: string | null;
@@ -191,23 +209,27 @@ export async function fetchTrialInfo(): Promise<TrialInfoResponse> {
 
 export async function activateLicense(
   licenseKey: string,
-  deviceId: string
+  deviceId: string,
+  meta?: Partial<StartTrialMeta>
 ): Promise<ActivateResponse> {
   return postJson<ActivateResponse>("/licenses/activate", {
     license_key: licenseKey.trim(),
     activation_type: ULSP_ACTIVATION_TYPE,
     activation_value: deviceId,
+    ...buildDeviceMeta(meta),
   });
 }
 
 export async function validateLicense(
   licenseKey: string,
-  deviceId: string
+  deviceId: string,
+  meta?: Partial<StartTrialMeta>
 ): Promise<ValidateResponse> {
   return postJson<ValidateResponse>("/licenses/validate", {
     license_key: licenseKey.trim(),
     activation_type: ULSP_ACTIVATION_TYPE,
     activation_value: deviceId,
+    ...buildDeviceMeta(meta),
   });
 }
 
@@ -226,21 +248,10 @@ export async function startTrialLicense(
   deviceId: string,
   meta?: Partial<StartTrialMeta>
 ): Promise<StartTrialResponse> {
-  const platform = meta?.platform ?? Platform.OS;
-  const appVersion =
-    meta?.app_version ??
-    Constants.nativeApplicationVersion ??
-    Constants.expoConfig?.version ??
-    "1.0.0";
-  // Prefer real model (Honor 6xb); never fall back to Platform.OS alone when possible
-  const deviceName = meta?.device_name?.trim() || getDeviceDisplayName();
-
   return postJson<StartTrialResponse>("/licenses/start-trial", {
     activation_type: ULSP_ACTIVATION_TYPE,
     activation_value: deviceId,
-    device_name: deviceName,
-    platform,
-    app_version: appVersion,
+    ...buildDeviceMeta(meta),
   });
 }
 

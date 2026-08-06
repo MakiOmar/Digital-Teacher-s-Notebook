@@ -389,6 +389,13 @@ export const ar = {
   licenseExpires: "ينتهي في",
   licenseLastCheck: "آخر تحقق",
   licenseStatusActive: "الحالة: مفعّل على هذا الجهاز",
+  licenseRequestWhatsApp: "طلب ترخيص",
+  licenseRequestWhatsAppHint: "تواصل معنا عبر واتساب للحصول على مفتاح الترخيص.",
+  licenseRequestWhatsAppMessage:
+    "مرحباً، أرغب في طلب ترخيص لتطبيق مدير الدروس.",
+  supportWhatsApp: "الدعم الفني",
+  supportWhatsAppMessage: "مرحباً، أحتاج مساعدة بخصوص تطبيق مدير الدروس.",
+  supportWhatsAppFailed: "تعذر فتح واتساب. تأكد من تثبيت التطبيق وحاول مرة أخرى.",
 
   // Weekdays
   sun: "الأحد",

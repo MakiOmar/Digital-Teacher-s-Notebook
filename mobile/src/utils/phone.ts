@@ -8,7 +8,10 @@ export function telUrl(phone: string): string {
   return `tel:${digitsOnly(phone)}`;
 }
 
-export function whatsappUrl(phone: string): string {
+/** Build a wa.me link; optional `text` is prefilled in the chat compose box. */
+export function whatsappUrl(phone: string, text?: string): string {
   const n = digitsOnly(phone).replace(/^\+/, "");
-  return `https://wa.me/${n}`;
+  const base = `https://wa.me/${n}`;
+  if (!text?.trim()) return base;
+  return `${base}?text=${encodeURIComponent(text.trim())}`;
 }

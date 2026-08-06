@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   Image,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   ScrollView,
   StyleSheet,
@@ -15,12 +16,14 @@ import {
   Screen,
   Title,
 } from "@/src/components/ui";
+import { SUPPORT_WHATSAPP } from "@/src/config/support";
 import { fetchTrialInfo } from "@/src/license/api";
 import { useLicense } from "@/src/license/LicenseContext";
 import { useDialog } from "@/src/components/DialogProvider";
 import { t } from "@/src/i18n/ar";
 import { colors, spacing } from "@/src/theme/colors";
 import { rtlText } from "@/src/theme/rtl";
+import { whatsappUrl } from "@/src/utils/phone";
 
 const BRAND_LOGO = require("../../assets/images/logo.png");
 
@@ -102,6 +105,21 @@ export function LicenseActivateScreen() {
     }
   }
 
+  async function onRequestLicense() {
+    const url = whatsappUrl(
+      SUPPORT_WHATSAPP,
+      t("licenseRequestWhatsAppMessage")
+    );
+    try {
+      await Linking.openURL(url);
+    } catch {
+      await dialog.alert({
+        title: t("error"),
+        message: t("supportWhatsAppFailed"),
+      });
+    }
+  }
+
   const showTrial = trialOffer.enabled !== false;
   const trialHint =
     trialOffer.trialDays != null
@@ -160,6 +178,15 @@ export function LicenseActivateScreen() {
                 />
               </>
             ) : null}
+            <Muted style={{ marginTop: 4 }}>
+              {t("licenseRequestWhatsAppHint")}
+            </Muted>
+            <PrimaryButton
+              label={t("licenseRequestWhatsApp")}
+              variant="ghost"
+              onPress={() => void onRequestLicense()}
+              disabled={busy}
+            />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

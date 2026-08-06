@@ -862,13 +862,31 @@ export async function listTodaysSessions(): Promise<
   );
 }
 
-/** Sessions in the week containing today (Sat–Fri), for weekly grid. */
-export async function listWeekSessions(): Promise<
+/**
+ * Sessions in a Sat–Fri week.
+ * @param weekStartSat - local `YYYY-MM-DD` of that week's Saturday; omit = week containing today.
+ */
+export async function listWeekSessions(
+  weekStartSat?: string
+): Promise<
   (GroupSession & { group_name: string; accent_color: string | null })[]
 > {
   const db = await getDb();
-  // SQLite: weekday 0=Sun … 6=Sat. Arabic week Sat→Fri.
-  // Start = today - ((dow+1)%7) days to land on Saturday.
+  if (weekStartSat && /^\d{4}-\d{2}-\d{2}$/.test(weekStartSat)) {
+    return db.getAllAsync<
+      GroupSession & { group_name: string; accent_color: string | null }
+    >(
+      `SELECT gs.*, g.name as group_name, g.accent_color as accent_color
+       FROM group_sessions gs
+       JOIN groups g ON g.id = gs.group_id
+       WHERE gs.status != 'cancelled'
+         AND date(gs.starts_at) >= date(?)
+         AND date(gs.starts_at) < date(?, '+7 days')
+       ORDER BY gs.starts_at ASC`,
+      [weekStartSat, weekStartSat]
+    );
+  }
+  // SQL: weekday 0=Sun … 6=Sat. Arabic week Sat→Fri containing today.
   return db.getAllAsync<
     GroupSession & { group_name: string; accent_color: string | null }
   >(

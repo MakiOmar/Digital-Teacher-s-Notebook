@@ -31,7 +31,7 @@ import { colors, radii, spacing } from "@/src/theme/colors";
 import { rtlChipRow, rtlRow, rtlText } from "@/src/theme/rtl";
 
 const FALLBACK = require("../../assets/images/profile.webp");
-const BRAND_LOGO = require("../../assets/images/logo.webp");
+const BRAND_LOGO = require("../../assets/images/logo-full.webp");
 
 type Step = "profile" | "backup";
 
@@ -169,7 +169,6 @@ export function SetupWizardScreen() {
             style={styles.brandLogo}
             resizeMode="contain"
           />
-          <Text style={styles.brandName}>{t("appName")}</Text>
 
           <Title>
             {step === "profile" ? t("setupWizardTitle") : t("autoBackup")}
@@ -300,19 +299,10 @@ const styles = StyleSheet.create({
   },
   brandLogo: {
     width: "100%",
-    height: 64,
+    height: 160,
     alignSelf: "center",
-    marginBottom: spacing.xs,
-    backgroundColor: "transparent",
-  },
-  brandName: {
-    ...rtlText,
-    width: "100%",
-    textAlign: "center",
-    fontSize: 16,
-    fontWeight: "800",
-    color: colors.primary,
     marginBottom: spacing.md,
+    backgroundColor: "transparent",
   },
   avatarWrap: {
     alignItems: "center",

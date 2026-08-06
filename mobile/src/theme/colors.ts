@@ -1,8 +1,8 @@
 /** الباشمدرس-inspired design tokens — high contrast on light surfaces. */
 export const colors = {
-  primary: "#2B6CB0",
-  primaryDark: "#1A4F8B",
-  primarySoft: "#DBEAFE",
+  primary: "#0F766E",
+  primaryDark: "#115E59",
+  primarySoft: "#CCFBF1",
   accent: "#0EA5E9",
   background: "#E8F1F8",
   backgroundAlt: "#F0F6FA",

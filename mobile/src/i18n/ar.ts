@@ -1,6 +1,6 @@
 /** Arabic UI strings for the tutoring manager app. */
 export const ar = {
-  appName: "مدير الدروس الخصوصية",
+  appName: "دفتر المعلم الرقمي",
   home: "الرئيسية",
   groups: "المجموعات",
   students: "الطلاب",
@@ -38,7 +38,7 @@ export const ar = {
   monthStar: "نجم الشهر",
   monthStarNone: "لا يوجد نجم بعد",
   noSessionsToday: "لا توجد حصص اليوم",
-  brandTagline: "منصة الهندسة والتعليم الذكي",
+  brandTagline: "دفتر المعلم الرقمي",
   homeWelcome: "مرحباً،",
   selectMonth: "الشهر الدراسي",
   currency: "ج.م",
@@ -210,7 +210,7 @@ export const ar = {
   backupProgressWrite: "جاري كتابة الملف...",
   about: "عن التطبيق",
   aboutText:
-    "مدير الدروس الخصوصية — تطبيق محلي لإدارة مجموعات التدريس والاشتراكات والحضور بدون سيرفر.",
+    "دفتر المعلم الرقمي — تطبيق محلي لإدارة مجموعات التدريس والاشتراكات والحضور بدون سيرفر.",
 
   // Home dashboard
   quickActions: "إجراءات سريعة",
@@ -271,7 +271,7 @@ export const ar = {
   tourCreateNow: "أنشئ الآن",
   tourFinish: "إنهاء",
   tourProgress: "خطوة {current} من {total}",
-  tourWelcomeTitle: "مرحباً بك في مدير الدروس",
+  tourWelcomeTitle: "مرحباً بك في دفتر المعلم الرقمي",
   tourWelcomeBody:
     "دليل سريع لأهم صفحات التطبيق: السنة والمجموعات والطلاب والحضور والمدفوعات والنسخ الاحتياطي. يمكنك التخطي وإعادة الدليل من المزيد.",
   tourYearTitle: "أنشئ سنة دراسية",
@@ -407,9 +407,9 @@ export const ar = {
   licenseRequestWhatsApp: "طلب ترخيص",
   licenseRequestWhatsAppHint: "تواصل معنا عبر واتساب للحصول على مفتاح الترخيص.",
   licenseRequestWhatsAppMessage:
-    "مرحباً، أرغب في طلب ترخيص لتطبيق مدير الدروس.",
+    "مرحباً، أرغب في طلب ترخيص لتطبيق دفتر المعلم الرقمي.",
   supportWhatsApp: "الدعم الفني",
-  supportWhatsAppMessage: "مرحباً، أحتاج مساعدة بخصوص تطبيق مدير الدروس.",
+  supportWhatsAppMessage: "مرحباً، أحتاج مساعدة بخصوص تطبيق دفتر المعلم الرقمي.",
   supportWhatsAppFailed: "تعذر فتح واتساب. تأكد من تثبيت التطبيق وحاول مرة أخرى.",
 
   // Weekdays
@@ -420,6 +420,17 @@ export const ar = {
   thu: "الخميس",
   fri: "الجمعة",
   sat: "السبت",
+  /** Single Arabic letters for weekly calendar strip (Sat→Fri) */
+  sunLetter: "ح",
+  monLetter: "ن",
+  tueLetter: "ث",
+  wedLetter: "ر",
+  thuLetter: "خ",
+  friLetter: "ج",
+  satLetter: "س",
+  thisWeek: "هذا الأسبوع",
+  prevWeek: "الأسبوع السابق",
+  nextWeek: "الأسبوع التالي",
 
   deleteConfirm: "هل تريد الحذف؟",
   regenerateConfirm:

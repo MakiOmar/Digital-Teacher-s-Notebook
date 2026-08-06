@@ -8,8 +8,10 @@ import {
   StyleProp,
 } from "react-native";
 
-/** Same wordmark as Home / activate / setup (`logo.webp`). */
-export const SPLASH_BRAND = require("../../assets/images/logo.webp");
+/** Launch / boot splash: full brand art (mark + title) on white. */
+export const SPLASH_BRAND = require("../../assets/images/logo-full.webp");
+/** In-app mark only (transparent) — Home / menus. */
+export const APP_LOGO_MARK = require("../../assets/images/logo.webp");
 export const BLUEPRINT_BG = require("../../assets/images/blueprint-bg.webp");
 export const SPLASH_LETTERBOX = "#FFFFFF";
 
@@ -58,9 +60,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
   },
   splashImage: {
-    width: "92%",
-    maxWidth: 360,
-    height: 160,
+    width: "86%",
+    maxWidth: 340,
+    height: 340,
   },
   shell: {
     flex: 1,

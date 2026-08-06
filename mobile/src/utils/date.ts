@@ -121,6 +121,44 @@ export function formatDateAr(dateOnly: string): string {
   return `${d.getDate()} ${ARABIC_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
 
+/** Local calendar YYYY-MM-DD. */
+export function toYmd(d: Date): string {
+  return toDateOnly(d);
+}
+
+/**
+ * Saturday that starts the Arabic week containing `anchor` (default today),
+ * shifted by `weekOffset` weeks.
+ */
+export function saturdayOfWeek(weekOffset = 0, anchor = new Date()): Date {
+  const d = new Date(anchor);
+  d.setHours(0, 0, 0, 0);
+  const dow = d.getDay(); // 0=Sun … 6=Sat
+  const daysFromSat = (dow + 1) % 7;
+  d.setDate(d.getDate() - daysFromSat + weekOffset * 7);
+  return d;
+}
+
+/** Seven local dates Sat→Fri starting at `saturday`. */
+export function weekDatesFromSaturday(saturday: Date): Date[] {
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(saturday);
+    d.setDate(saturday.getDate() + i);
+    return d;
+  });
+}
+
+/** Short Arabic range label e.g. "2 — 8 أغسطس" */
+export function formatWeekRangeAr(saturday: Date): string {
+  const fri = new Date(saturday);
+  fri.setDate(saturday.getDate() + 6);
+  const sameMonth = saturday.getMonth() === fri.getMonth();
+  if (sameMonth) {
+    return `${saturday.getDate()} — ${fri.getDate()} ${ARABIC_MONTHS[saturday.getMonth()]}`;
+  }
+  return `${saturday.getDate()} ${ARABIC_MONTHS[saturday.getMonth()]} — ${fri.getDate()} ${ARABIC_MONTHS[fri.getMonth()]}`;
+}
+
 /** Extract YYYY-MM-DD from SQLite datetime / ISO. */
 export function dateOnlyFromDateTime(value?: string | null): string | null {
   if (!value) return null;

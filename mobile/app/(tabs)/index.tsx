@@ -11,7 +11,6 @@ import {
 import { useFocusEffect, useRouter } from "expo-router";
 import {
   EmptyState,
-  MenuCard,
   Muted,
   Screen,
   BorderedCard,
@@ -218,43 +217,61 @@ export default function HomeScreen() {
 
             <Text style={styles.section}>{t("quickActions")}</Text>
             <View style={styles.qaGrid}>
-              <View style={styles.qaHalf}>
-                <MenuCard
-                  title={t("qaStudents")}
-                  icon={ICONS.students}
-                  borderColor="#8B5CF6"
-                  onPress={() => router.push("/students" as never)}
-                />
-              </View>
-              <View style={styles.qaHalf}>
-                <MenuCard
-                  title={t("qaWeeklySchedule")}
-                  icon={ICONS.schedule}
-                  borderColor={colors.primary}
-                  onPress={() => router.push("/schedule" as never)}
-                />
-              </View>
-              <View style={styles.qaHalf}>
-                <MenuCard
-                  title={t("qaUnpaid")}
-                  subtitle={
-                    unpaidCount
+              {(
+                [
+                  {
+                    key: "students",
+                    title: t("qaStudents"),
+                    icon: ICONS.students,
+                    border: "#8B5CF6",
+                    onPress: () => router.push("/students" as never),
+                  },
+                  {
+                    key: "schedule",
+                    title: t("qaWeeklySchedule"),
+                    icon: ICONS.schedule,
+                    border: colors.primary,
+                    onPress: () => router.push("/schedule" as never),
+                  },
+                  {
+                    key: "unpaid",
+                    title: t("qaUnpaid"),
+                    icon: ICONS.payments,
+                    border: colors.danger,
+                    subtitle: unpaidCount
                       ? `${unpaidCount} · ${formatMoney(totalRemaining)}`
-                      : undefined
-                  }
-                  icon={ICONS.payments}
-                  borderColor={colors.danger}
-                  onPress={() => router.push("/payments" as never)}
-                />
-              </View>
-              <View style={styles.qaHalf}>
-                <MenuCard
-                  title={t("qaAddGroup")}
-                  icon={ICONS.groups}
-                  borderColor="#14B8A6"
-                  onPress={() => router.push("/groups/form")}
-                />
-              </View>
+                      : undefined,
+                    onPress: () => router.push("/payments" as never),
+                  },
+                  {
+                    key: "group",
+                    title: t("qaAddGroup"),
+                    icon: ICONS.groups,
+                    border: "#14B8A6",
+                    onPress: () => router.push("/groups/form"),
+                  },
+                ] as const
+              ).map((a) => (
+                <Pressable
+                  key={a.key}
+                  onPress={a.onPress}
+                  style={({ pressed }) => [
+                    styles.qaCard,
+                    { borderColor: a.border },
+                    pressed && { opacity: 0.85 },
+                  ]}
+                >
+                  <Image source={a.icon} style={styles.qaIcon} />
+                  <Text style={styles.qaLabel} numberOfLines={2}>
+                    {a.title}
+                  </Text>
+                  {"subtitle" in a && a.subtitle ? (
+                    <Text style={styles.qaSub} numberOfLines={1}>
+                      {a.subtitle}
+                    </Text>
+                  ) : null}
+                </Pressable>
+              ))}
             </View>
           </>
         )}
@@ -271,14 +288,14 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     marginBottom: spacing.sm,
   },
+  logo: {
+    width: 72,
+    height: 72,
+    backgroundColor: "transparent",
+  },
   logoCol: {
     flex: 1,
     alignItems: "flex-start",
-  },
-  logo: {
-    width: "100%",
-    height: 92,
-    backgroundColor: "transparent",
   },
   profileCol: {
     alignItems: "center",
@@ -370,9 +387,39 @@ const styles = StyleSheet.create({
   qaGrid: {
     ...rtlRow(),
     flexWrap: "wrap",
-    gap: 0,
+    gap: 10,
   },
-  qaHalf: {
-    width: "100%",
+  qaCard: {
+    width: "47%",
+    flexGrow: 1,
+    minWidth: "42%",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: colors.surface,
+    borderRadius: radii.xl,
+    borderWidth: 2,
+    paddingVertical: 16,
+    paddingHorizontal: 10,
+  },
+  qaIcon: {
+    width: 40,
+    height: 40,
+    resizeMode: "contain",
+  },
+  qaLabel: {
+    ...rtlText,
+    textAlign: "center",
+    fontFamily: fonts.bold,
+    fontWeight: "700",
+    fontSize: 12,
+    color: colors.text,
+    lineHeight: 18,
+  },
+  qaSub: {
+    ...rtlText,
+    textAlign: "center",
+    fontSize: 10,
+    color: colors.textMuted,
   },
 });

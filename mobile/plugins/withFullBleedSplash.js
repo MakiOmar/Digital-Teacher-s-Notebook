@@ -13,8 +13,8 @@ const SPLASH_FULL_XML = `<?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
   <item android:drawable="@color/splashscreen_background" />
   <item
-    android:width="280dp"
-    android:height="187dp"
+    android:width="260dp"
+    android:height="260dp"
     android:gravity="center">
     <bitmap
       android:gravity="fill"

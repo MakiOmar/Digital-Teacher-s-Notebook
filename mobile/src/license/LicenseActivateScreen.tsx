@@ -25,7 +25,7 @@ import { colors, spacing } from "@/src/theme/colors";
 import { rtlText } from "@/src/theme/rtl";
 import { whatsappUrl } from "@/src/utils/phone";
 
-const BRAND_LOGO = require("../../assets/images/logo.webp");
+const BRAND_LOGO = require("../../assets/images/logo-full.webp");
 
 type TrialOffer = {
   /** undefined = still loading / unknown; false = disabled by API */
@@ -150,7 +150,6 @@ export function LicenseActivateScreen() {
             style={styles.brandLogo}
             resizeMode="contain"
           />
-          <Text style={styles.brandName}>{t("appName")}</Text>
           <Title>{t("licenseActivateTitle")}</Title>
           <Muted style={{ marginBottom: spacing.lg }}>
             {t("licenseActivateHint")}
@@ -206,19 +205,10 @@ const styles = StyleSheet.create({
   },
   brandLogo: {
     width: "100%",
-    height: 88,
+    height: 168,
     alignSelf: "center",
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
     backgroundColor: "transparent",
-  },
-  brandName: {
-    ...rtlText,
-    width: "100%",
-    textAlign: "center",
-    fontSize: 18,
-    fontWeight: "800",
-    color: colors.primary,
-    marginBottom: spacing.lg,
   },
   reason: {
     ...rtlText,

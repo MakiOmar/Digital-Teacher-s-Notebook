@@ -8,8 +8,10 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { AppState, type AppStateStatus } from "react-native";
 import { usePathname, useRouter } from "expo-router";
 import { useAppData } from "@/src/contexts/AppDataContext";
+import { useLicense } from "@/src/license/LicenseContext";
 import { useTutorProfile } from "@/src/profile/TutorProfileContext";
 import {
   getNextTourStepId,
@@ -35,6 +37,8 @@ type TourContextValue = {
   ready: boolean;
   /** Tour is eligible and currently driving the UI */
   active: boolean;
+  /** Current step target id (anchors only measure this one) */
+  activeTargetId: TourTargetId | undefined;
   status: TourStatus;
   stepId: string;
   stepIndex: number;
@@ -51,10 +55,20 @@ type TourContextValue = {
 
 const TourContext = createContext<TourContextValue | null>(null);
 
+function sameRect(a: TargetRect, b: TargetRect): boolean {
+  return (
+    Math.round(a.x) === Math.round(b.x) &&
+    Math.round(a.y) === Math.round(b.y) &&
+    Math.round(a.width) === Math.round(b.width) &&
+    Math.round(a.height) === Math.round(b.height)
+  );
+}
+
 export function TourProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { setupComplete } = useTutorProfile();
+  const { status: licenseStatus } = useLicense();
   const { activeYear, revision, ready: dataReady } = useAppData();
 
   const [ready, setReady] = useState(false);
@@ -63,22 +77,25 @@ export function TourProvider({ children }: { children: ReactNode }) {
   const [targets, setTargets] = useState<Partial<Record<TourTargetId, TargetRect>>>(
     {}
   );
+  /** Overlay only while app is foreground — avoids resume thrash / freeze */
+  const [foreground, setForeground] = useState(
+    AppState.currentState === "active"
+  );
   const advancingRef = useRef(false);
   const bootNavRef = useRef(false);
+  const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const registerTarget = useCallback((id: TourTargetId, rect: TargetRect) => {
+    const nextRect: TargetRect = {
+      x: Math.round(rect.x),
+      y: Math.round(rect.y),
+      width: Math.round(rect.width),
+      height: Math.round(rect.height),
+    };
     setTargets((prev) => {
       const cur = prev[id];
-      if (
-        cur &&
-        cur.x === rect.x &&
-        cur.y === rect.y &&
-        cur.width === rect.width &&
-        cur.height === rect.height
-      ) {
-        return prev;
-      }
-      return { ...prev, [id]: rect };
+      if (cur && sameRect(cur, nextRect)) return prev;
+      return { ...prev, [id]: nextRect };
     });
   }, []);
 
@@ -112,7 +129,6 @@ export function TourProvider({ children }: { children: ReactNode }) {
 
   const applyStep = useCallback(
     async (id: string, opts?: { navigate?: boolean }) => {
-      // Do not skip ahead — every step is shown so the guide doesn't jump 1→4
       await persist({ status: "pending", stepId: id });
       if (opts?.navigate !== false) {
         navigateForStep(id);
@@ -130,25 +146,75 @@ export function TourProvider({ children }: { children: ReactNode }) {
     })();
   }, []);
 
-  // Auto-start after profile setup when still pending (navigate once)
+  /**
+   * Leaving mid-tour used to keep status=pending and re-open a Modal + measure
+   * storm on next launch (stuck splash / blinking status bar).
+   * Dismiss the unfinished tour when the app is backgrounded so cold start is clean.
+   */
+  useEffect(() => {
+    const onChange = (state: AppStateStatus) => {
+      if (leaveTimer.current) {
+        clearTimeout(leaveTimer.current);
+        leaveTimer.current = null;
+      }
+      if (state === "active") {
+        setForeground(true);
+        return;
+      }
+      // Hide overlay immediately
+      setForeground(false);
+      // After a short leave, drop unfinished tour so reopen doesn't hang
+      leaveTimer.current = setTimeout(() => {
+        leaveTimer.current = null;
+        void (async () => {
+          const stored = await loadTourState();
+          if (stored.status === "pending") {
+            await saveTourState({ status: "skipped" });
+            setStatus("skipped");
+          }
+        })();
+      }, 400);
+    };
+    const sub = AppState.addEventListener("change", onChange);
+    return () => {
+      sub.remove();
+      if (leaveTimer.current) clearTimeout(leaveTimer.current);
+    };
+  }, []);
+
+  // Navigate to the current step only after license unlocked + data ready
   useEffect(() => {
     if (!ready || !setupComplete || !dataReady) return;
+    if (licenseStatus !== "unlocked") return;
     if (status !== "pending") {
       bootNavRef.current = false;
       return;
     }
+    if (!foreground) return;
     if (bootNavRef.current) return;
     bootNavRef.current = true;
-    navigateForStep(stepId || TOUR_FIRST_STEP_ID);
-  }, [ready, setupComplete, dataReady, status]);
+    // Defer past first paint so splash can hide before Modal + router push
+    const t = setTimeout(() => {
+      navigateForStep(stepId || TOUR_FIRST_STEP_ID);
+    }, 600);
+    return () => clearTimeout(t);
+  }, [
+    ready,
+    setupComplete,
+    dataReady,
+    status,
+    licenseStatus,
+    foreground,
+    navigateForStep,
+    stepId,
+  ]);
 
   const stepIdRef = useRef(stepId);
   stepIdRef.current = stepId;
 
-  // After a create form saves (revision / year change), advance the current create step.
-  // Does not run on step enter — prevents jumping 1→4 when data already exists.
   useEffect(() => {
     if (!ready || status !== "pending" || !setupComplete) return;
+    if (licenseStatus !== "unlocked") return;
     if (advancingRef.current) return;
     void (async () => {
       const id = stepIdRef.current;
@@ -173,6 +239,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
 
   const start = useCallback(async () => {
     bootNavRef.current = true;
+    setForeground(true);
     await applyStep(TOUR_FIRST_STEP_ID);
   }, [applyStep]);
 
@@ -190,7 +257,6 @@ export function TourProvider({ children }: { children: ReactNode }) {
       return;
     }
     const step = getTourStep(stepId);
-    // Create steps: "التالي" continues the guide; "أنشئ الآن" opens the form
     if (step?.allowNext) {
       const nextId = getNextTourStepId(stepId);
       if (!nextId) {
@@ -239,8 +305,16 @@ export function TourProvider({ children }: { children: ReactNode }) {
     );
   })();
 
+  const currentStep = getTourStep(stepId);
+  const activeTargetId = currentStep?.targetId;
+
   const active =
-    ready && setupComplete && status === "pending" && isTabScreen;
+    ready &&
+    foreground &&
+    setupComplete &&
+    licenseStatus === "unlocked" &&
+    status === "pending" &&
+    isTabScreen;
 
   const stepIndex = Math.max(
     0,
@@ -251,6 +325,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
     () => ({
       ready,
       active,
+      activeTargetId,
       status,
       stepId,
       stepIndex,
@@ -267,6 +342,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
     [
       ready,
       active,
+      activeTargetId,
       status,
       stepId,
       stepIndex,
@@ -290,6 +366,7 @@ export function useTour(): TourContextValue {
     return {
       ready: false,
       active: false,
+      activeTargetId: undefined,
       status: "completed",
       stepId: TOUR_FIRST_STEP_ID,
       stepIndex: 0,

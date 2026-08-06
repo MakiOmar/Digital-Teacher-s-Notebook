@@ -16,15 +16,18 @@ type Props = {
 
 /** Registers its window rect so the spotlight can cut a hole around it. */
 export function TourAnchor({ id, children, style }: Props) {
-  const { registerTarget, unregisterTarget, stepId, active } = useTour();
+  const { registerTarget, unregisterTarget, active, activeTargetId } =
+    useTour();
   const ref = useRef<View>(null);
   const { width, height } = useWindowDimensions();
+  const isCurrent = active && activeTargetId === id;
 
   useEffect(() => {
     return () => unregisterTarget(id);
   }, [id, unregisterTarget]);
 
   function measure() {
+    if (!isCurrent) return;
     ref.current?.measureInWindow((x, y, w, h) => {
       if (w <= 0 || h <= 0) return;
       registerTarget(id, { x, y, width: w, height: h });
@@ -32,10 +35,10 @@ export function TourAnchor({ id, children, style }: Props) {
   }
 
   useEffect(() => {
-    if (!active) return;
-    const t = setTimeout(measure, 60);
+    if (!isCurrent) return;
+    const t = setTimeout(measure, 80);
     return () => clearTimeout(t);
-  }, [active, stepId, id, width, height]);
+  }, [isCurrent, id, width, height]);
 
   return (
     <View
@@ -43,6 +46,7 @@ export function TourAnchor({ id, children, style }: Props) {
       collapsable={false}
       style={style}
       onLayout={() => {
+        if (!isCurrent) return;
         requestAnimationFrame(measure);
       }}
     >

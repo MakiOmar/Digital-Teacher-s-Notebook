@@ -24,7 +24,6 @@ import {
   listTodaysSessions,
   listUpcomingSessions,
 } from "@/src/repositories";
-import { loadAutoBackupSettings } from "@/src/backup/autoBackup";
 import { formatDateTimeAr, formatMoney } from "@/src/utils/date";
 import type { GroupSession } from "@/src/db/types";
 import { colors, groupAccentColor, radii, spacing } from "@/src/theme/colors";
@@ -36,19 +35,6 @@ import { TourAnchor } from "@/src/tour/TourAnchor";
 
 const LOGO = require("../../assets/images/logo-mark.png");
 
-/** Welcome line under logo/profile: waving hand + tutor name. */
-function WelcomeRow({ name }: { name: string }) {
-  if (!name.trim()) return null;
-  return (
-    <View style={styles.welcomeRow}>
-      <Text style={styles.welcomeWave}>👋</Text>
-      <Text style={styles.welcomeText} numberOfLines={1}>
-        {t("homeWelcome")} {name.trim()}
-      </Text>
-    </View>
-  );
-}
-
 function SnapshotChip({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.snapChip}>
@@ -58,6 +44,42 @@ function SnapshotChip({ label, value }: { label: string; value: string }) {
       <Text style={styles.snapLabel} numberOfLines={1}>
         {label}
       </Text>
+    </View>
+  );
+}
+
+/** Profile + welcome (+ optional year chip) grouped for the home header. */
+function ProfileWelcome({
+  name,
+  yearName,
+  profileSource,
+}: {
+  name: string;
+  yearName?: string | null;
+  profileSource: ReturnType<typeof useTutorProfile>["profileSource"];
+}) {
+  return (
+    <View style={styles.profileWelcome}>
+      <View style={styles.profileRing}>
+        <Image source={profileSource} style={styles.profile} />
+      </View>
+      <View style={styles.welcomeCol}>
+        {name.trim() ? (
+          <View style={styles.welcomeRow}>
+            <Text style={styles.welcomeWave}>👋</Text>
+            <Text style={styles.welcomeText} numberOfLines={1}>
+              {t("homeWelcome")} {name.trim()}
+            </Text>
+          </View>
+        ) : null}
+        {yearName ? (
+          <View style={styles.yearChip}>
+            <Text style={styles.yearChipText} numberOfLines={1}>
+              {yearName}
+            </Text>
+          </View>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -73,27 +95,19 @@ export default function HomeScreen() {
   const [unpaidCount, setUnpaidCount] = useState(0);
   const [todayCount, setTodayCount] = useState(0);
   const [groupCount, setGroupCount] = useState(0);
-  const [lastBackupLabel, setLastBackupLabel] = useState(t("autoBackupNever"));
   const [totalRemaining, setTotalRemaining] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [upcoming, today, groups, backup] = await Promise.all([
+      const [upcoming, today, groups] = await Promise.all([
         listUpcomingSessions(1),
         listTodaysSessions(),
         listGroups(),
-        loadAutoBackupSettings(),
       ]);
       setNextSession(upcoming[0] ?? null);
       setTodayCount(today.length);
       setGroupCount(groups.length);
-      setLastBackupLabel(
-        backup.lastRunAt
-          ? formatDateTimeAr(backup.lastRunAt)
-          : t("autoBackupNever")
-      );
-      // Payment summary can be heavy after a large import — load after shell paints
       try {
         const summary = await getOpenRoundsPaymentSummary();
         setUnpaidCount(summary.unpaidCount + summary.partialCount);
@@ -118,15 +132,11 @@ export default function HomeScreen() {
       <Screen>
         <TourAnchor id="homeHeader">
           <View style={styles.header}>
-            <View style={styles.profileCol}>
-              <View style={styles.profileRing}>
-                <Image source={profileSource} style={styles.profile} />
-              </View>
-            </View>
+            {/* Logo on the start edge (right in RTL); profile+welcome on the other */}
             <Image source={LOGO} style={styles.logo} resizeMode="contain" />
+            <ProfileWelcome name={tutorName} profileSource={profileSource} />
           </View>
         </TourAnchor>
-        <WelcomeRow name={tutorName} />
         <EmptyState
           message={t("noActiveYear")}
           actionLabel={t("createYearCta")}
@@ -155,18 +165,14 @@ export default function HomeScreen() {
       >
         <TourAnchor id="homeHeader">
           <View style={styles.header}>
-            <View style={styles.profileCol}>
-              <View style={styles.profileRing}>
-                <Image source={profileSource} style={styles.profile} />
-              </View>
-            </View>
-            <View style={styles.logoCol}>
-              <Image source={LOGO} style={styles.logo} resizeMode="contain" />
-              <Muted>{activeYear.name}</Muted>
-            </View>
+            <Image source={LOGO} style={styles.logo} resizeMode="contain" />
+            <ProfileWelcome
+              name={tutorName}
+              yearName={activeYear.name}
+              profileSource={profileSource}
+            />
           </View>
         </TourAnchor>
-        <WelcomeRow name={tutorName} />
 
         {groupCount === 0 ? (
           <EmptyState
@@ -190,9 +196,6 @@ export default function HomeScreen() {
                 value={formatMoney(totalRemaining)}
               />
             </View>
-            <Muted style={{ marginBottom: spacing.md }}>
-              {t("snapshotLastBackup")}: {lastBackupLabel}
-            </Muted>
 
             <Text style={styles.section}>{t("nextSession")}</Text>
             {!nextSession ? (
@@ -282,30 +285,29 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   header: {
-    flexDirection: "row-reverse",
+    ...rtlRow(),
     alignItems: "center",
     justifyContent: "space-between",
     gap: spacing.md,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.lg,
   },
   logo: {
     width: 72,
     height: 72,
     backgroundColor: "transparent",
   },
-  logoCol: {
-    flex: 1,
-    alignItems: "flex-start",
-  },
-  profileCol: {
+  profileWelcome: {
+    ...rtlRow(),
     alignItems: "center",
-    maxWidth: 96,
+    gap: spacing.sm,
+    flex: 1,
+    minWidth: 0,
   },
   profileRing: {
-    width: 78,
-    height: 78,
-    borderRadius: 39,
-    borderWidth: 5,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 3,
     borderColor: "#FFFFFF",
     overflow: "hidden",
     backgroundColor: "#000",
@@ -320,27 +322,46 @@ const styles = StyleSheet.create({
     height: "100%",
     resizeMode: "cover",
   },
+  welcomeCol: {
+    flex: 1,
+    minWidth: 0,
+    alignItems: "flex-start",
+    gap: 6,
+  },
   welcomeRow: {
     ...rtlRow(),
     alignItems: "center",
-    gap: 8,
-    marginBottom: spacing.lg,
+    gap: 6,
     width: "100%",
   },
-  welcomeWave: { fontSize: 22 },
+  welcomeWave: { fontSize: 18 },
   welcomeText: {
     ...rtlText,
     flexShrink: 1,
-    fontSize: 18,
+    fontSize: 16,
     fontFamily: fonts.extraBold,
     fontWeight: "800",
     color: colors.text,
+  },
+  yearChip: {
+    alignSelf: "flex-start",
+    backgroundColor: colors.primary,
+    borderRadius: radii.md,
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+  },
+  yearChipText: {
+    ...rtlText,
+    fontFamily: fonts.bold,
+    fontWeight: "700",
+    fontSize: 12,
+    color: "#FFFFFF",
   },
   snapRow: {
     ...rtlRow(),
     flexWrap: "wrap",
     gap: 8,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
   },
   snapChip: {
     flexGrow: 1,

@@ -13,7 +13,6 @@ import {
   Cairo_400Regular,
   Cairo_600SemiBold,
   Cairo_700Bold,
-  Cairo_800ExtraBold,
 } from "@expo-google-fonts/cairo";
 import { colors } from "@/src/theme/colors";
 import { fonts } from "@/src/theme/typography";
@@ -201,7 +200,6 @@ export default function RootLayout() {
     Cairo_400Regular,
     Cairo_600SemiBold,
     Cairo_700Bold,
-    Cairo_800ExtraBold,
   });
 
   useEffect(() => {

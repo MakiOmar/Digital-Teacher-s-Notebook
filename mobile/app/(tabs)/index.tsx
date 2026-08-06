@@ -35,7 +35,7 @@ import { rtlRow, rtlText } from "@/src/theme/rtl";
 import { useTutorProfile } from "@/src/profile/TutorProfileContext";
 import { TourAnchor } from "@/src/tour/TourAnchor";
 
-const LOGO = require("../../assets/images/logo.png");
+const LOGO = require("../../assets/images/logo.webp");
 
 /** Welcome line under logo/profile: waving hand + tutor name. */
 function WelcomeRow({ name }: { name: string }) {

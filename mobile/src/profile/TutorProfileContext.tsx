@@ -15,7 +15,7 @@ import {
   type TutorProfile,
 } from "./tutorProfile";
 
-const DEFAULT_PROFILE = require("../../assets/images/profile.png");
+const DEFAULT_PROFILE = require("../../assets/images/profile.webp");
 
 type TutorProfileContextValue = {
   ready: boolean;

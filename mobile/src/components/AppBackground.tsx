@@ -10,7 +10,7 @@ import {
 
 /** Boot splash mark — square icon (wordmark is used on Home / setup, not native splash). */
 export const SPLASH_BRAND = require("../../assets/images/splash-icon.png");
-export const BLUEPRINT_BG = require("../../assets/images/blueprint-bg.png");
+export const BLUEPRINT_BG = require("../../assets/images/blueprint-bg.webp");
 export const SPLASH_LETTERBOX = "#FFFFFF";
 
 /** Launch splash: brand icon centered on white. */

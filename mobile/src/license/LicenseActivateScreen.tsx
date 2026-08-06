@@ -25,7 +25,7 @@ import { colors, spacing } from "@/src/theme/colors";
 import { rtlText } from "@/src/theme/rtl";
 import { whatsappUrl } from "@/src/utils/phone";
 
-const BRAND_LOGO = require("../../assets/images/logo.png");
+const BRAND_LOGO = require("../../assets/images/logo.webp");
 
 type TrialOffer = {
   /** undefined = still loading / unknown; false = disabled by API */

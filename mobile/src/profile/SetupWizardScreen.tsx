@@ -27,8 +27,8 @@ import { t } from "@/src/i18n/ar";
 import { colors, radii, spacing } from "@/src/theme/colors";
 import { rtlChipRow, rtlRow, rtlText } from "@/src/theme/rtl";
 
-const FALLBACK = require("../../assets/images/profile.png");
-const BRAND_LOGO = require("../../assets/images/logo.png");
+const FALLBACK = require("../../assets/images/profile.webp");
+const BRAND_LOGO = require("../../assets/images/logo.webp");
 
 type Step = "profile" | "backup";
 

@@ -21,7 +21,7 @@ import { t } from "@/src/i18n/ar";
 import { colors, spacing } from "@/src/theme/colors";
 import { rtlText } from "@/src/theme/rtl";
 
-const FALLBACK = require("../assets/images/profile.png");
+const FALLBACK = require("../assets/images/profile.webp");
 
 /** Edit tutor name / photo from More. */
 export default function ProfileEditScreen() {

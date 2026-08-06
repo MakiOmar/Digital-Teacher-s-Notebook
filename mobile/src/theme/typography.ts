@@ -1,3 +1,7 @@
+/**
+ * Force Cairo on shared text styles.
+ * Weight ladder: Regular / SemiBold / Bold only (ExtraBold removed to shrink the APK).
+ */
 import {
   Platform,
   StyleSheet,
@@ -5,12 +9,13 @@ import {
   type TextStyle,
 } from "react-native";
 
-/** Cairo font family names from @expo-google-fonts/cairo */
+/** Cairo font family names from @expo-google-fonts/cairo (3 faces). */
 export const fonts = {
   regular: "Cairo_400Regular",
   semiBold: "Cairo_600SemiBold",
   bold: "Cairo_700Bold",
-  extraBold: "Cairo_800ExtraBold",
+  /** @deprecated Maps to bold — ExtraBold font file is no longer bundled. */
+  extraBold: "Cairo_700Bold",
 } as const;
 
 export const fontRegular: TextStyle = { fontFamily: fonts.regular };
@@ -23,19 +28,24 @@ export const fontBold: TextStyle = {
   fontWeight: Platform.OS === "android" ? "normal" : "700",
 };
 export const fontExtraBold: TextStyle = {
-  fontFamily: fonts.extraBold,
-  fontWeight: Platform.OS === "android" ? "normal" : "800",
+  fontFamily: fonts.bold,
+  fontWeight: Platform.OS === "android" ? "normal" : "700",
 };
 
-const CAIRO_FAMILIES = new Set<string>(Object.values(fonts));
+const CAIRO_FAMILIES = new Set<string>([
+  fonts.regular,
+  fonts.semiBold,
+  fonts.bold,
+]);
 
 /** Map RN fontWeight → the matching Cairo face file. */
 export function cairoFamilyForWeight(
   weight?: TextStyle["fontWeight"]
 ): string {
   const w = String(weight ?? "400").toLowerCase();
-  if (w === "bold" || w === "700") return fonts.bold;
-  if (w === "800" || w === "900") return fonts.extraBold;
+  if (w === "bold" || w === "700" || w === "800" || w === "900") {
+    return fonts.bold;
+  }
   if (w === "600" || w === "500" || w === "semibold" || w === "medium") {
     return fonts.semiBold;
   }

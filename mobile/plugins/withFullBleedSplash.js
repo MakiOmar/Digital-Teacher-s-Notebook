@@ -1,4 +1,27 @@
-const { withMainActivity, withAndroidStyles } = require("expo/config-plugins");
+const {
+  withMainActivity,
+  withAndroidStyles,
+  withDangerousMod,
+} = require("expo/config-plugins");
+const fs = require("fs");
+const path = require("path");
+
+const SPLASH_FULL_XML = `<?xml version="1.0" encoding="utf-8"?>
+<!--
+  White splash with the home wordmark so native boot frames match JS.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+  <item android:drawable="@color/splashscreen_background" />
+  <item
+    android:width="280dp"
+    android:height="187dp"
+    android:gravity="center">
+    <bitmap
+      android:gravity="fill"
+      android:src="@drawable/splashscreen_logo" />
+  </item>
+</layer-list>
+`;
 
 /**
  * Android splash / theme:
@@ -72,6 +95,27 @@ function withFullBleedSplash(config) {
     return cfg;
   });
 
+  config = withDangerousMod(config, [
+    "android",
+    async (cfg) => {
+      const drawableDir = path.join(
+        cfg.modRequest.platformProjectRoot,
+        "app",
+        "src",
+        "main",
+        "res",
+        "drawable"
+      );
+      fs.mkdirSync(drawableDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(drawableDir, "splashscreen_full.xml"),
+        SPLASH_FULL_XML,
+        "utf8"
+      );
+      return cfg;
+    },
+  ]);
+
   config = withMainActivity(config, (cfg) => {
     let src = cfg.modResults.contents;
 
@@ -92,7 +136,7 @@ function withFullBleedSplash(config) {
       src = src.replace(
         /override fun onCreate\(savedInstanceState: Bundle\?\) \{\s*/,
         `override fun onCreate(savedInstanceState: Bundle?) {
-    // White app window with wordmark drawable; JS SplashBackground uses the same mark.
+    // Wordmark window background; JS SplashBackground uses the same mark.
     setTheme(R.style.AppTheme)
     `
       );

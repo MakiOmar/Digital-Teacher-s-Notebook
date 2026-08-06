@@ -8,14 +8,14 @@ import {
   StyleProp,
 } from "react-native";
 
-/** Launch / boot splash: full brand art (mark + title) on white. */
+/** Launch / boot splash: full brand (mark + title) on white. */
 export const SPLASH_BRAND = require("../../assets/images/logo-full.webp");
-/** In-app mark only (transparent) — Home / menus. */
-export const APP_LOGO_MARK = require("../../assets/images/logo.webp");
+/** In-app transparent mark only — Home header. */
+export const APP_LOGO_MARK = require("../../assets/images/logo-mark.png");
 export const BLUEPRINT_BG = require("../../assets/images/blueprint-bg.webp");
 export const SPLASH_LETTERBOX = "#FFFFFF";
 
-/** Launch / boot splash: home wordmark centered on white. */
+/** Launch / boot splash: full brand centered on white. */
 export function SplashBackground({
   onLoadEnd,
   style,

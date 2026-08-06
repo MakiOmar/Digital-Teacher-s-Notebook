@@ -98,8 +98,9 @@ function withFullBleedSplash(config) {
   config = withDangerousMod(config, [
     "android",
     async (cfg) => {
+      const projectRoot = cfg.modRequest.platformProjectRoot;
       const drawableDir = path.join(
-        cfg.modRequest.platformProjectRoot,
+        projectRoot,
         "app",
         "src",
         "main",
@@ -110,6 +111,24 @@ function withFullBleedSplash(config) {
       fs.writeFileSync(
         path.join(drawableDir, "splashscreen_full.xml"),
         SPLASH_FULL_XML,
+        "utf8"
+      );
+
+      // Keep launcher label in sync with Expo app name
+      const appName =
+        (cfg.name || cfg.expo?.name || "دفتر المعلم الرقمي").toString();
+      const valuesDir = path.join(
+        projectRoot,
+        "app",
+        "src",
+        "main",
+        "res",
+        "values"
+      );
+      fs.mkdirSync(valuesDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(valuesDir, "strings.xml"),
+        `<resources>\n  <string name="app_name">${appName}</string>\n  <string name="expo_splash_screen_resize_mode" translatable="false">contain</string>\n</resources>\n`,
         "utf8"
       );
       return cfg;

@@ -70,12 +70,12 @@ async function toWebp(relPng, maxEdge, quality) {
   await toWebp("assets/images/profile.png", 512, 78);
   await toWebp("assets/images/logo.png", 1024, 82);
 
-  // Native + Expo splash wordmark (same art as Home logo.webp)
-  if (fs.existsSync(path.join(root, "assets/images/logo.webp"))) {
-    await sharp(path.join(root, "assets/images/logo.webp"))
+  // Brand splash = full logo with title (do NOT derive from mark-only logo.webp)
+  if (fs.existsSync(path.join(root, "assets/images/logo-full.webp"))) {
+    await sharp(path.join(root, "assets/images/logo-full.webp"))
       .png()
       .toFile(path.join(root, "assets/images/splash-logo.png"));
-    console.log("wrote assets/images/splash-logo.png");
+    console.log("wrote assets/images/splash-logo.png from logo-full");
   }
 
   // Flat UI / launcher icons stay PNG (palette)

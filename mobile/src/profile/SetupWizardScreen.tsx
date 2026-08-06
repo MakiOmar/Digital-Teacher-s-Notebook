@@ -32,6 +32,7 @@ import { rtlChipRow, rtlRow, rtlText } from "@/src/theme/rtl";
 
 const FALLBACK = require("../../assets/images/profile.webp");
 const BRAND_LOGO = require("../../assets/images/logo-full.webp");
+// Cache-bust note: full splash brand with Arabic + English title
 
 type Step = "profile" | "backup";
 

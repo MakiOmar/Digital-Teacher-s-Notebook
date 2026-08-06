@@ -46,20 +46,46 @@ export async function getOrCreateDeviceId(): Promise<string> {
 }
 
 /**
+ * Android `Build.MODEL` is often a hardware code (e.g. JDY-LX2), not the
+ * retail name. Map known codes → marketing labels for ULSP `device_name`.
+ * Keys are uppercased for lookup.
+ */
+const MARKETING_MODEL_NAMES: Record<string, string> = {
+  "JDY-LX2": "Honor X6b",
+};
+
+function prettyBrand(brand: string): string {
+  const b = brand.trim();
+  if (!b) return "";
+  // HONOR / honor → Honor
+  return b.charAt(0).toUpperCase() + b.slice(1).toLowerCase();
+}
+
+/**
  * Human-readable device / phone model for ULSP `device_name`
- * (e.g. "Honor 6xb"), not the OS platform string.
+ * (prefer “Honor X6b” over bare “JDY-LX2”).
  */
 export function getDeviceDisplayName(): string {
-  const model = Device.modelName?.trim();
-  if (model) return model;
+  const model = Device.modelName?.trim() || "";
+  const brand = Device.brand?.trim() || "";
+  const manufacturer = Device.manufacturer?.trim() || "";
 
-  const brand = Device.brand?.trim();
-  const manufacturer = Device.manufacturer?.trim();
+  if (model) {
+    const mapped = MARKETING_MODEL_NAMES[model.toUpperCase()];
+    if (mapped) return mapped;
+
+    const label = prettyBrand(brand) || prettyBrand(manufacturer);
+    if (label && !model.toLowerCase().includes(label.toLowerCase())) {
+      return `${label} ${model}`;
+    }
+    return model;
+  }
+
   if (brand && manufacturer) {
     const same =
       brand.toLowerCase() === manufacturer.toLowerCase() ||
       manufacturer.toLowerCase().includes(brand.toLowerCase());
-    return same ? manufacturer : `${manufacturer} ${brand}`;
+    return same ? prettyBrand(manufacturer) : `${prettyBrand(manufacturer)} ${prettyBrand(brand)}`;
   }
-  return brand || manufacturer || Platform.OS;
+  return prettyBrand(brand) || prettyBrand(manufacturer) || Platform.OS;
 }

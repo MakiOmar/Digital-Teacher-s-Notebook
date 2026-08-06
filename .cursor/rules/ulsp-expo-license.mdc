@@ -79,7 +79,7 @@ On launch when key exists but `activation_valid === false`, re-call activate the
 
 - Do send `device_id` on every validate.
 - Do send a **reinstall-stable** `activation_value` via `getOrCreateDeviceId()`: Android `Settings.Secure.ANDROID_ID` (`expo-application` `getAndroidId()`), iOS Keychain (SecureStore, seeded with IDFV when available). Never a fresh random UUID per install — that allows another trial after delete+reinstall.
-- Do send a real `device_name` (expo-device `modelName` / brand) on **activate**, **start-trial**, and **validate** — not `Platform.OS` alone.
+- Do send a real `device_name` (expo-device `modelName` / brand) on **activate**, **start-trial**, and **validate** — not `Platform.OS` alone. Prefer a marketing label via `MARKETING_MODEL_NAMES` when Android only exposes a hardware code (e.g. `JDY-LX2` → `Honor X6b`); else `Brand MODEL`.
 - Do clear SecureStore after deactivate (even if API fails).
 - Do keep license out of backup export tables.
 - Don't gate only individual tabs — use root layout gate.

@@ -16,10 +16,15 @@ import { getTourStep, TOUR_STEPS } from "./tourSteps";
 import { useTour } from "./TourContext";
 
 const PAD_DEFAULT = 6;
-const PAD_COMPACT = 3;
-/** Compact toolbar actions (إضافة) — avoid oversized padded holes. */
+/** Extra top pad for compact Add buttons — measure often sits under the icon top. */
+const PAD_COMPACT_TOP = 12;
+const PAD_COMPACT_BOTTOM = 6;
+const PAD_COMPACT_H = 4;
+/** Compact toolbar actions (إضافة). */
 const COMPACT_MAX = 96;
 const MAX_HOLE_H_RATIO = 0.38;
+/** Lift payments summary spotlight so the ring clears the top card. */
+const PAYMENTS_NUDGE_UP = 14;
 
 /**
  * Place a rect using physical window coordinates.
@@ -77,18 +82,29 @@ export function TourSpotlight() {
     }
 
     const compact = r.width <= COMPACT_MAX && r.height <= COMPACT_MAX;
-    const pad = compact ? PAD_COMPACT : PAD_DEFAULT;
-    // Tall clusters (settings group) may use more viewport; compact actions stay tight
+    const padTop = compact
+      ? PAD_COMPACT_TOP
+      : step.targetId === "paymentsHeader"
+        ? PAD_DEFAULT + PAYMENTS_NUDGE_UP
+        : PAD_DEFAULT;
+    const padBottom = compact ? PAD_COMPACT_BOTTOM : PAD_DEFAULT;
+    const padH = compact ? PAD_COMPACT_H : PAD_DEFAULT;
+
+    // Compact Add sits near the status bar — allow hole into the inset, don't clip the icon
+    const minY = compact
+      ? Math.max(0, insets.top - 10)
+      : insets.top + 4;
+
     const maxH = Math.max(
       64,
-      screenH * (compact ? 0.22 : r.height > 200 ? 0.48 : MAX_HOLE_H_RATIO)
+      screenH * (compact ? 0.28 : r.height > 200 ? 0.48 : MAX_HOLE_H_RATIO)
     );
 
     // Grow from the measured rect; only trim overflow edges (don't shift the center)
-    let x = r.x - pad;
-    let y = r.y - pad;
-    let width = r.width + pad * 2;
-    let height = Math.min(r.height + pad * 2, maxH);
+    let x = r.x - padH;
+    let y = r.y - padTop;
+    let width = r.width + padH * 2;
+    let height = Math.min(r.height + padTop + padBottom, maxH);
 
     if (x < 4) {
       width -= 4 - x;
@@ -97,9 +113,10 @@ export function TourSpotlight() {
     if (x + width > screenW - 4) {
       width = Math.max(32, screenW - 4 - x);
     }
-    if (y < usableTop) {
-      height -= usableTop - y;
-      y = usableTop;
+    if (y < minY) {
+      // Keep full height covering the target: prefer overlapping status chrome
+      // over clipping the top of Add icons
+      y = minY;
     }
     if (y + height > usableBottom) {
       height = Math.max(32, usableBottom - y);

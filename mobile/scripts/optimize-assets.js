@@ -70,6 +70,14 @@ async function toWebp(relPng, maxEdge, quality) {
   await toWebp("assets/images/profile.png", 512, 78);
   await toWebp("assets/images/logo.png", 1024, 82);
 
+  // Native + Expo splash wordmark (same art as Home logo.webp)
+  if (fs.existsSync(path.join(root, "assets/images/logo.webp"))) {
+    await sharp(path.join(root, "assets/images/logo.webp"))
+      .png()
+      .toFile(path.join(root, "assets/images/splash-logo.png"));
+    console.log("wrote assets/images/splash-logo.png");
+  }
+
   // Flat UI / launcher icons stay PNG (palette)
   for (const [rel, edge] of [
     ["assets/images/splash-icon.png", 512],

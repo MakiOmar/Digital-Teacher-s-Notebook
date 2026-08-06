@@ -3,8 +3,7 @@ const { withMainActivity, withAndroidStyles } = require("expo/config-plugins");
 /**
  * Android splash / theme:
  * - Skip AndroidX SplashScreen (API 31+ centered icon)
- * - Splash theme: white window (JS draws logo wordmark)
- * - App theme: solid white window (transparent RN screens must not show a raw image)
+ * - Splash + app window: white + home wordmark drawable (matches JS SplashBackground)
  */
 function withFullBleedSplash(config) {
   config = withAndroidStyles(config, (cfg) => {
@@ -27,14 +26,14 @@ function withFullBleedSplash(config) {
       },
       {
         $: { name: "android:windowBackground" },
-        _: "@android:color/white",
+        _: "@drawable/splashscreen_full",
       },
     ];
 
     const splashThemeItems = [
       {
         $: { name: "android:windowBackground" },
-        _: "@color/splashscreen_background",
+        _: "@drawable/splashscreen_full",
       },
       {
         $: { name: "android:statusBarColor" },
@@ -93,7 +92,7 @@ function withFullBleedSplash(config) {
       src = src.replace(
         /override fun onCreate\(savedInstanceState: Bundle\?\) \{\s*/,
         `override fun onCreate(savedInstanceState: Bundle?) {
-    // White app window; JS draws logo splash then blueprint shell.
+    // White app window with wordmark drawable; JS SplashBackground uses the same mark.
     setTheme(R.style.AppTheme)
     `
       );

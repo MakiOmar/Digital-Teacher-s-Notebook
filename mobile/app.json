@@ -9,7 +9,7 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/splash-icon.png",
+      "image": "./assets/images/splash-logo.png",
       "resizeMode": "contain",
       "backgroundColor": "#FFFFFF"
     },
@@ -44,10 +44,10 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/splash-logo.png",
           "resizeMode": "contain",
           "backgroundColor": "#FFFFFF",
-          "imageWidth": 200
+          "imageWidth": 280
         }
       ],
       "./plugins/withFullBleedSplash.js",

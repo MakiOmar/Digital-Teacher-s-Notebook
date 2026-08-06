@@ -29,15 +29,19 @@ export function TourAnchor({ id, children, style }: Props) {
   function measure() {
     if (!isCurrent) return;
     ref.current?.measureInWindow((x, y, w, h) => {
-      if (w <= 0 || h <= 0) return;
+      if (w < 8 || h < 8) return;
       registerTarget(id, { x, y, width: w, height: h });
     });
   }
 
   useEffect(() => {
     if (!isCurrent) return;
-    const t = setTimeout(measure, 80);
-    return () => clearTimeout(t);
+    // Retry: layout/scroll often settle after the first frame (esp. More menu)
+    const times = [50, 200, 400, 700, 1100];
+    const timers = times.map((ms) => setTimeout(measure, ms));
+    return () => {
+      for (const t of timers) clearTimeout(t);
+    };
   }, [isCurrent, id, width, height]);
 
   return (

@@ -1,5 +1,12 @@
+import { useEffect, useRef } from "react";
 import { useRouter } from "expo-router";
-import { Linking, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Linking,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MenuCard, Screen, Title } from "@/src/components/ui";
 import { SUPPORT_WHATSAPP } from "@/src/config/support";
@@ -8,7 +15,6 @@ import { colors, spacing } from "@/src/theme/colors";
 import { ICONS } from "@/src/theme/icons";
 import { rtlText } from "@/src/theme/rtl";
 import { useAppData } from "@/src/contexts/AppDataContext";
-import { TourAnchor } from "@/src/tour/TourAnchor";
 import { useTour } from "@/src/tour/TourContext";
 import { useDialog } from "@/src/components/DialogProvider";
 import { whatsappUrl } from "@/src/utils/phone";
@@ -16,12 +22,21 @@ import { whatsappUrl } from "@/src/utils/phone";
 /** Approximate default bottom tab bar content height (excluding safe area). */
 const TAB_BAR_CONTENT = 56;
 
+/** Menu cards sit ~88px apart including margin; header ~56px. */
+const MORE_SCROLL_Y: Record<string, number> = {
+  moreHint: 0,
+  backupHint: 528,
+  remindersHint: 616,
+  reportsHint: 704,
+};
+
 export default function MoreTab() {
   const router = useRouter();
   const { activeYear } = useAppData();
-  const { start } = useTour();
+  const { start, active, stepId } = useTour();
   const dialog = useDialog();
   const insets = useSafeAreaInsets();
+  const scrollRef = useRef<ScrollView>(null);
   const bottomClearance = TAB_BAR_CONTENT + insets.bottom + spacing.xl;
 
   async function onRestartTour() {
@@ -41,9 +56,21 @@ export default function MoreTab() {
     }
   }
 
+  // Bring the current More tour target into the visible area before measure
+  useEffect(() => {
+    if (!active) return;
+    const y = MORE_SCROLL_Y[stepId];
+    if (y == null) return;
+    const timer = setTimeout(() => {
+      scrollRef.current?.scrollTo({ y, animated: true });
+    }, 60);
+    return () => clearTimeout(timer);
+  }, [active, stepId]);
+
   return (
     <Screen padded={false} style={{ flex: 1 }}>
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={{
           paddingHorizontal: spacing.lg,
           paddingTop: spacing.sm,
@@ -58,22 +85,20 @@ export default function MoreTab() {
           </Text>
         ) : null}
         <View style={{ marginTop: spacing.md }}>
-          <TourAnchor id="moreMenu">
-            <MenuCard
-              title={t("tourGuide")}
-              icon={ICONS.more}
-              borderColor={colors.primary}
-              onPress={() => void onRestartTour()}
-            />
-          </TourAnchor>
-          <TourAnchor id="moreSettings">
-            <MenuCard
-              title={t("academicYears")}
-              icon={ICONS.years}
-              borderColor={colors.accent}
-              onPress={() => router.push("/years")}
-            />
-          </TourAnchor>
+          <MenuCard
+            title={t("tourGuide")}
+            icon={ICONS.more}
+            borderColor={colors.primary}
+            tourId="moreMenu"
+            onPress={() => void onRestartTour()}
+          />
+          <MenuCard
+            title={t("academicYears")}
+            icon={ICONS.years}
+            borderColor={colors.accent}
+            tourId="moreSettings"
+            onPress={() => router.push("/years")}
+          />
           <MenuCard
             title={t("tutorProfile")}
             icon={ICONS.more}

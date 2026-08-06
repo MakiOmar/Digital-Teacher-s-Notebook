@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
 import {
-  Modal,
   Pressable,
   StyleSheet,
   Text,
   useWindowDimensions,
   View,
+  type ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { t } from "@/src/i18n/ar";
@@ -15,13 +15,32 @@ import { rtlText } from "@/src/theme/rtl";
 import { getTourStep, TOUR_STEPS } from "./tourSteps";
 import { useTour } from "./TourContext";
 
-const PAD = 10;
-/** Cap spotlight hole so a tall list/menu does not swallow the screen. */
-const MAX_HOLE_H_RATIO = 0.28;
+const PAD = 8;
+const MAX_HOLE_H_RATIO = 0.32;
 
 /**
- * Dimmed overlay with a spotlight hole + fixed bottom action sheet
- * (always on-screen — never positions the CTAs under the fold).
+ * Place a rect using physical window coordinates.
+ * Under I18nManager.forceRTL, Yoga can mirror `left` — translateX stays physical.
+ */
+function physicalRect(
+  x: number,
+  y: number,
+  width: number,
+  height: number
+): ViewStyle {
+  return {
+    position: "absolute",
+    top: y,
+    left: 0,
+    width,
+    height,
+    transform: [{ translateX: x }],
+  };
+}
+
+/**
+ * Spotlight overlay in the same window as the app (not a Modal).
+ * Root uses LTR so dim edges + hole match measureInWindow (physical coords).
  */
 export function TourSpotlight() {
   const {
@@ -43,187 +62,189 @@ export function TourSpotlight() {
   const hole = useMemo(() => {
     if (!step?.targetId) return null;
     const r = targets[step.targetId];
-    if (!r || r.width <= 0 || r.height <= 0) return null;
+    if (!r || r.width < 8 || r.height < 8) return null;
 
-    const maxH = Math.max(72, screenH * MAX_HOLE_H_RATIO);
-    let height = Math.min(r.height + PAD * 2, maxH);
-    let y = Math.max(0, r.y - PAD);
-    // Keep hole above the bottom sheet
-    const sheetReserve = Math.max(sheetH, 200) + insets.bottom + 12;
-    const maxBottom = screenH - sheetReserve;
-    if (y + height > maxBottom) {
-      y = Math.max(insets.top + 8, maxBottom - height);
+    const sheetReserve = Math.max(sheetH, 180) + 8;
+    const usableTop = insets.top + 4;
+    const usableBottom = screenH - sheetReserve;
+
+    // Target still off-screen (scroll settling) — hide hole rather than invent a fake one
+    if (r.y + r.height < usableTop + 12 || r.y > usableBottom - 12) {
+      return null;
     }
 
-    return {
-      x: Math.max(0, r.x - PAD),
-      y,
-      width: Math.min(screenW - 8, r.width + PAD * 2),
-      height,
-    };
-  }, [step?.targetId, targets, screenW, screenH, sheetH, insets.bottom, insets.top]);
+    const maxH = Math.max(64, screenH * MAX_HOLE_H_RATIO);
+    let width = Math.min(screenW - 16, r.width + PAD * 2);
+    let height = Math.min(r.height + PAD * 2, maxH);
+    let x = Math.max(8, Math.min(r.x - PAD, screenW - width - 8));
+    let y = r.y - PAD;
+
+    // Soft-clamp only — keep hole tied to the measured target
+    if (y < usableTop) {
+      const cut = usableTop - y;
+      y = usableTop;
+      height = Math.max(40, height - cut);
+    }
+    if (y + height > usableBottom) {
+      height = Math.max(40, usableBottom - y);
+    }
+
+    return { x, y, width, height };
+  }, [
+    step?.targetId,
+    targets,
+    screenW,
+    screenH,
+    sheetH,
+    insets.top,
+  ]);
 
   if (!active || !step) return null;
 
   const isDone = stepId === "done";
   const hasCreate = Boolean(step.createRoute);
   const canNext = Boolean(step.allowNext) || isDone;
-  const isLandscape = screenW > screenH;
-  const sheetMaxW = Math.min(480, screenW);
 
   return (
-    <Modal visible transparent animationType="fade" statusBarTranslucent>
-      <View style={styles.root} pointerEvents="box-none">
-        {hole ? (
-          <>
-            <View
-              style={[
-                styles.dim,
-                { left: 0, top: 0, right: 0, height: hole.y },
-              ]}
-            />
-            <View
-              style={[
-                styles.dim,
-                {
-                  left: 0,
-                  top: hole.y + hole.height,
-                  right: 0,
-                  bottom: 0,
-                },
-              ]}
-            />
-            <View
-              style={[
-                styles.dim,
-                {
-                  left: 0,
-                  top: hole.y,
-                  width: hole.x,
-                  height: hole.height,
-                },
-              ]}
-            />
-            <View
-              style={[
-                styles.dim,
-                {
-                  left: hole.x + hole.width,
-                  top: hole.y,
-                  right: 0,
-                  height: hole.height,
-                },
-              ]}
-            />
-            <View
-              pointerEvents="none"
-              style={[
-                styles.holeRing,
-                {
-                  left: hole.x,
-                  top: hole.y,
-                  width: hole.width,
-                  height: hole.height,
-                },
-              ]}
-            />
-          </>
-        ) : (
-          <View style={[styles.dim, StyleSheet.absoluteFill]} />
-        )}
+    <View
+      pointerEvents="box-none"
+      style={[styles.overlay, { direction: "ltr" }]}
+    >
+      {hole ? (
+        <>
+          <View
+            pointerEvents="none"
+            style={[styles.dim, physicalRect(0, 0, screenW, hole.y)]}
+          />
+          <View
+            pointerEvents="none"
+            style={[
+              styles.dim,
+              physicalRect(
+                0,
+                hole.y + hole.height,
+                screenW,
+                Math.max(0, screenH - hole.y - hole.height)
+              ),
+            ]}
+          />
+          <View
+            pointerEvents="none"
+            style={[styles.dim, physicalRect(0, hole.y, hole.x, hole.height)]}
+          />
+          <View
+            pointerEvents="none"
+            style={[
+              styles.dim,
+              physicalRect(
+                hole.x + hole.width,
+                hole.y,
+                Math.max(0, screenW - hole.x - hole.width),
+                hole.height
+              ),
+            ]}
+          />
+          <View
+            pointerEvents="none"
+            style={[
+              styles.holeRing,
+              physicalRect(hole.x, hole.y, hole.width, hole.height),
+            ]}
+          />
+        </>
+      ) : (
+        <View pointerEvents="none" style={[styles.dim, StyleSheet.absoluteFill]} />
+      )}
 
-        {/* Fixed bottom sheet — always within safe area / reachable */}
-        <View
-          onLayout={(e) => {
-            const h = e.nativeEvent.layout.height;
-            setSheetH((prev) => (Math.abs(prev - h) > 2 ? h : prev));
-          }}
-          style={[
-            styles.sheet,
-            {
-              paddingBottom: Math.max(insets.bottom, spacing.md),
-              maxWidth: sheetMaxW,
-              alignSelf: "center",
-              width: isLandscape ? sheetMaxW : "100%",
-            },
-          ]}
-        >
-          <View style={styles.sheetHandle} />
-          <View style={styles.cardInner}>
-            <Text style={styles.progress}>
-              {t("tourProgress", {
-                current: stepIndex + 1,
-                total: stepCount,
-              })}
-            </Text>
-            <View style={styles.dots}>
-              {TOUR_STEPS.map((s, i) => (
-                <View
-                  key={s.id}
-                  style={[
-                    styles.dot,
-                    i === stepIndex && styles.dotActive,
-                    i < stepIndex && styles.dotDone,
-                  ]}
-                />
-              ))}
-            </View>
-            <Text style={styles.title}>{t(step.titleKey)}</Text>
-            <Text style={styles.body}>{t(step.bodyKey)}</Text>
+      <View
+        onLayout={(e) => {
+          const h = e.nativeEvent.layout.height;
+          setSheetH((prev) => (Math.abs(prev - h) > 2 ? h : prev));
+        }}
+        style={[
+          styles.sheet,
+          {
+            paddingBottom: Math.max(insets.bottom, spacing.md),
+            direction: "rtl",
+          },
+        ]}
+      >
+        <View style={styles.sheetHandle} />
+        <View style={styles.cardInner}>
+          <Text style={styles.progress}>
+            {t("tourProgress", {
+              current: stepIndex + 1,
+              total: stepCount,
+            })}
+          </Text>
+          <View style={styles.dots}>
+            {TOUR_STEPS.map((s, i) => (
+              <View
+                key={s.id}
+                style={[
+                  styles.dot,
+                  i === stepIndex && styles.dotActive,
+                  i < stepIndex && styles.dotDone,
+                ]}
+              />
+            ))}
+          </View>
+          <Text style={styles.title}>{t(step.titleKey)}</Text>
+          <Text style={styles.body}>{t(step.bodyKey)}</Text>
 
-            <View style={styles.actions}>
-              {!isDone ? (
-                <Pressable onPress={() => void skip()} hitSlop={12}>
-                  <Text style={styles.skip}>{t("tourSkip")}</Text>
+          <View style={styles.actions}>
+            {!isDone ? (
+              <Pressable onPress={() => void skip()} hitSlop={12}>
+                <Text style={styles.skip}>{t("tourSkip")}</Text>
+              </Pressable>
+            ) : (
+              <View />
+            )}
+
+            <View style={styles.primaryCol}>
+              {hasCreate ? (
+                <Pressable style={styles.primaryBtn} onPress={goCreate}>
+                  <Text style={styles.primaryText}>{t("tourCreateNow")}</Text>
                 </Pressable>
-              ) : (
-                <View />
-              )}
-
-              <View style={styles.primaryCol}>
-                {hasCreate ? (
-                  <Pressable style={styles.primaryBtn} onPress={goCreate}>
-                    <Text style={styles.primaryText}>{t("tourCreateNow")}</Text>
-                  </Pressable>
-                ) : null}
-                {canNext ? (
-                  <Pressable
+              ) : null}
+              {canNext ? (
+                <Pressable
+                  style={[styles.primaryBtn, hasCreate && styles.secondaryBtn]}
+                  onPress={() => void (isDone ? finish() : next())}
+                >
+                  <Text
                     style={[
-                      styles.primaryBtn,
-                      hasCreate && styles.secondaryBtn,
+                      styles.primaryText,
+                      hasCreate && styles.secondaryText,
                     ]}
-                    onPress={() => void (isDone ? finish() : next())}
                   >
-                    <Text
-                      style={[
-                        styles.primaryText,
-                        hasCreate && styles.secondaryText,
-                      ]}
-                    >
-                      {isDone ? t("tourFinish") : t("tourNext")}
-                    </Text>
-                  </Pressable>
-                ) : null}
-              </View>
+                    {isDone ? t("tourFinish") : t("tourNext")}
+                  </Text>
+                </Pressable>
+              ) : null}
             </View>
           </View>
         </View>
       </View>
-    </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
+  overlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 10000,
+    elevation: 10000,
     justifyContent: "flex-end",
   },
   dim: {
-    position: "absolute",
     backgroundColor: "rgba(15, 23, 42, 0.72)",
   },
   holeRing: {
-    position: "absolute",
     borderRadius: radii.lg,
     borderWidth: 2.5,
     borderColor: colors.primary,
@@ -236,6 +257,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderBottomWidth: 0,
     borderColor: colors.border,
+    width: "100%",
     shadowColor: "#0F172A",
     shadowOpacity: 0.25,
     shadowRadius: 18,

@@ -129,6 +129,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
 
   const applyStep = useCallback(
     async (id: string, opts?: { navigate?: boolean }) => {
+      setTargets({});
       await persist({ status: "pending", stepId: id });
       if (opts?.navigate !== false) {
         navigateForStep(id);

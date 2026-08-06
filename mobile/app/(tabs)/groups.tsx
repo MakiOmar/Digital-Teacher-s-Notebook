@@ -109,13 +109,11 @@ export default function GroupsTab() {
             },
           ]}
         />
-        <TourAnchor id="groupsList">
-          <SearchField
-            value={query}
-            onChangeText={setQuery}
-            placeholder={t("searchPlaceholder")}
-          />
-        </TourAnchor>
+        <SearchField
+          value={query}
+          onChangeText={setQuery}
+          placeholder={t("searchPlaceholder")}
+        />
       </View>
       <FlatList
         style={{ flex: 1 }}
@@ -126,11 +124,13 @@ export default function GroupsTab() {
         data={paging.pageItems}
         keyExtractor={(item) => String(item.id)}
         ListEmptyComponent={
-          <EmptyState
-            message={t("noGroups")}
-            actionLabel={t("addGroupCta")}
-            onAction={() => router.push("/groups/form")}
-          />
+          <TourAnchor id="groupsList">
+            <EmptyState
+              message={t("noGroups")}
+              actionLabel={t("addGroupCta")}
+              onAction={() => router.push("/groups/form")}
+            />
+          </TourAnchor>
         }
         ListFooterComponent={
           <PaginationBar
@@ -144,28 +144,35 @@ export default function GroupsTab() {
             onNext={paging.nextPage}
           />
         }
-        renderItem={({ item }) => (
-          <ListRow
-            title={item.name}
-            subtitle={`${item.scheduleLabel || "—"} · ${t("studentsCount")}: ${item.student_count} · ${t("groupTotalFees")}: ${formatMoney(item.total_fees)} · ${t("classesPerRound")}: ${item.classes_per_round ?? 4}`}
-            right={formatMoney(item.default_monthly_fee)}
-            borderColor={groupAccentColor(item.id, item.accent_color)}
-            onPress={() => router.push(`/groups/${item.id}`)}
-            trailing={
-              <Pressable
-                onPress={() => {
-                  router.push(
-                    `/groups/round-payments?groupId=${item.id}` as never
-                  );
-                }}
-                hitSlop={10}
-                style={{ padding: 6 }}
-              >
-                <FontAwesome name="money" size={18} color={colors.success} />
-              </Pressable>
-            }
-          />
-        )}
+        renderItem={({ item, index }) => {
+          const row = (
+            <ListRow
+              title={item.name}
+              subtitle={`${item.scheduleLabel || "—"} · ${t("studentsCount")}: ${item.student_count} · ${t("groupTotalFees")}: ${formatMoney(item.total_fees)} · ${t("classesPerRound")}: ${item.classes_per_round ?? 4}`}
+              right={formatMoney(item.default_monthly_fee)}
+              borderColor={groupAccentColor(item.id, item.accent_color)}
+              onPress={() => router.push(`/groups/${item.id}`)}
+              trailing={
+                <Pressable
+                  onPress={() => {
+                    router.push(
+                      `/groups/round-payments?groupId=${item.id}` as never
+                    );
+                  }}
+                  hitSlop={10}
+                  style={{ padding: 6 }}
+                >
+                  <FontAwesome name="money" size={18} color={colors.success} />
+                </Pressable>
+              }
+            />
+          );
+          // Spotlight the first visible group as the hub example
+          if (index === 0) {
+            return <TourAnchor id="groupsList">{row}</TourAnchor>;
+          }
+          return row;
+        }}
         onRefresh={() => {
           bump();
           void reload();

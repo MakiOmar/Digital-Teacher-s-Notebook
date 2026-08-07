@@ -20,6 +20,7 @@ import { useGeneralSettings } from "@/src/settings/GeneralSettingsContext";
 import type { PaymentStatus, StudentDueRow } from "@/src/db/types";
 import { formatMoney, formatRoundTitle } from "@/src/utils/date";
 import { colors, spacing } from "@/src/theme/colors";
+import { rtlRow } from "@/src/theme/rtl";
 
 type PaymentListState = {
   dues: StudentDueRow[];
@@ -101,16 +102,24 @@ export default function PaymentsTab() {
     <Screen padded={false} style={{ flex: 1 }}>
       <View style={{ padding: spacing.lg }}>
         <TourAnchor id="paymentsHeader">
-          <View>
+          {/* Equal-width summary tiles in one row (RTL: collected on the right). */}
+          <View
+            style={[
+              rtlRow(),
+              { gap: spacing.sm, marginBottom: spacing.sm, alignItems: "stretch" },
+            ]}
+          >
             <StatCard
               label={t("totalCollected")}
               value={formatMoney(state.totalCollected)}
               tone="success"
+              style={{ flex: 1, marginBottom: 0 }}
             />
             <StatCard
               label={t("remaining")}
               value={formatMoney(state.totalRemaining)}
               tone="danger"
+              style={{ flex: 1, marginBottom: 0 }}
             />
           </View>
         </TourAnchor>

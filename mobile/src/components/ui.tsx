@@ -347,10 +347,12 @@ export function StatCard({
   label,
   value,
   tone = "default",
+  style,
 }: {
   label: string;
   value: string;
   tone?: "default" | "success" | "danger" | "warning";
+  style?: StyleProp<ViewStyle>;
 }) {
   const bg =
     tone === "success"
@@ -369,7 +371,14 @@ export function StatCard({
           ? colors.partialBorder
           : colors.primary;
   return (
-    <View style={[styles.stat, rtlBlock, { backgroundColor: bg, borderColor: border }]}>
+    <View
+      style={[
+        styles.stat,
+        rtlBlock,
+        { backgroundColor: bg, borderColor: border },
+        style,
+      ]}
+    >
       <Text style={styles.statLabel}>{label}</Text>
       <Text style={styles.statValue}>{value}</Text>
     </View>

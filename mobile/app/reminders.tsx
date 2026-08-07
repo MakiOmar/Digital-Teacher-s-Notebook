@@ -5,6 +5,7 @@ import { Muted, Screen, Title } from "@/src/components/ui";
 import { useDialog } from "@/src/components/DialogProvider";
 import {
   loadReminderSettings,
+  remindersAvailableInThisRuntime,
   saveReminderSettings,
   type ReminderSettings,
 } from "@/src/reminders/reminders";
@@ -14,6 +15,7 @@ import { rtlRow, rtlText } from "@/src/theme/rtl";
 
 export default function RemindersScreen() {
   const dialog = useDialog();
+  const schedulingOk = remindersAvailableInThisRuntime();
   const [busy, setBusy] = useState(false);
   const [settings, setSettings] = useState<ReminderSettings>({
     todayEnabled: false,
@@ -46,12 +48,17 @@ export default function RemindersScreen() {
     <Screen>
       <Title>{t("reminders")}</Title>
       <Muted style={{ marginBottom: spacing.lg }}>{t("remindersHint")}</Muted>
+      {!schedulingOk ? (
+        <Muted style={{ marginBottom: spacing.lg, color: colors.warning }}>
+          {t("remindersExpoGoUnavailable")}
+        </Muted>
+      ) : null}
 
       <View style={styles.switchRow}>
         <Text style={styles.label}>{t("reminderTodayEnable")}</Text>
         <Switch
           value={settings.todayEnabled}
-          disabled={busy}
+          disabled={busy || !schedulingOk}
           onValueChange={(todayEnabled) => void persist({ todayEnabled })}
           trackColor={{ false: colors.border, true: colors.primarySoft }}
           thumbColor={
@@ -64,7 +71,7 @@ export default function RemindersScreen() {
         <Text style={styles.label}>{t("reminderUnpaidEnable")}</Text>
         <Switch
           value={settings.unpaidEnabled}
-          disabled={busy}
+          disabled={busy || !schedulingOk}
           onValueChange={(unpaidEnabled) => void persist({ unpaidEnabled })}
           trackColor={{ false: colors.border, true: colors.primarySoft }}
           thumbColor={

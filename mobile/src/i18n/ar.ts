@@ -236,6 +236,8 @@ export const ar = {
   sessionNotesHint: "ملاحظات اختيارية لهذه الحصة",
   reminders: "التذكيرات",
   remindersHint: "تذكيرات محلية على الجهاز قبل حصص اليوم وللمستحقات.",
+  remindersExpoGoUnavailable:
+    "جدولة التذكيرات غير متاحة داخل Expo Go على أندرويد. احفظ الإعدادات هنا، واختبر الإشعارات عبر نسخة التطوير أو ملف APK.",
   reminderTodayEnable: "تذكير بحصص اليوم",
   reminderUnpaidEnable: "تذكير أسبوعي بالمستحقات",
   remindersSaved: "تم حفظ التذكيرات",

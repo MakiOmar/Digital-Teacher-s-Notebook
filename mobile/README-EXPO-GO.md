@@ -18,6 +18,8 @@ Install Expo Go:
 
 > In Expo Go, open the projects tab and confirm the app supports **SDK 57**. If it does not, update Expo Go from the store.
 
+**Important (Worklets):** This project uses `react-native-worklets@0.10.1` / `react-native-reanimated@4.5.1`. Older Expo Go builds (Android below **57.0.3**, iOS below **57.0.6**) ship Worklets **0.10.0** and will crash with a version mismatch. Update Expo Go from the store, then start Metro with a clean cache (`npx expo start -c`).
+
 ## One-time setup
 
 From the repo root (or from `mobile/`):
@@ -86,6 +88,8 @@ Shortcut from the PC terminal: press `a` after `expo start` if an emulator/USB d
 | Old UI after code change | Reload in Expo Go (shake device → **Reload**), or restart with `-c` |
 | Firewall blocks Metro | Allow Node on private networks, or use `--tunnel` |
 | SDK mismatch | Update Expo Go so it supports SDK **57** |
+| `[Worklets] Mismatch … (0.10.1 vs. 0.10.0)` | Update Expo Go to Android **57.0.3+** / iOS **57.0.6+**, then `npx expo start -c` |
+| `expo-notifications` removed from Expo Go | Expected on Android Expo Go for remote/push APIs. Local reminders are gated in-app; use a dev build/APK to test scheduling |
 
 Default Metro port is **8081**. Keep that port free while testing.
 
@@ -118,7 +122,7 @@ Expo Go does **not** apply custom native config the same way a release APK does.
 |------|------------|-------------------|
 | App name / icon / splash | Expo Go branding / default splash behavior | Full brand assets from `app.json` / plugins |
 | Custom native plugins | Often skipped or partial | Applied (`withFullBleedSplash`, build properties, etc.) |
-| Notifications | Limited / may need extra setup | Full native behavior |
+| Notifications / reminders | Preferences save; scheduling disabled on Android Expo Go | Full local reminder scheduling |
 | Absolute “store-like” install | Runs inside Expo Go | Standalone package `com.tutoringmanager.app` |
 
 For branding, splash, ProGuard, and installable APK testing, use:

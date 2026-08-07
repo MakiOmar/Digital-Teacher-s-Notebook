@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as Notifications from "expo-notifications";
+import { isRunningInExpoGo } from "expo";
 import { Platform } from "react-native";
 import { listTodaysSessions } from "../repositories";
 import { getOpenRoundsPaymentSummary } from "../services/rounds";
@@ -18,14 +18,41 @@ const DEFAULTS: ReminderSettings = {
   unpaidEnabled: false,
 };
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: false,
-    shouldSetBadge: false,
-  }),
-});
+/**
+ * Android Expo Go throws on any `expo-notifications` import (push token
+ * auto-registration). Skip the native module entirely there; use a dev build
+ * or release APK for real reminder scheduling.
+ */
+const notificationsBlocked =
+  isRunningInExpoGo() && Platform.OS === "android";
+
+type NotificationsModule = typeof import("expo-notifications");
+
+function getNotifications(): NotificationsModule | null {
+  if (notificationsBlocked) return null;
+  // Lazy require so Expo Go Android never evaluates the package entry.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  return require("expo-notifications") as NotificationsModule;
+}
+
+function initHandler(): void {
+  const Notifications = getNotifications();
+  if (!Notifications) return;
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: false,
+      shouldSetBadge: false,
+    }),
+  });
+}
+
+initHandler();
+
+export function remindersAvailableInThisRuntime(): boolean {
+  return !notificationsBlocked;
+}
 
 export async function loadReminderSettings(): Promise<ReminderSettings> {
   try {
@@ -51,7 +78,9 @@ export async function saveReminderSettings(
   return next;
 }
 
-async function ensurePermission(): Promise<boolean> {
+async function ensurePermission(
+  Notifications: NotificationsModule
+): Promise<boolean> {
   const current = await Notifications.getPermissionsAsync();
   if (current.granted) return true;
   const req = await Notifications.requestPermissionsAsync();
@@ -62,6 +91,9 @@ async function ensurePermission(): Promise<boolean> {
 export async function rescheduleReminders(
   settings?: ReminderSettings
 ): Promise<void> {
+  const Notifications = getNotifications();
+  if (!Notifications) return;
+
   const prefs = settings ?? (await loadReminderSettings());
   await Notifications.cancelScheduledNotificationAsync(TODAY_ID).catch(
     () => undefined
@@ -71,7 +103,7 @@ export async function rescheduleReminders(
   );
 
   if (!prefs.todayEnabled && !prefs.unpaidEnabled) return;
-  const ok = await ensurePermission();
+  const ok = await ensurePermission(Notifications);
   if (!ok) return;
 
   if (Platform.OS === "android") {

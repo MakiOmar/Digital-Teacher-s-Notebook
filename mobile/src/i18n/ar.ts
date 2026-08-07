@@ -189,6 +189,8 @@ export const ar = {
   other: "أخرى",
   dues: "المديونيات",
   filterAll: "الكل",
+  filter: "تصفية",
+  applyFilter: "تطبيق",
   filterByGroup: "المجموعة",
   filterByStatus: "الحالة",
   filterByWeekday: "يوم الحضور",

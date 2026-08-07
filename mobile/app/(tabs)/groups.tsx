@@ -9,7 +9,7 @@ import {
   SearchField,
   SkeletonList,
 } from "@/src/components/ui";
-import { FilterBar, FilterSelect } from "@/src/components/FilterSelect";
+import { FiltersSheet } from "@/src/components/FilterSelect";
 import { IconActionBar } from "@/src/components/IconActionBar";
 import { PaginationBar } from "@/src/components/PaginationBar";
 import { TourAnchor } from "@/src/tour/TourAnchor";
@@ -134,14 +134,17 @@ export default function GroupsTab() {
             },
           ]}
         />
-        <FilterBar>
-          <FilterSelect
-            label={t("filterByWeekday")}
-            value={weekdayFilter}
-            options={weekdayOptions}
-            onChange={setWeekdayFilter}
-          />
-        </FilterBar>
+        <FiltersSheet
+          fields={[
+            {
+              key: "weekday",
+              label: t("filterByWeekday"),
+              value: weekdayFilter,
+              options: weekdayOptions,
+            },
+          ]}
+          onApply={(next) => setWeekdayFilter(next.weekday ?? "all")}
+        />
         <SearchField
           value={query}
           onChangeText={setQuery}

@@ -8,7 +8,7 @@ import {
   Screen,
   Title,
 } from "@/src/components/ui";
-import { FilterBar, FilterSelect } from "@/src/components/FilterSelect";
+import { FiltersSheet } from "@/src/components/FilterSelect";
 import { PaginationBar } from "@/src/components/PaginationBar";
 import { TourAnchor } from "@/src/tour/TourAnchor";
 import { t } from "@/src/i18n/ar";
@@ -90,14 +90,17 @@ export default function TodayScreen() {
             <TourAnchor id="todayHeader">
               <Title>{t("todaySchedule")}</Title>
             </TourAnchor>
-            <FilterBar>
-              <FilterSelect
-                label={t("filterByStatus")}
-                value={statusFilter}
-                options={statusOptions}
-                onChange={setStatusFilter}
-              />
-            </FilterBar>
+            <FiltersSheet
+              fields={[
+                {
+                  key: "status",
+                  label: t("filterByStatus"),
+                  value: statusFilter,
+                  options: statusOptions,
+                },
+              ]}
+              onApply={(next) => setStatusFilter(next.status ?? "all")}
+            />
           </View>
         }
         ListEmptyComponent={<EmptyState message={t("noSessionsToday")} />}

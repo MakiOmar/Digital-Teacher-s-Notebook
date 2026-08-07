@@ -6,7 +6,7 @@ import {
   LoadingBlock,
   Screen,
 } from "@/src/components/ui";
-import { FilterBar, FilterSelect } from "@/src/components/FilterSelect";
+import { FiltersSheet } from "@/src/components/FilterSelect";
 import { PaginationBar } from "@/src/components/PaginationBar";
 import {
   getSessionAttendanceCoverage,
@@ -96,14 +96,17 @@ export default function GroupSessionsScreen() {
         data={paging.pageItems}
         keyExtractor={(item) => String(item.id)}
         ListHeaderComponent={
-          <FilterBar>
-            <FilterSelect
-              label={t("filterByStatus")}
-              value={statusFilter}
-              options={statusOptions}
-              onChange={setStatusFilter}
-            />
-          </FilterBar>
+          <FiltersSheet
+            fields={[
+              {
+                key: "status",
+                label: t("filterByStatus"),
+                value: statusFilter,
+                options: statusOptions,
+              },
+            ]}
+            onApply={(next) => setStatusFilter(next.status ?? "all")}
+          />
         }
         ListEmptyComponent={
           <EmptyState

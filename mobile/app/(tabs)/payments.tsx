@@ -9,7 +9,7 @@ import {
   SkeletonList,
   StatCard,
 } from "@/src/components/ui";
-import { FilterBar, FilterSelect } from "@/src/components/FilterSelect";
+import { FiltersSheet } from "@/src/components/FilterSelect";
 import { PaginationBar } from "@/src/components/PaginationBar";
 import { TourAnchor } from "@/src/tour/TourAnchor";
 import { t } from "@/src/i18n/ar";
@@ -123,22 +123,27 @@ export default function PaymentsTab() {
             />
           </View>
         </TourAnchor>
-        <FilterBar>
-          <FilterSelect
-            label={t("filterByGroup")}
-            value={groupFilter === "all" ? "all" : String(groupFilter)}
-            options={groupOptions}
-            onChange={(v) =>
-              setGroupFilter(v === "all" ? "all" : Number(v))
-            }
-          />
-          <FilterSelect
-            label={t("filterByStatus")}
-            value={filter}
-            options={statusOptions}
-            onChange={(v) => setFilter(v as PaymentStatus | "all")}
-          />
-        </FilterBar>
+        <FiltersSheet
+          fields={[
+            {
+              key: "group",
+              label: t("filterByGroup"),
+              value: groupFilter === "all" ? "all" : String(groupFilter),
+              options: groupOptions,
+            },
+            {
+              key: "status",
+              label: t("filterByStatus"),
+              value: filter,
+              options: statusOptions,
+            },
+          ]}
+          onApply={(next) => {
+            const g = next.group ?? "all";
+            setGroupFilter(g === "all" ? "all" : Number(g));
+            setFilter((next.status as PaymentStatus | "all") ?? "unpaid");
+          }}
+        />
       </View>
       <FlatList
         style={{ flex: 1 }}

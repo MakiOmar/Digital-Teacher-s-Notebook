@@ -18,105 +18,169 @@ export type FilterOption = {
   label: string;
 };
 
-type FilterSelectProps = {
+export type FilterField = {
+  key: string;
   label: string;
+  /** Currently applied value. */
   value: string;
   options: FilterOption[];
-  onChange: (value: string) => void;
-  /** Stretch to fill FilterBar cells (default true). */
-  flex?: boolean;
 };
 
-/** Field + modal list — used for list filtering instead of chip rows. */
-export function FilterSelect({
-  label,
-  value,
-  options,
-  onChange,
-  flex = true,
-}: FilterSelectProps) {
+/**
+ * Filter trigger (تصفية) → modal with option lists → تطبيق / إلغاء.
+ * Draft values only commit when the user taps Apply.
+ */
+export function FiltersSheet({
+  fields,
+  onApply,
+}: {
+  fields: FilterField[];
+  onApply: (values: Record<string, string>) => void;
+}) {
   const [open, setOpen] = useState(false);
-  const selected = useMemo(
-    () => options.find((o) => o.value === value) ?? options[0],
-    [options, value]
-  );
+  const [draft, setDraft] = useState<Record<string, string>>({});
+
+  const appliedSummary = useMemo(() => {
+    return fields
+      .map((f) => {
+        const opt = f.options.find((o) => o.value === f.value);
+        return opt?.label ?? f.value;
+      })
+      .filter(Boolean)
+      .join(" · ");
+  }, [fields]);
+
+  const activeCount = useMemo(() => {
+    return fields.filter((f) => f.value !== "all").length;
+  }, [fields]);
+
+  const openSheet = () => {
+    // Snapshot applied values into the draft once when opening.
+    const next: Record<string, string> = {};
+    for (const f of fields) next[f.key] = f.value;
+    setDraft(next);
+    setOpen(true);
+  };
+
+  const close = () => setOpen(false);
+
+  const apply = () => {
+    onApply(draft);
+    setOpen(false);
+  };
 
   return (
-    <View style={[styles.field, rtlBlock, flex ? { flex: 1, minWidth: 0 } : null]}>
-      <Text style={styles.label}>{label}</Text>
+    <View style={[styles.triggerWrap, rtlBlock]}>
+      {/* Comment: list toolbar — opens the filter sheet. */}
       <Pressable
-        onPress={() => setOpen(true)}
+        onPress={openSheet}
         accessibilityRole="button"
-        accessibilityLabel={label}
-        style={({ pressed }) => [styles.box, pressed && { opacity: 0.75 }]}
+        accessibilityLabel={t("filter")}
+        style={({ pressed }) => [
+          styles.trigger,
+          rtlRow(),
+          pressed && { opacity: 0.75 },
+        ]}
       >
-        <View style={[styles.boxInner, rtlRow()]}>
-          <Text style={styles.value} numberOfLines={1}>
-            {selected?.label ?? value}
-          </Text>
-          <FontAwesome name="chevron-down" size={12} color={colors.primary} />
-        </View>
+        <FontAwesome name="filter" size={14} color={colors.primary} />
+        <Text style={styles.triggerText}>{t("filter")}</Text>
+        {activeCount > 0 ? (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{activeCount}</Text>
+          </View>
+        ) : null}
       </Pressable>
+      {appliedSummary ? (
+        <Text style={styles.summary} numberOfLines={2}>
+          {appliedSummary}
+        </Text>
+      ) : null}
 
       <Modal
         visible={open}
         transparent
         animationType="fade"
-        onRequestClose={() => setOpen(false)}
+        onRequestClose={close}
       >
         <View style={styles.backdrop}>
-          <Pressable
-            style={StyleSheet.absoluteFill}
-            onPress={() => setOpen(false)}
-          />
+          <Pressable style={StyleSheet.absoluteFill} onPress={close} />
           <View style={styles.card}>
-            <Text style={styles.title}>{label}</Text>
+            <Text style={styles.title}>{t("filter")}</Text>
             <ScrollView
-              style={styles.list}
-              contentContainerStyle={{ gap: spacing.sm }}
+              style={styles.body}
+              contentContainerStyle={{
+                gap: spacing.lg,
+                paddingBottom: spacing.sm,
+              }}
               keyboardShouldPersistTaps="handled"
             >
-              {options.map((opt) => {
-                const on = opt.value === value;
-                return (
-                  <Pressable
-                    key={opt.value}
-                    onPress={() => {
-                      onChange(opt.value);
-                      setOpen(false);
-                    }}
-                    style={({ pressed }) => [
-                      styles.option,
-                      on && styles.optionOn,
-                      pressed && { opacity: 0.75 },
-                    ]}
-                  >
-                    <Text
-                      style={[styles.optionText, on && styles.optionTextOn]}
-                      numberOfLines={2}
-                    >
-                      {opt.label}
-                    </Text>
-                    {on ? (
-                      <FontAwesome
-                        name="check"
-                        size={14}
-                        color={colors.primary}
-                      />
-                    ) : null}
-                  </Pressable>
-                );
-              })}
+              {fields.map((field) => (
+                <View key={field.key} style={rtlBlock}>
+                  <Text style={styles.fieldLabel}>{field.label}</Text>
+                  <View style={styles.options}>
+                    {field.options.map((opt) => {
+                      const on =
+                        (draft[field.key] ?? field.value) === opt.value;
+                      return (
+                        <Pressable
+                          key={opt.value}
+                          onPress={() =>
+                            setDraft((prev) => ({
+                              ...prev,
+                              [field.key]: opt.value,
+                            }))
+                          }
+                          style={({ pressed }) => [
+                            styles.option,
+                            on && styles.optionOn,
+                            pressed && { opacity: 0.75 },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.optionText,
+                              on && styles.optionTextOn,
+                            ]}
+                            numberOfLines={2}
+                          >
+                            {opt.label}
+                          </Text>
+                          {on ? (
+                            <FontAwesome
+                              name="check"
+                              size={14}
+                              color={colors.primary}
+                            />
+                          ) : null}
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              ))}
             </ScrollView>
-            <Pressable
-              onPress={() => setOpen(false)}
-              style={({ pressed }) => [
-                styles.cancelBtn,
-                pressed && { opacity: 0.75 },
-              ]}
-            >
-              <Text style={styles.cancelText}>{t("cancel")}</Text>
-            </Pressable>
+
+            {/* Comment: commit draft filters vs dismiss without changes. */}
+            <View style={[styles.actions, rtlRow()]}>
+              <Pressable
+                onPress={close}
+                style={({ pressed }) => [
+                  styles.cancelBtn,
+                  pressed && { opacity: 0.75 },
+                ]}
+              >
+                <Text style={styles.cancelText}>{t("cancel")}</Text>
+              </Pressable>
+              <Pressable
+                onPress={apply}
+                style={({ pressed }) => [
+                  styles.applyBtn,
+                  pressed && { opacity: 0.85 },
+                ]}
+              >
+                <Text style={styles.applyText}>{t("applyFilter")}</Text>
+              </Pressable>
+            </View>
           </View>
         </View>
       </Modal>
@@ -124,52 +188,49 @@ export function FilterSelect({
   );
 }
 
-/** Horizontal wrap of filter fields above a list / search. */
-export function FilterBar({ children }: { children: React.ReactNode }) {
-  return <View style={[styles.bar, rtlRow()]}>{children}</View>;
-}
-
 const styles = StyleSheet.create({
-  field: {
+  triggerWrap: {
+    width: "100%",
     marginBottom: spacing.sm,
   },
-  label: {
-    ...rtlText,
-    width: "100%",
-    marginBottom: 6,
-    color: colors.text,
-    fontFamily: fonts.semiBold,
-    fontWeight: "600",
-    fontSize: 13,
-  },
-  box: {
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    borderRadius: radii.md,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
-  boxInner: {
-    width: "100%",
+  trigger: {
+    alignSelf: "stretch",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
+    justifyContent: "center",
+    gap: 8,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    backgroundColor: colors.primarySoft,
+    borderRadius: radii.md,
+    paddingVertical: 10,
+    paddingHorizontal: spacing.md,
   },
-  value: {
+  triggerText: {
     ...rtlText,
-    flex: 1,
-    minWidth: 0,
-    color: colors.text,
+    color: colors.primary,
+    fontFamily: fonts.bold,
     fontSize: 15,
-    fontFamily: fonts.semiBold,
   },
-  bar: {
-    width: "100%",
-    flexWrap: "wrap",
-    alignItems: "flex-start",
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
+  badge: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  badgeText: {
+    color: "#fff",
+    fontSize: 11,
+    fontFamily: fonts.bold,
+  },
+  summary: {
+    ...rtlText,
+    marginTop: 6,
+    color: colors.textMuted,
+    fontSize: 12,
+    fontFamily: fonts.semiBold,
   },
   backdrop: {
     flex: 1,
@@ -183,7 +244,7 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    maxHeight: "78%",
+    maxHeight: "82%",
     shadowColor: "#0F172A",
     shadowOpacity: 0.18,
     shadowRadius: 18,
@@ -199,9 +260,20 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: spacing.md,
   },
-  list: {
-    maxHeight: 320,
+  body: {
+    maxHeight: 420,
     marginBottom: spacing.md,
+  },
+  fieldLabel: {
+    ...rtlText,
+    width: "100%",
+    marginBottom: spacing.sm,
+    color: colors.text,
+    fontFamily: fonts.semiBold,
+    fontSize: 14,
+  },
+  options: {
+    gap: spacing.sm,
   },
   option: {
     ...rtlRow(),
@@ -230,7 +302,13 @@ const styles = StyleSheet.create({
   optionTextOn: {
     color: colors.primary,
   },
+  actions: {
+    width: "100%",
+    gap: spacing.sm,
+    alignItems: "stretch",
+  },
   cancelBtn: {
+    flex: 1,
     borderWidth: 1.5,
     borderColor: colors.border,
     borderRadius: radii.md,
@@ -241,5 +319,18 @@ const styles = StyleSheet.create({
     ...rtlText,
     fontFamily: fonts.bold,
     color: colors.textMuted,
+  },
+  applyBtn: {
+    flex: 1,
+    borderRadius: radii.md,
+    paddingVertical: 12,
+    alignItems: "center",
+    backgroundColor: colors.primary,
+  },
+  applyText: {
+    ...rtlText,
+    fontFamily: fonts.bold,
+    color: "#fff",
+    fontSize: 15,
   },
 });

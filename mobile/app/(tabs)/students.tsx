@@ -9,7 +9,7 @@ import {
   SearchField,
   SkeletonList,
 } from "@/src/components/ui";
-import { FilterBar, FilterSelect } from "@/src/components/FilterSelect";
+import { FiltersSheet } from "@/src/components/FilterSelect";
 import { IconActionBar } from "@/src/components/IconActionBar";
 import { PaginationBar } from "@/src/components/PaginationBar";
 import { t } from "@/src/i18n/ar";
@@ -96,20 +96,26 @@ export default function StudentsTab() {
             },
           ]}
         />
-        <FilterBar>
-          <FilterSelect
-            label={t("filterByGroup")}
-            value={groupFilter}
-            options={groupOptions}
-            onChange={setGroupFilter}
-          />
-          <FilterSelect
-            label={t("filterByStatus")}
-            value={statusFilter}
-            options={statusOptions}
-            onChange={setStatusFilter}
-          />
-        </FilterBar>
+        <FiltersSheet
+          fields={[
+            {
+              key: "group",
+              label: t("filterByGroup"),
+              value: groupFilter,
+              options: groupOptions,
+            },
+            {
+              key: "status",
+              label: t("filterByStatus"),
+              value: statusFilter,
+              options: statusOptions,
+            },
+          ]}
+          onApply={(next) => {
+            setGroupFilter(next.group ?? "all");
+            setStatusFilter(next.status ?? "all");
+          }}
+        />
         <SearchField
           value={query}
           onChangeText={setQuery}

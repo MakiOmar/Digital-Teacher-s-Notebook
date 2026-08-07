@@ -3,6 +3,23 @@ const { getDefaultConfig } = require("expo/metro-config");
 
 const config = getDefaultConfig(__dirname);
 
+// Expo SQLite on web needs .wasm treated as an asset (not a JS module).
+if (!config.resolver.assetExts.includes("wasm")) {
+  config.resolver.assetExts.push("wasm");
+}
+
+// SharedArrayBuffer (wa-sqlite) requires these headers when serving web.
+config.server = {
+  ...config.server,
+  enhanceMiddleware: (middleware) => {
+    return (req, res, next) => {
+      res.setHeader("Cross-Origin-Embedder-Policy", "credentialless");
+      res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+      return middleware(req, res, next);
+    };
+  },
+};
+
 // Expo already blocks exact `android/.gradle`, but Metro still watches nested
 // paths like `android/.gradle/build-attribution` and crashes on Windows.
 const extraBlockList = [
@@ -27,7 +44,7 @@ const rnEntry = require.resolve("react-native");
 const projectRoot = path.resolve(__dirname).replace(/\\/g, "/");
 
 /**
- * Route app imports of `react-native` through our Cairo Text shim.
+ * Route app imports of `react-native` through our CairoText shim.
  * node_modules and the shim itself still resolve to the real package.
  */
 config.resolver.resolveRequest = (context, moduleName, platform) => {

@@ -1,3 +1,4 @@
+import { Platform } from "react-native";
 import { Tabs } from "expo-router";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { colors } from "@/src/theme/colors";
@@ -23,9 +24,10 @@ export default function TabLayout() {
           borderTopColor: colors.border,
         },
         sceneStyle: { backgroundColor: "transparent" },
+        // Cairo bold face file — do not set fontWeight on Android or it falls back to Roboto.
         tabBarLabelStyle: {
           fontFamily: fonts.bold,
-          fontWeight: "700",
+          fontWeight: Platform.OS === "android" ? "normal" : "700",
           fontSize: 11,
         },
       }}

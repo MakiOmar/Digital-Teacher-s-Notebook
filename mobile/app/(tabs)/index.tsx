@@ -143,7 +143,7 @@ export default function HomeScreen() {
       <Screen>
         <TourAnchor id="homeHeader">
           <View style={styles.header}>
-            {/* Logo on the start edge (right in RTL); profile+welcome on the other */}
+            {/* Logo physical left; profile cluster on the right */}
             <Image source={LOGO} style={styles.logo} resizeMode="contain" />
             <ProfileWelcome
               name={tutorName}
@@ -300,8 +300,9 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  // Physical LTR: logo left, profile/welcome right (requested).
   header: {
-    ...rtlRow(),
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: spacing.md,
@@ -318,6 +319,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     flex: 1,
     minWidth: 0,
+    justifyContent: "flex-end",
   },
   profileRing: {
     width: 64,

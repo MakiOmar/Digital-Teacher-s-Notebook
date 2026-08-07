@@ -4,23 +4,7 @@ import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { reloadAppAsync } from "expo";
 import { useCallback, useEffect, useState } from "react";
-import {
-  AppState,
-  I18nManager,
-  LogBox,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
-
-/* export * from RN in the Cairo shim can surface module-level deprecation
- * notices for removed APIs; hide the noise — FlatList/etc. still work. */
-LogBox.ignoreLogs([
-  "ProgressBarAndroid has been extracted",
-  "Clipboard has been extracted",
-  "PushNotificationIOS has been extracted",
-  "NativeEventEmitter",
-]);
+import { AppState, I18nManager, StyleSheet, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";

@@ -53,5 +53,6 @@ Build APK أصغر للاختبار: المشروع مضبوط على **arm64-v8
 
 - Expo SDK 57 — راجع وثائق v57.
 - RTL عربي مفعّل من الإقلاع.
-- `babel.config.js` يضع Reanimated plugin آخراً.
+- في Expo Go: `extra.supportsRTL` / `forcesRTL` وplugin `expo-localization` مع `forcesRTL: true` (مطلوبة لأن Expo Go يتجاهل `I18nManager` الديناميكي).
+- `babel.config.js` يضع Worklets plugin آخراً.
 - `metro.config.js` يمنع مراقبة `android/.gradle` على Windows.

@@ -16,6 +16,10 @@
     "locales": {
       "ar": "./locales/ar.json"
     },
+    "extra": {
+      "supportsRTL": true,
+      "forcesRTL": true
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.tutoringmanager.app"
@@ -40,7 +44,13 @@
     "plugins": [
       "expo-router",
       "expo-sqlite",
-      "expo-localization",
+      [
+        "expo-localization",
+        {
+          "supportsRTL": true,
+          "forcesRTL": true
+        }
+      ],
       [
         "expo-splash-screen",
         {
@@ -86,7 +96,8 @@
           "faceIDPermission": "السماح للتطبيق باستخدام Face ID لقفل التطبيق."
         }
       ],
-      "expo-notifications"
+      "expo-notifications",
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true

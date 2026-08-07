@@ -18,6 +18,8 @@ Install Expo Go:
 
 > In Expo Go, open the projects tab and confirm the app supports **SDK 57**. If it does not, update Expo Go from the store.
 
+**RTL:** This app forces Arabic RTL via `expo.extra.supportsRTL` / `forcesRTL` and the `expo-localization` plugin. After pulling config changes, fully close the project in Expo Go (or clear project data) and reopen — Expo Go reads those flags from the manifest on open.
+
 **Important (Worklets):** This project uses `react-native-worklets@0.10.1` / `react-native-reanimated@4.5.1`. Use Expo Go **Android 57.0.3+** (or **iOS 57.0.6+**).
 
 If you still see `Mismatch … (0.10.1 vs. 0.10.0)` after updating Expo Go, Metro is serving a **stale Babel cache** — stop Metro (Ctrl+C), then from `mobile/`:

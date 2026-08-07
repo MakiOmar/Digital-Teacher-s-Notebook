@@ -40,13 +40,16 @@ import { GeneralSettingsProvider } from "@/src/settings/GeneralSettingsContext";
 import { TourProvider } from "@/src/tour/TourContext";
 import { TourSpotlight } from "@/src/tour/TourSpotlight";
 
-const RTL_RELOAD_KEY = "tutoring.rtl.reload.v1";
+const RTL_RELOAD_KEY = "tutoring.rtl.reload.v2";
 
 /**
  * Do NOT wrap the tree with style direction:'rtl' — that flips textAlign.
  * Use src/theme/rtl.ts helpers (visualTextAlign / rtlRow / rtlChipRow) so
  * Arabic text stays on the physical right whether or not forceRTL has applied.
- * forceRTL needs one reload for native navigation chrome (back button side).
+ *
+ * Expo Go: also set expo.extra.supportsRTL / forcesRTL + expo-localization
+ * plugin flags in app.json — runtime I18nManager alone is reset/ignored there.
+ * forceRTL still needs one reload for native navigation chrome (back button).
  */
 I18nManager.allowRTL(true);
 I18nManager.forceRTL(true);

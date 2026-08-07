@@ -48,6 +48,15 @@ function SnapshotChip({ label, value }: { label: string; value: string }) {
   );
 }
 
+/** Soft cap so the home header stays compact next to the logo. */
+const HOME_NAME_MAX = 18;
+
+function displayHomeName(raw: string): string {
+  const name = raw.trim();
+  if (name.length <= HOME_NAME_MAX) return name;
+  return `${name.slice(0, HOME_NAME_MAX).trimEnd()}…`;
+}
+
 /** Profile + welcome (+ optional year chip) grouped for the home header. */
 function ProfileWelcome({
   name,
@@ -60,6 +69,8 @@ function ProfileWelcome({
   profileSource: ReturnType<typeof useTutorProfile>["profileSource"];
   onPressProfile: () => void;
 }) {
+  const shownName = displayHomeName(name);
+
   return (
     <View style={styles.profileWelcome}>
       {/* Tap avatar → profile settings */}
@@ -75,11 +86,15 @@ function ProfileWelcome({
         <Image source={profileSource} style={styles.profile} />
       </Pressable>
       <View style={styles.welcomeCol}>
-        {name.trim() ? (
+        {shownName ? (
           <View style={styles.welcomeRow}>
             <Text style={styles.welcomeWave}>👋</Text>
-            <Text style={styles.welcomeText} numberOfLines={1}>
-              {t("homeWelcome")} {name.trim()}
+            <Text
+              style={styles.welcomeText}
+              numberOfLines={2}
+              ellipsizeMode="tail"
+            >
+              {t("homeWelcome")} {shownName}
             </Text>
           </View>
         ) : null}
@@ -347,20 +362,25 @@ const styles = StyleSheet.create({
   welcomeCol: {
     flex: 1,
     minWidth: 0,
+    maxWidth: "100%",
     alignItems: "flex-start",
     gap: 6,
   },
   welcomeRow: {
     ...rtlRow(),
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: 6,
     width: "100%",
+    minWidth: 0,
   },
-  welcomeWave: { fontSize: 18 },
+  welcomeWave: { fontSize: 18, marginTop: 2 },
   welcomeText: {
     ...rtlText,
+    flex: 1,
     flexShrink: 1,
+    minWidth: 0,
     fontSize: 16,
+    lineHeight: 22,
     fontFamily: fonts.extraBold,
     fontWeight: "800",
     color: colors.text,

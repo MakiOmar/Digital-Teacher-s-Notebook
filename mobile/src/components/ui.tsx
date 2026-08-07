@@ -11,6 +11,7 @@ import {
   TextStyle,
   StyleProp,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, radii, spacing } from "../theme/colors";
 import { fonts, fontBold, fontExtraBold, fontSemiBold } from "../theme/typography";
 import { rtlRow, rtlText, rtlBlock, rtlChipRow, inputShell, inputTextAlign } from "../theme/rtl";
@@ -21,17 +22,22 @@ export function Screen({
   children,
   style,
   padded = true,
+  /** Clear the system status bar (time / network). Default on. */
+  safeTop = true,
 }: {
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
   padded?: boolean;
+  safeTop?: boolean;
 }) {
+  const insets = useSafeAreaInsets();
+
   return (
     <View
       style={[
         styles.screen,
         {
-          paddingTop: spacing.sm,
+          paddingTop: (safeTop ? insets.top : 0) + spacing.sm,
           paddingBottom: spacing.sm,
           paddingHorizontal: padded ? spacing.lg : 0,
         },

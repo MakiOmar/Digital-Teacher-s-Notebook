@@ -1,4 +1,4 @@
-import { Platform } from "react-native";
+import { Platform, Text } from "react-native";
 import { Tabs } from "expo-router";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { colors } from "@/src/theme/colors";
@@ -10,6 +10,30 @@ function TabIcon(props: {
   color: string;
 }) {
   return <FontAwesome size={22} style={{ marginBottom: -2 }} {...props} />;
+}
+
+function TabLabel({
+  color,
+  children,
+}: {
+  color: string;
+  children: string;
+}) {
+  return (
+    <Text
+      style={{
+        color,
+        fontSize: 11,
+        fontFamily: fonts.bold,
+        // Android: custom fontFamily + bold weight → Roboto fallback
+        fontWeight: Platform.OS === "android" ? "normal" : "700",
+        textAlign: "center",
+      }}
+      numberOfLines={1}
+    >
+      {children}
+    </Text>
+  );
 }
 
 export default function TabLayout() {
@@ -24,12 +48,9 @@ export default function TabLayout() {
           borderTopColor: colors.border,
         },
         sceneStyle: { backgroundColor: "transparent" },
-        // Cairo bold face file — do not set fontWeight on Android or it falls back to Roboto.
-        tabBarLabelStyle: {
-          fontFamily: fonts.bold,
-          fontWeight: Platform.OS === "android" ? "normal" : "700",
-          fontSize: 11,
-        },
+        tabBarLabel: ({ color, children }) => (
+          <TabLabel color={String(color)}>{String(children)}</TabLabel>
+        ),
       }}
     >
       <Tabs.Screen

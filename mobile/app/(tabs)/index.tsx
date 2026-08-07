@@ -300,8 +300,10 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  // Physical LTR: logo left, profile/welcome right (requested).
+  // Under I18nManager.forceRTL, plain `row` still packs from the right.
+  // Force physical LTR so logo stays on the left edge of the screen.
   header: {
+    direction: "ltr",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -313,13 +315,15 @@ const styles = StyleSheet.create({
     height: 72,
     backgroundColor: "transparent",
   },
+  // Keep profile cluster RTL so avatar sits toward the physical right.
   profileWelcome: {
-    ...rtlRow(),
+    direction: "rtl",
+    flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
     flex: 1,
     minWidth: 0,
-    justifyContent: "flex-end",
+    justifyContent: "flex-start",
   },
   profileRing: {
     width: 64,

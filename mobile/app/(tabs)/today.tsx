@@ -1,5 +1,5 @@
-import { useCallback, useState } from "react";
-import { FlatList, RefreshControl } from "react-native";
+import { useCallback, useMemo, useState } from "react";
+import { FlatList, RefreshControl, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import {
   EmptyState,
@@ -8,11 +8,12 @@ import {
   Screen,
   Title,
 } from "@/src/components/ui";
+import { FilterBar, FilterSelect } from "@/src/components/FilterSelect";
 import { PaginationBar } from "@/src/components/PaginationBar";
 import { TourAnchor } from "@/src/tour/TourAnchor";
 import { t } from "@/src/i18n/ar";
 import { listTodaysSessions } from "@/src/repositories";
-import type { GroupSession } from "@/src/db/types";
+import type { GroupSession, SessionStatus } from "@/src/db/types";
 import { formatDateTimeAr } from "@/src/utils/date";
 import { groupAccentColor, spacing } from "@/src/theme/colors";
 import { sessionStatusLabel } from "@/src/components/SessionClassButton";
@@ -21,11 +22,20 @@ import { useGeneralSettings } from "@/src/settings/GeneralSettingsContext";
 
 type Row = GroupSession & { group_name: string; accent_color: string | null };
 
+const STATUS_OPTIONS = [
+  { value: "all", labelKey: "filterAllStatuses" as const },
+  { value: "scheduled", labelKey: "sessionScheduled" as const },
+  { value: "completed", labelKey: "sessionCompleted" as const },
+  { value: "cancelled", labelKey: "sessionCancelled" as const },
+  { value: "rescheduled", labelKey: "sessionRescheduled" as const },
+];
+
 export default function TodayScreen() {
   const router = useRouter();
   const { pageSize } = useGeneralSettings();
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<Row[]>([]);
+  const [statusFilter, setStatusFilter] = useState<"all" | string>("all");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -42,7 +52,21 @@ export default function TodayScreen() {
     }, [load])
   );
 
-  const paging = useClientPagination(rows, pageSize);
+  const statusOptions = useMemo(
+    () =>
+      STATUS_OPTIONS.map((o) => ({
+        value: o.value,
+        label: t(o.labelKey),
+      })),
+    []
+  );
+
+  const filtered = useMemo(() => {
+    if (statusFilter === "all") return rows;
+    return rows.filter((r) => r.status === (statusFilter as SessionStatus));
+  }, [rows, statusFilter]);
+
+  const paging = useClientPagination(filtered, pageSize, statusFilter);
 
   if (loading && !rows.length) {
     return (
@@ -62,9 +86,19 @@ export default function TodayScreen() {
           <RefreshControl refreshing={loading} onRefresh={() => void load()} />
         }
         ListHeaderComponent={
-          <TourAnchor id="todayHeader">
-            <Title>{t("todaySchedule")}</Title>
-          </TourAnchor>
+          <View>
+            <TourAnchor id="todayHeader">
+              <Title>{t("todaySchedule")}</Title>
+            </TourAnchor>
+            <FilterBar>
+              <FilterSelect
+                label={t("filterByStatus")}
+                value={statusFilter}
+                options={statusOptions}
+                onChange={setStatusFilter}
+              />
+            </FilterBar>
+          </View>
         }
         ListEmptyComponent={<EmptyState message={t("noSessionsToday")} />}
         ListFooterComponent={

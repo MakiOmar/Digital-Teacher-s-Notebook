@@ -382,11 +382,13 @@ export async function listStudents(): Promise<Student[]> {
 
 /** Students with active enrollment group name in one query (no N+1). */
 export async function listStudentsWithEnrollment(): Promise<
-  (Student & { group_name: string | null })[]
+  (Student & { group_name: string | null; group_id: number | null })[]
 > {
   const db = await getDb();
-  return db.getAllAsync<Student & { group_name: string | null }>(
-    `SELECT s.*, g.name as group_name
+  return db.getAllAsync<
+    Student & { group_name: string | null; group_id: number | null }
+  >(
+    `SELECT s.*, g.name as group_name, e.group_id as group_id
      FROM students s
      LEFT JOIN enrollments e
        ON e.student_id = s.id AND e.status = 'active'

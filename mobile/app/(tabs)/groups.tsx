@@ -9,6 +9,7 @@ import {
   SearchField,
   SkeletonList,
 } from "@/src/components/ui";
+import { FilterBar, FilterSelect } from "@/src/components/FilterSelect";
 import { IconActionBar } from "@/src/components/IconActionBar";
 import { PaginationBar } from "@/src/components/PaginationBar";
 import { TourAnchor } from "@/src/tour/TourAnchor";
@@ -33,13 +34,17 @@ type GroupRow = StudyGroup & {
   student_count: number;
   total_fees: number;
   sortDay: number;
+  weekdays: Weekday[];
 };
+
+const WEEKDAY_ORDER: Weekday[] = [6, 0, 1, 2, 3, 4, 5];
 
 export default function GroupsTab() {
   const router = useRouter();
   const { bump, revision } = useAppData();
   const { pageSize } = useGeneralSettings();
   const [query, setQuery] = useState("");
+  const [weekdayFilter, setWeekdayFilter] = useState<"all" | string>("all");
 
   const fetcher = useCallback(async () => {
     const [list, stats] = await Promise.all([
@@ -64,6 +69,7 @@ export default function GroupsTab() {
         student_count: Number(st?.student_count ?? 0),
         total_fees: Number(st?.total_fees ?? 0),
         sortDay: primaryWeekday(weekdays),
+        weekdays,
       };
     });
     enriched.sort((a, b) => {
@@ -76,15 +82,34 @@ export default function GroupsTab() {
   const { data: groups, loading, refreshing, reload } =
     useRefreshableList(fetcher);
 
-  const filtered = useMemo(() => {
-    const q = query.trim();
-    if (!q) return groups;
-    return groups.filter(
-      (g) => g.name.includes(q) || (g.subject ?? "").includes(q)
-    );
-  }, [groups, query]);
+  const weekdayOptions = useMemo(
+    () => [
+      { value: "all", label: t("filterAllWeekdays") },
+      ...WEEKDAY_ORDER.map((d) => ({
+        value: String(d),
+        label: WEEKDAY_LABELS[d],
+      })),
+    ],
+    []
+  );
 
-  const paging = useClientPagination(filtered, pageSize, query.trim());
+  const filtered = useMemo(() => {
+    let list = groups;
+    const q = query.trim();
+    if (q) {
+      list = list.filter(
+        (g) => g.name.includes(q) || (g.subject ?? "").includes(q)
+      );
+    }
+    if (weekdayFilter !== "all") {
+      const day = Number(weekdayFilter) as Weekday;
+      list = list.filter((g) => g.weekdays.includes(day));
+    }
+    return list;
+  }, [groups, query, weekdayFilter]);
+
+  const resetKey = `${query.trim()}:${weekdayFilter}`;
+  const paging = useClientPagination(filtered, pageSize, resetKey);
 
   if (loading) {
     return (
@@ -109,6 +134,14 @@ export default function GroupsTab() {
             },
           ]}
         />
+        <FilterBar>
+          <FilterSelect
+            label={t("filterByWeekday")}
+            value={weekdayFilter}
+            options={weekdayOptions}
+            onChange={setWeekdayFilter}
+          />
+        </FilterBar>
         <SearchField
           value={query}
           onChangeText={setQuery}

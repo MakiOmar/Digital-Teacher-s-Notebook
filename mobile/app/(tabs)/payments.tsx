@@ -3,13 +3,13 @@ import { FlatList, Pressable, View } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter } from "expo-router";
 import {
-  Chip,
   EmptyState,
   ListRow,
   Screen,
   SkeletonList,
   StatCard,
 } from "@/src/components/ui";
+import { FilterBar, FilterSelect } from "@/src/components/FilterSelect";
 import { PaginationBar } from "@/src/components/PaginationBar";
 import { TourAnchor } from "@/src/tour/TourAnchor";
 import { t } from "@/src/i18n/ar";
@@ -20,7 +20,6 @@ import { useGeneralSettings } from "@/src/settings/GeneralSettingsContext";
 import type { PaymentStatus, StudentDueRow } from "@/src/db/types";
 import { formatMoney, formatRoundTitle } from "@/src/utils/date";
 import { colors, spacing } from "@/src/theme/colors";
-import { rtlChipRow } from "@/src/theme/rtl";
 
 type PaymentListState = {
   dues: StudentDueRow[];
@@ -57,6 +56,24 @@ export default function PaymentsTab() {
     for (const d of state.dues) map.set(d.group_id, d.group_name);
     return [...map.entries()].map(([id, name]) => ({ id, name }));
   }, [state.dues]);
+
+  const groupOptions = useMemo(
+    () => [
+      { value: "all", label: t("filterAllGroups") },
+      ...groups.map((g) => ({ value: String(g.id), label: g.name })),
+    ],
+    [groups]
+  );
+
+  const statusOptions = useMemo(
+    () => [
+      { value: "unpaid", label: t("unpaid") },
+      { value: "partial", label: t("partial") },
+      { value: "paid", label: t("paid") },
+      { value: "all", label: t("filterAll") },
+    ],
+    []
+  );
 
   const filtered = useMemo(() => {
     let rows = state.dues;
@@ -97,38 +114,22 @@ export default function PaymentsTab() {
             />
           </View>
         </TourAnchor>
-        <View style={[rtlChipRow(), { marginBottom: 8 }]}>
-          <Chip
-            label={t("filterAllGroups")}
-            selected={groupFilter === "all"}
-            onPress={() => setGroupFilter("all")}
+        <FilterBar>
+          <FilterSelect
+            label={t("filterByGroup")}
+            value={groupFilter === "all" ? "all" : String(groupFilter)}
+            options={groupOptions}
+            onChange={(v) =>
+              setGroupFilter(v === "all" ? "all" : Number(v))
+            }
           />
-          {groups.map((g) => (
-            <Chip
-              key={g.id}
-              label={g.name}
-              selected={groupFilter === g.id}
-              onPress={() => setGroupFilter(g.id)}
-            />
-          ))}
-        </View>
-        <View style={rtlChipRow()}>
-          {(
-            [
-              ["unpaid", t("unpaid")],
-              ["partial", t("partial")],
-              ["paid", t("paid")],
-              ["all", t("filterAll")],
-            ] as const
-          ).map(([key, label]) => (
-            <Chip
-              key={key}
-              label={label}
-              selected={filter === key}
-              onPress={() => setFilter(key)}
-            />
-          ))}
-        </View>
+          <FilterSelect
+            label={t("filterByStatus")}
+            value={filter}
+            options={statusOptions}
+            onChange={(v) => setFilter(v as PaymentStatus | "all")}
+          />
+        </FilterBar>
       </View>
       <FlatList
         style={{ flex: 1 }}

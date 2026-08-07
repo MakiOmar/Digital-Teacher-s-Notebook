@@ -9,6 +9,7 @@ import {
   SearchField,
   SkeletonList,
 } from "@/src/components/ui";
+import { FilterBar, FilterSelect } from "@/src/components/FilterSelect";
 import { IconActionBar } from "@/src/components/IconActionBar";
 import { PaginationBar } from "@/src/components/PaginationBar";
 import { t } from "@/src/i18n/ar";
@@ -23,17 +24,54 @@ export default function StudentsTab() {
   const router = useRouter();
   const { pageSize } = useGeneralSettings();
   const [query, setQuery] = useState("");
+  const [groupFilter, setGroupFilter] = useState<"all" | string>("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | string>("all");
   const fetcher = useCallback(() => listStudentsWithEnrollment(), []);
   const { data: rows, loading, refreshing, reload } =
     useRefreshableList(fetcher);
 
-  const filtered = useMemo(() => {
-    const q = query.trim();
-    if (!q) return rows;
-    return rows.filter((r) => r.name.includes(q));
-  }, [rows, query]);
+  const groupOptions = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const r of rows) {
+      if (r.group_id != null && r.group_name) {
+        map.set(r.group_id, r.group_name);
+      }
+    }
+    return [
+      { value: "all", label: t("filterAllGroups") },
+      ...[...map.entries()].map(([id, name]) => ({
+        value: String(id),
+        label: name,
+      })),
+    ];
+  }, [rows]);
 
-  const paging = useClientPagination(filtered, pageSize, query.trim());
+  const statusOptions = useMemo(
+    () => [
+      { value: "all", label: t("filterAllStatuses") },
+      { value: "active", label: t("active") },
+      { value: "paused", label: t("paused") },
+      { value: "withdrawn", label: t("withdrawn") },
+    ],
+    []
+  );
+
+  const filtered = useMemo(() => {
+    let list = rows;
+    const q = query.trim();
+    if (q) list = list.filter((r) => r.name.includes(q));
+    if (groupFilter !== "all") {
+      const gid = Number(groupFilter);
+      list = list.filter((r) => r.group_id === gid);
+    }
+    if (statusFilter !== "all") {
+      list = list.filter((r) => r.status === statusFilter);
+    }
+    return list;
+  }, [rows, query, groupFilter, statusFilter]);
+
+  const resetKey = `${query.trim()}:${groupFilter}:${statusFilter}`;
+  const paging = useClientPagination(filtered, pageSize, resetKey);
 
   if (loading) {
     return (
@@ -58,6 +96,20 @@ export default function StudentsTab() {
             },
           ]}
         />
+        <FilterBar>
+          <FilterSelect
+            label={t("filterByGroup")}
+            value={groupFilter}
+            options={groupOptions}
+            onChange={setGroupFilter}
+          />
+          <FilterSelect
+            label={t("filterByStatus")}
+            value={statusFilter}
+            options={statusOptions}
+            onChange={setStatusFilter}
+          />
+        </FilterBar>
         <SearchField
           value={query}
           onChangeText={setQuery}
@@ -95,7 +147,15 @@ export default function StudentsTab() {
           <ListRow
             title={item.name}
             subtitle={`${item.group_name ?? "—"}${item.guardian_phone ? ` · ${item.guardian_phone}` : ""}`}
-            right={item.status === "active" ? t("active") : item.status}
+            right={
+              item.status === "active"
+                ? t("active")
+                : item.status === "paused"
+                  ? t("paused")
+                  : item.status === "withdrawn"
+                    ? t("withdrawn")
+                    : item.status
+            }
             borderColor={colors.primary}
             onPress={() => router.push(`/students/${item.id}`)}
             trailing={

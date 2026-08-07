@@ -10,7 +10,7 @@ export type AttendanceCoverage = { marked: number; total: number };
 export function sessionStatusLabel(status: SessionStatus | string): string {
   if (status === "completed") return t("sessionCompleted");
   if (status === "cancelled") return t("sessionCancelled");
-  if (status === "rescheduled") return t("sessionScheduled");
+  if (status === "rescheduled") return t("sessionRescheduled");
   return t("sessionScheduled");
 }
 

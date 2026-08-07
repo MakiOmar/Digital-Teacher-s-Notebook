@@ -45,19 +45,18 @@ const projectRoot = path.resolve(__dirname).replace(/\\/g, "/");
 
 /**
  * Route app imports of `react-native` through our CairoText shim.
- * node_modules and the shim itself still resolve to the real package.
+ * node_modules and everything under src/theme still resolve to the real package
+ * (avoids require cycles: cairo shim ↔ typography).
  */
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (moduleName === "react-native") {
     const origin = (context.originModulePath || "").replace(/\\/g, "/");
-    const fromShimOrTypography =
-      origin.endsWith("/src/theme/react-native-cairo.tsx") ||
-      origin.endsWith("/src/theme/typography.ts");
+    const fromTheme = origin.includes("/src/theme/");
     const inAppCode =
       origin.startsWith(projectRoot + "/app/") ||
       origin.startsWith(projectRoot + "/src/") ||
       origin.startsWith(projectRoot + "/components/");
-    if (fromShimOrTypography || !inAppCode) {
+    if (fromTheme || !inAppCode) {
       return { filePath: rnEntry, type: "sourceFile" };
     }
     return { filePath: shimPath, type: "sourceFile" };

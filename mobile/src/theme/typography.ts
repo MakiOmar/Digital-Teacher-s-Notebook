@@ -21,15 +21,16 @@ export const fonts = {
 export const fontRegular: TextStyle = { fontFamily: fonts.regular };
 export const fontSemiBold: TextStyle = {
   fontFamily: fonts.semiBold,
-  fontWeight: Platform.OS === "android" ? "normal" : "600",
+  // Guard: during Metro resolve edge-cases Platform can be briefly undefined.
+  fontWeight: Platform?.OS === "android" ? "normal" : "600",
 };
 export const fontBold: TextStyle = {
   fontFamily: fonts.bold,
-  fontWeight: Platform.OS === "android" ? "normal" : "700",
+  fontWeight: Platform?.OS === "android" ? "normal" : "700",
 };
 export const fontExtraBold: TextStyle = {
   fontFamily: fonts.bold,
-  fontWeight: Platform.OS === "android" ? "normal" : "700",
+  fontWeight: Platform?.OS === "android" ? "normal" : "700",
 };
 
 const CAIRO_FAMILIES = new Set<string>([
@@ -84,7 +85,7 @@ export function resolveCairoStyle(
     family = existingFamily;
   }
 
-  if (Platform.OS === "android") {
+  if (Platform?.OS === "android") {
     return [style, { fontFamily: family, fontWeight: "normal" }];
   }
   return [style, { fontFamily: family }];

@@ -51,6 +51,8 @@ export function SetupWizardScreen() {
   const [backup, setBackup] = useState<AutoBackupSettings>({
     enabled: false,
     frequency: "daily",
+    fileMode: "new",
+    onEveryEdit: false,
     lastRunAt: null,
     lastPath: null,
     directoryUri: null,

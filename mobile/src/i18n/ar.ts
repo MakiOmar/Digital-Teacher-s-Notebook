@@ -339,11 +339,19 @@ export const ar = {
   // Auto backup
   autoBackup: "نسخ احتياطي تلقائي",
   autoBackupHint:
-    "حفظ نسخة JSON تلقائياً على الجهاز عند فتح التطبيق (بدون رفع سحابي).",
+    "حفظ نسخة JSON تلقائياً على الجهاز حسب الجدول و/أو عند أي تعديل (بدون رفع سحابي).",
   autoBackupEnable: "تفعيل النسخ التلقائي",
   autoBackupFrequency: "التكرار",
   autoBackupDaily: "يومياً",
   autoBackupWeekly: "أسبوعياً",
+  autoBackupOnEveryEdit: "نسخ عند أي تعديل",
+  autoBackupOnEveryEditHint:
+    "بعد أي حفظ أو تغيير للبيانات يُنشأ نسخ تلقائي (بعد توقف قصير عن التعديل).",
+  autoBackupFileMode: "طريقة حفظ الملف",
+  autoBackupFileModeHint:
+    "استبدال: ملف واحد ثابت يُحدَّث. ملف جديد: نسخة مؤرخة في كل مرة (يُحتفظ بآخر 5).",
+  autoBackupReplaceFile: "استبدال الملف السابق",
+  autoBackupNewFile: "ملف جديد في كل مرة",
   autoBackupLastRun: "آخر نسخ تلقائي",
   autoBackupNever: "لم يُنفَّذ بعد",
   autoBackupSaved: "تم حفظ إعدادات النسخ التلقائي",

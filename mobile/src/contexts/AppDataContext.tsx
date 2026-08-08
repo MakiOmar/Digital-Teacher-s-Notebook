@@ -13,6 +13,7 @@ import {
   listStudyMonths,
   resolveCurrentStudyMonth,
 } from "../repositories";
+import { scheduleAutoBackupOnEdit } from "../backup/autoBackup";
 
 type AppDataContextValue = {
   ready: boolean;
@@ -67,7 +68,11 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     void refresh();
   }, [refresh, revision]);
 
-  const bump = useCallback(() => setRevision((n) => n + 1), []);
+  const bump = useCallback(() => {
+    setRevision((n) => n + 1);
+    // Debounced silent backup when "on every edit" is enabled.
+    scheduleAutoBackupOnEdit();
+  }, []);
 
   const selectedMonth = useMemo(
     () => studyMonths.find((m) => m.id === selectedMonthId) ?? null,

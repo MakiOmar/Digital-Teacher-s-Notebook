@@ -35,6 +35,7 @@ import {
 import {
   canPickBackupFolder,
   pickBackupFolder,
+  type BackupFileMode,
 } from "@/src/backup/backupLocation";
 import { colors, radii, spacing } from "@/src/theme/colors";
 import { fonts } from "@/src/theme/typography";
@@ -74,6 +75,8 @@ export default function BackupScreen() {
   const [settings, setSettings] = useState<AutoBackupSettings>({
     enabled: false,
     frequency: "daily",
+    fileMode: "new",
+    onEveryEdit: false,
     lastRunAt: null,
     lastPath: null,
     directoryUri: null,
@@ -237,6 +240,24 @@ export default function BackupScreen() {
           />
         </View>
 
+        <View style={styles.switchRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.switchLabel}>{t("autoBackupOnEveryEdit")}</Text>
+            <Muted>{t("autoBackupOnEveryEditHint")}</Muted>
+          </View>
+          <Switch
+            value={settings.onEveryEdit}
+            onValueChange={(onEveryEdit) => void persistPartial({ onEveryEdit })}
+            disabled={!settings.enabled}
+            trackColor={{ false: colors.border, true: colors.primarySoft }}
+            thumbColor={
+              settings.onEveryEdit && settings.enabled
+                ? colors.primary
+                : colors.textMuted
+            }
+          />
+        </View>
+
         <Text style={styles.freqLabel}>{t("autoBackupFrequency")}</Text>
         <View style={styles.freqRow}>
           {(["daily", "weekly"] as AutoBackupFrequency[]).map((f) => {
@@ -245,10 +266,43 @@ export default function BackupScreen() {
               <Pressable
                 key={f}
                 onPress={() => void persistPartial({ frequency: f })}
-                style={[styles.chip, selected && styles.chipOn]}
+                disabled={!settings.enabled}
+                style={[
+                  styles.chip,
+                  selected && styles.chipOn,
+                  !settings.enabled && { opacity: 0.55 },
+                ]}
               >
                 <Text style={[styles.chipText, selected && styles.chipTextOn]}>
                   {f === "daily" ? t("autoBackupDaily") : t("autoBackupWeekly")}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <Text style={styles.freqLabel}>{t("autoBackupFileMode")}</Text>
+        <Muted style={{ marginBottom: spacing.sm }}>
+          {t("autoBackupFileModeHint")}
+        </Muted>
+        <View style={styles.freqRow}>
+          {(["replace", "new"] as BackupFileMode[]).map((mode) => {
+            const selected = settings.fileMode === mode;
+            return (
+              <Pressable
+                key={mode}
+                onPress={() => void persistPartial({ fileMode: mode })}
+                disabled={!settings.enabled}
+                style={[
+                  styles.chip,
+                  selected && styles.chipOn,
+                  !settings.enabled && { opacity: 0.55 },
+                ]}
+              >
+                <Text style={[styles.chipText, selected && styles.chipTextOn]}>
+                  {mode === "replace"
+                    ? t("autoBackupReplaceFile")
+                    : t("autoBackupNewFile")}
                 </Text>
               </Pressable>
             );

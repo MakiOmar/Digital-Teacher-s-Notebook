@@ -6,30 +6,50 @@ import {
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
-import {
-  FormField,
-  Muted,
-  Screen,
-  SectionTitle,
-} from "@/src/components/ui";
+import { Muted, Screen, SectionTitle } from "@/src/components/ui";
 import { IconActionBar } from "@/src/components/IconActionBar";
+import { SelectField } from "@/src/components/FilterSelect";
 import { DateField } from "@/src/components/DateFields";
 import { t } from "@/src/i18n/ar";
 import { createAcademicYearWithSemesters } from "@/src/repositories";
 import { useAppData } from "@/src/contexts/AppDataContext";
 import { useDialog } from "@/src/components/DialogProvider";
 import { spacing } from "@/src/theme/colors";
-import { monthsOverlappingRange, yearMonthLabel } from "@/src/utils/date";
+import {
+  academicYearOptions,
+  defaultAcademicYearName,
+  defaultSemesterDatesForAcademicYear,
+  monthsOverlappingRange,
+  yearMonthLabel,
+} from "@/src/utils/date";
+
+function initialYearName(): string {
+  return defaultAcademicYearName();
+}
+
+function initialSemesterDates() {
+  return (
+    defaultSemesterDatesForAcademicYear(initialYearName()) ?? {
+      sem1Start: `${new Date().getFullYear()}-10-01`,
+      sem1End: `${new Date().getFullYear()}-12-31`,
+      sem2Start: `${new Date().getFullYear() + 1}-02-01`,
+      sem2End: `${new Date().getFullYear() + 1}-04-30`,
+    }
+  );
+}
 
 export default function YearFormScreen() {
   const router = useRouter();
   const { bump } = useAppData();
   const dialog = useDialog();
-  const [name, setName] = useState("2025/2026");
-  const [sem1Start, setSem1Start] = useState("2025-10-01");
-  const [sem1End, setSem1End] = useState("2025-12-31");
-  const [sem2Start, setSem2Start] = useState("2026-02-01");
-  const [sem2End, setSem2End] = useState("2026-04-30");
+  const yearOptions = useMemo(() => academicYearOptions(), []);
+  const defaults = useMemo(() => initialSemesterDates(), []);
+
+  const [name, setName] = useState(initialYearName);
+  const [sem1Start, setSem1Start] = useState(defaults.sem1Start);
+  const [sem1End, setSem1End] = useState(defaults.sem1End);
+  const [sem2Start, setSem2Start] = useState(defaults.sem2Start);
+  const [sem2End, setSem2End] = useState(defaults.sem2End);
   const [saving, setSaving] = useState(false);
 
   const preview1 = useMemo(() => {
@@ -47,6 +67,16 @@ export default function YearFormScreen() {
       return [];
     }
   }, [sem2Start, sem2End]);
+
+  function onSelectYear(next: string) {
+    setName(next);
+    const dates = defaultSemesterDatesForAcademicYear(next);
+    if (!dates) return;
+    setSem1Start(dates.sem1Start);
+    setSem1End(dates.sem1End);
+    setSem2Start(dates.sem2Start);
+    setSem2End(dates.sem2End);
+  }
 
   async function onSave() {
     if (!name.trim()) {
@@ -112,7 +142,14 @@ export default function YearFormScreen() {
               },
             ]}
           />
-          <FormField label={t("yearName")} value={name} onChangeText={setName} />
+          {/* Comment: academic year is picked from a generated list, not typed. */}
+          <SelectField
+            label={t("yearName")}
+            value={name}
+            options={yearOptions}
+            onChange={onSelectYear}
+            placeholder={t("selectYear")}
+          />
 
           <SectionTitle>{t("semester1")}</SectionTitle>
           <Muted style={{ marginBottom: spacing.sm }}>

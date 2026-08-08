@@ -55,8 +55,6 @@ export default function TabLayout() {
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
-        // Apply inset ourselves so height + padding stay in sync.
-        safeAreaInsets: { bottom: 0 },
         tabBarStyle: {
           backgroundColor: "rgba(255,255,255,0.97)",
           borderTopColor: colors.border,

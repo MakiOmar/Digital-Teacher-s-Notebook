@@ -188,6 +188,112 @@ export function FiltersSheet({
   );
 }
 
+/** Single-value select styled like FormField — tap opens an options modal. */
+export function SelectField({
+  label,
+  value,
+  options,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  options: FilterOption[];
+  onChange: (value: string) => void;
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = options.find((o) => o.value === value);
+  const display = selected?.label ?? placeholder ?? t("selectYear");
+
+  return (
+    <View style={[styles.fieldWrap, rtlBlock]}>
+      <Text style={styles.fieldLabelOutside}>{label}</Text>
+      <Pressable
+        onPress={() => setOpen(true)}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        style={({ pressed }) => [
+          styles.selectTrigger,
+          rtlRow(),
+          pressed && { opacity: 0.85 },
+        ]}
+      >
+        <Text style={styles.selectValue} numberOfLines={1}>
+          {display}
+        </Text>
+        <FontAwesome name="chevron-down" size={14} color={colors.primary} />
+      </Pressable>
+
+      <Modal
+        visible={open}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setOpen(false)}
+      >
+        <View style={styles.backdrop}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setOpen(false)}
+          />
+          <View style={styles.card}>
+            <Text style={styles.title}>{label}</Text>
+            <ScrollView
+              style={styles.body}
+              contentContainerStyle={{
+                gap: spacing.sm,
+                paddingBottom: spacing.sm,
+              }}
+              keyboardShouldPersistTaps="handled"
+            >
+              {options.map((opt) => {
+                const on = opt.value === value;
+                return (
+                  <Pressable
+                    key={opt.value}
+                    onPress={() => {
+                      onChange(opt.value);
+                      setOpen(false);
+                    }}
+                    style={({ pressed }) => [
+                      styles.option,
+                      on && styles.optionOn,
+                      pressed && { opacity: 0.75 },
+                    ]}
+                  >
+                    <Text
+                      style={[styles.optionText, on && styles.optionTextOn]}
+                      numberOfLines={2}
+                    >
+                      {opt.label}
+                    </Text>
+                    {on ? (
+                      <FontAwesome
+                        name="check"
+                        size={14}
+                        color={colors.primary}
+                      />
+                    ) : null}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+            <Pressable
+              onPress={() => setOpen(false)}
+              style={({ pressed }) => [
+                styles.cancelBtn,
+                pressed && { opacity: 0.75 },
+              ]}
+            >
+              <Text style={styles.cancelText}>{t("cancel")}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   triggerWrap: {
     width: "100%",
@@ -271,6 +377,37 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontFamily: fonts.semiBold,
     fontSize: 14,
+  },
+  fieldWrap: {
+    width: "100%",
+    marginBottom: spacing.md,
+  },
+  fieldLabelOutside: {
+    ...rtlText,
+    width: "100%",
+    marginBottom: 6,
+    color: colors.text,
+    fontFamily: fonts.semiBold,
+    fontSize: 14,
+  },
+  selectTrigger: {
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    paddingVertical: 12,
+    paddingHorizontal: spacing.md,
+  },
+  selectValue: {
+    ...rtlText,
+    flex: 1,
+    minWidth: 0,
+    fontSize: 16,
+    fontFamily: fonts.semiBold,
+    color: colors.text,
   },
   options: {
     gap: spacing.sm,

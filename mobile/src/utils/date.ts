@@ -256,6 +256,59 @@ export function todayDateOnly(): string {
   return toDateOnly(new Date());
 }
 
+/**
+ * Academic year labels starting at (calendarYear-1)/calendarYear,
+ * then each following year for `forwardYears` more entries (inclusive start).
+ * Example (2026, 30): 2025/2026 … through 30 further years → 31 options.
+ */
+export function academicYearOptions(
+  calendarYear = new Date().getFullYear(),
+  forwardYears = 30
+): { value: string; label: string }[] {
+  const start = calendarYear - 1;
+  const options: { value: string; label: string }[] = [];
+  for (let i = 0; i <= forwardYears; i++) {
+    const a = start + i;
+    const label = `${a}/${a + 1}`;
+    options.push({ value: label, label });
+  }
+  return options;
+}
+
+/** Default selected academic year: current calendar year / next year. */
+export function defaultAcademicYearName(
+  calendarYear = new Date().getFullYear()
+): string {
+  return `${calendarYear}/${calendarYear + 1}`;
+}
+
+/** Parse "2026/2027" → start year 2026. */
+export function academicYearStartYear(name: string): number | null {
+  const m = /^(\d{4})\s*\/\s*(\d{4})$/.exec(name.trim());
+  if (!m) return null;
+  const start = Number(m[1]);
+  const end = Number(m[2]);
+  if (!Number.isFinite(start) || end !== start + 1) return null;
+  return start;
+}
+
+/** Typical Egyptian tutoring semesters for a selected academic year label. */
+export function defaultSemesterDatesForAcademicYear(name: string): {
+  sem1Start: string;
+  sem1End: string;
+  sem2Start: string;
+  sem2End: string;
+} | null {
+  const y = academicYearStartYear(name);
+  if (y == null) return null;
+  return {
+    sem1Start: `${y}-10-01`,
+    sem1End: `${y}-12-31`,
+    sem2Start: `${y + 1}-02-01`,
+    sem2End: `${y + 1}-04-30`,
+  };
+}
+
 /** Add calendar months to a YYYY-MM-DD date (clamped to last day of target month). */
 export function addCalendarMonths(dateOnly: string, months: number): string {
   const d = parseDateOnly(dateOnly);

@@ -2,7 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { writeBackupToLocation, type BackupFileMode } from "./backupLocation";
 
 const SETTINGS_KEY = "tutor.autobackup.v1";
-const ON_EDIT_DEBOUNCE_MS = 2500;
+const ON_EDIT_DEBOUNCE_MS = 5000;
 
 export type AutoBackupFrequency = "daily" | "weekly";
 
@@ -147,6 +147,11 @@ async function runOnEditBackupNow(): Promise<void> {
  * No-op unless auto-backup is enabled and onEveryEdit is on.
  */
 export function scheduleAutoBackupOnEdit(): void {
+  // Skip reschedule spam while a write is already in flight (queued flag handles catch-up).
+  if (onEditRunning) {
+    onEditQueued = true;
+    return;
+  }
   if (onEditTimer) clearTimeout(onEditTimer);
   onEditTimer = setTimeout(() => {
     onEditTimer = null;

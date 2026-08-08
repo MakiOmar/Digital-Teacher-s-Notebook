@@ -1173,10 +1173,8 @@ export async function upsertAttendanceBatch(
     }
   });
   if (session) {
-    const { onAttendanceChanged } = await import("../services/rounds");
-    for (const studentId of studentIds) {
-      await onAttendanceChanged(studentId, session.group_id);
-    }
+    const { onAttendanceChangedBatch } = await import("../services/rounds");
+    await onAttendanceChangedBatch(studentIds, session.group_id);
   }
 }
 

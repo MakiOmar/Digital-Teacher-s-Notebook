@@ -112,7 +112,7 @@ function ProfileWelcome({
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { activeYear, revision } = useAppData();
+  const { activeYear } = useAppData();
   const { name: tutorName, profileSource } = useTutorProfile();
   const [loading, setLoading] = useState(true);
   const [nextSession, setNextSession] = useState<
@@ -147,10 +147,11 @@ export default function HomeScreen() {
     }
   }, []);
 
+  // Focus + pull-to-refresh only — do not reload heavy dues on every global bump().
   useFocusEffect(
     useCallback(() => {
       void load();
-    }, [load, revision])
+    }, [load])
   );
 
   if (!activeYear) {

@@ -1,10 +1,11 @@
-import { getDb } from "../db/client";
+import { getDb, withTransaction } from "../db/client";
 import type {
   AttendanceStatus,
   BillingRound,
   PaymentStatus,
   StudentDueRow,
 } from "../db/types";
+import type { SQLiteDatabase } from "expo-sqlite";
 
 export function isCountableAttendance(status: AttendanceStatus): boolean {
   return status === "present" || status === "absent_unexcused";
@@ -17,11 +18,12 @@ function statusFor(due: number, paid: number): PaymentStatus {
   return "partial";
 }
 
-export async function ensureOpenRound(
+async function ensureOpenRoundOn(
+  db: SQLiteDatabase,
   studentId: number,
-  groupId: number
+  groupId: number,
+  classesPerRound: number
 ): Promise<BillingRound> {
-  const db = await getDb();
   const existing = await db.getFirstAsync<BillingRound>(
     `SELECT * FROM billing_rounds
      WHERE student_id = ? AND group_id = ? AND status = 'open'
@@ -30,10 +32,6 @@ export async function ensureOpenRound(
   );
   if (existing) return existing;
 
-  const group = await db.getFirstAsync<{ classes_per_round: number }>(
-    "SELECT classes_per_round FROM groups WHERE id = ?",
-    [groupId]
-  );
   const last = await db.getFirstAsync<{ round_number: number }>(
     `SELECT round_number FROM billing_rounds
      WHERE student_id = ? AND group_id = ?
@@ -41,12 +39,11 @@ export async function ensureOpenRound(
     [studentId, groupId]
   );
   const nextNum = (last?.round_number ?? 0) + 1;
-  const target = group?.classes_per_round ?? 4;
   const r = await db.runAsync(
     `INSERT INTO billing_rounds
      (group_id, student_id, round_number, target_classes, counted_classes, status, started_at)
      VALUES (?, ?, ?, ?, 0, 'open', datetime('now'))`,
-    [groupId, studentId, nextNum, target]
+    [groupId, studentId, nextNum, classesPerRound]
   );
   const created = await db.getFirstAsync<BillingRound>(
     "SELECT * FROM billing_rounds WHERE id = ?",
@@ -54,6 +51,73 @@ export async function ensureOpenRound(
   );
   if (!created) throw new Error("تعذر إنشاء الشهر");
   return created;
+}
+
+export async function ensureOpenRound(
+  studentId: number,
+  groupId: number
+): Promise<BillingRound> {
+  const db = await getDb();
+  const group = await db.getFirstAsync<{ classes_per_round: number }>(
+    "SELECT classes_per_round FROM groups WHERE id = ?",
+    [groupId]
+  );
+  return ensureOpenRoundOn(
+    db,
+    studentId,
+    groupId,
+    group?.classes_per_round ?? 4
+  );
+}
+
+/**
+ * Apply closed/open round counters from a chronological countable list
+ * (already sliced past closed rounds' targets).
+ */
+async function applyCountableToOpenRound(
+  db: SQLiteDatabase,
+  studentId: number,
+  groupId: number,
+  classesPerRound: number,
+  remaining: number[],
+  open: BillingRound
+): Promise<BillingRound> {
+  let current = open;
+  const queue = [...remaining];
+
+  while (queue.length >= current.target_classes) {
+    await db.runAsync(
+      `UPDATE billing_rounds
+       SET counted_classes = ?, status = 'closed', closed_at = datetime('now')
+       WHERE id = ?`,
+      [current.target_classes, current.id]
+    );
+    queue.splice(0, current.target_classes);
+
+    const r = await db.runAsync(
+      `INSERT INTO billing_rounds
+       (group_id, student_id, round_number, target_classes, counted_classes, status, started_at)
+       VALUES (?, ?, ?, ?, 0, 'open', datetime('now'))`,
+      [groupId, studentId, current.round_number + 1, classesPerRound]
+    );
+    const next = await db.getFirstAsync<BillingRound>(
+      "SELECT * FROM billing_rounds WHERE id = ?",
+      [Number(r.lastInsertRowId)]
+    );
+    if (!next) break;
+    current = next;
+  }
+
+  const counted = queue.length;
+  await db.runAsync(
+    `UPDATE billing_rounds SET counted_classes = ? WHERE id = ?`,
+    [counted, current.id]
+  );
+  const updated = await db.getFirstAsync<BillingRound>(
+    "SELECT * FROM billing_rounds WHERE id = ?",
+    [current.id]
+  );
+  return updated ?? current;
 }
 
 /**
@@ -64,75 +128,123 @@ export async function syncRoundProgressForStudent(
   studentId: number,
   groupId: number
 ): Promise<BillingRound> {
-  const db = await getDb();
-  let open = await ensureOpenRound(studentId, groupId);
-
-  const countable = await db.getAllAsync<{ id: number }>(
-    `SELECT a.id FROM attendances a
-     JOIN group_sessions gs ON gs.id = a.session_id
-     WHERE a.student_id = ? AND gs.group_id = ?
-       AND a.status IN ('present', 'absent_unexcused')
-       AND gs.status != 'cancelled'
-     ORDER BY gs.starts_at ASC, a.id ASC`,
-    [studentId, groupId]
-  );
-
-  const closed = await db.getAllAsync<BillingRound>(
-    `SELECT * FROM billing_rounds
-     WHERE student_id = ? AND group_id = ? AND status = 'closed'
-     ORDER BY round_number ASC`,
-    [studentId, groupId]
-  );
-
-  let offset = 0;
-  for (const c of closed) {
-    offset += c.target_classes;
-  }
-
-  const remaining = countable.slice(offset);
-
-  while (remaining.length >= open.target_classes) {
-    await db.runAsync(
-      `UPDATE billing_rounds
-       SET counted_classes = ?, status = 'closed', closed_at = datetime('now')
-       WHERE id = ?`,
-      [open.target_classes, open.id]
-    );
-    remaining.splice(0, open.target_classes);
-
+  return withTransaction(async (db) => {
     const group = await db.getFirstAsync<{ classes_per_round: number }>(
       "SELECT classes_per_round FROM groups WHERE id = ?",
       [groupId]
     );
-    const r = await db.runAsync(
-      `INSERT INTO billing_rounds
-       (group_id, student_id, round_number, target_classes, counted_classes, status, started_at)
-       VALUES (?, ?, ?, ?, 0, 'open', datetime('now'))`,
-      [
-        groupId,
-        studentId,
-        open.round_number + 1,
-        group?.classes_per_round ?? 4,
-      ]
-    );
-    const next = await db.getFirstAsync<BillingRound>(
-      "SELECT * FROM billing_rounds WHERE id = ?",
-      [Number(r.lastInsertRowId)]
-    );
-    if (!next) break;
-    open = next;
-  }
+    const classesPerRound = group?.classes_per_round ?? 4;
+    let open = await ensureOpenRoundOn(db, studentId, groupId, classesPerRound);
 
-  const counted = remaining.length;
-  await db.runAsync(
-    `UPDATE billing_rounds SET counted_classes = ? WHERE id = ?`,
-    [counted, open.id]
-  );
-  const updated = await db.getFirstAsync<BillingRound>(
-    "SELECT * FROM billing_rounds WHERE id = ?",
-    [open.id]
-  );
-  return updated ?? open;
+    const countable = await db.getAllAsync<{ id: number }>(
+      `SELECT a.id FROM attendances a
+       JOIN group_sessions gs ON gs.id = a.session_id
+       WHERE a.student_id = ? AND gs.group_id = ?
+         AND a.status IN ('present', 'absent_unexcused')
+         AND gs.status != 'cancelled'
+       ORDER BY gs.starts_at ASC, a.id ASC`,
+      [studentId, groupId]
+    );
+
+    const closed = await db.getAllAsync<BillingRound>(
+      `SELECT * FROM billing_rounds
+       WHERE student_id = ? AND group_id = ? AND status = 'closed'
+       ORDER BY round_number ASC`,
+      [studentId, groupId]
+    );
+
+    let offset = 0;
+    for (const c of closed) {
+      offset += c.target_classes;
+    }
+
+    return applyCountableToOpenRound(
+      db,
+      studentId,
+      groupId,
+      classesPerRound,
+      countable.slice(offset).map((r) => r.id),
+      open
+    );
+  });
+}
+
+/**
+ * Sync many students' round progress in one transaction.
+ * Loads countable attendances for the cohort in a single query.
+ */
+export async function syncRoundProgressForStudents(
+  studentIds: number[],
+  groupId: number
+): Promise<void> {
+  const unique = [...new Set(studentIds.filter((id) => Number.isFinite(id)))];
+  if (!unique.length) return;
+
+  await withTransaction(async (db) => {
+    const group = await db.getFirstAsync<{ classes_per_round: number }>(
+      "SELECT classes_per_round FROM groups WHERE id = ?",
+      [groupId]
+    );
+    const classesPerRound = group?.classes_per_round ?? 4;
+
+    const placeholders = unique.map(() => "?").join(", ");
+    const allCountable = await db.getAllAsync<{
+      id: number;
+      student_id: number;
+    }>(
+      `SELECT a.id, a.student_id FROM attendances a
+       JOIN group_sessions gs ON gs.id = a.session_id
+       WHERE a.student_id IN (${placeholders}) AND gs.group_id = ?
+         AND a.status IN ('present', 'absent_unexcused')
+         AND gs.status != 'cancelled'
+       ORDER BY a.student_id ASC, gs.starts_at ASC, a.id ASC`,
+      [...unique, groupId]
+    );
+
+    const countableByStudent = new Map<number, number[]>();
+    for (const row of allCountable) {
+      const list = countableByStudent.get(row.student_id) ?? [];
+      list.push(row.id);
+      countableByStudent.set(row.student_id, list);
+    }
+
+    const allClosed = await db.getAllAsync<BillingRound>(
+      `SELECT * FROM billing_rounds
+       WHERE group_id = ? AND status = 'closed'
+         AND student_id IN (${placeholders})
+       ORDER BY student_id ASC, round_number ASC`,
+      [groupId, ...unique]
+    );
+    const closedByStudent = new Map<number, BillingRound[]>();
+    for (const row of allClosed) {
+      const list = closedByStudent.get(row.student_id) ?? [];
+      list.push(row);
+      closedByStudent.set(row.student_id, list);
+    }
+
+    for (const studentId of unique) {
+      const open = await ensureOpenRoundOn(
+        db,
+        studentId,
+        groupId,
+        classesPerRound
+      );
+      const countable = countableByStudent.get(studentId) ?? [];
+      const closed = closedByStudent.get(studentId) ?? [];
+      let offset = 0;
+      for (const c of closed) {
+        offset += c.target_classes;
+      }
+      await applyCountableToOpenRound(
+        db,
+        studentId,
+        groupId,
+        classesPerRound,
+        countable.slice(offset),
+        open
+      );
+    }
+  });
 }
 
 export async function onAttendanceChanged(
@@ -140,6 +252,13 @@ export async function onAttendanceChanged(
   groupId: number
 ): Promise<void> {
   await syncRoundProgressForStudent(studentId, groupId);
+}
+
+export async function onAttendanceChangedBatch(
+  studentIds: number[],
+  groupId: number
+): Promise<void> {
+  await syncRoundProgressForStudents(studentIds, groupId);
 }
 
 export async function openRoundForNewEnrollment(

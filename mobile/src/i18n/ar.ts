@@ -185,6 +185,7 @@ export const ar = {
   amount: "المبلغ",
   paidAt: "تاريخ الدفع",
   method: "وسيلة الدفع",
+  bulkPayMethodTitle: "اختر وسيلة الدفع للسداد الجماعي",
   cash: "كاش",
   transfer: "تحويل",
   other: "أخرى",

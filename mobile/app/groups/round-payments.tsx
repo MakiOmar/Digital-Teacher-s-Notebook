@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FlatList,
+  Modal,
   Pressable,
   StyleSheet,
   Switch,
@@ -8,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { useFocusEffect, useLocalSearchParams, useNavigation } from "expo-router";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
 import {
   EmptyState,
   LoadingBlock,
@@ -35,8 +37,9 @@ import {
   formatRoundTitle,
   todayDateOnly,
 } from "@/src/utils/date";
-import { colors, spacing } from "@/src/theme/colors";
-import { rtlChipRow, rtlRow, rtlText } from "@/src/theme/rtl";
+import { colors, radii, spacing } from "@/src/theme/colors";
+import { rtlBlock, rtlChipRow, rtlRow, rtlText } from "@/src/theme/rtl";
+import { fonts } from "@/src/theme/typography";
 import { useAppData } from "@/src/contexts/AppDataContext";
 import { MonthStarTitle } from "@/src/components/MonthStarTitle";
 import { useDialog } from "@/src/components/DialogProvider";
@@ -67,7 +70,8 @@ export default function GroupRoundPaymentsScreen() {
   const [methodsByStudent, setMethodsByStudent] = useState<
     Record<number, PaymentMethod>
   >({});
-  const [bulkMethod, setBulkMethod] = useState<PaymentMethod>("cash");
+  const [bulkPayOpen, setBulkPayOpen] = useState(false);
+  const [bulkPayDraft, setBulkPayDraft] = useState<PaymentMethod>("cash");
   const [monthStarName, setMonthStarName] = useState<string | null>(null);
   const initialRoundReloadRef = useRef<number | null>(null);
 
@@ -258,26 +262,27 @@ export default function GroupRoundPaymentsScreen() {
   function onMarkAllPaid() {
     const targets = rows.filter((r) => r.status !== "paid");
     if (!targets.length || selectedRound == null) return;
-    void (async () => {
-      const ok = await dialog.confirm({
-        title: t("markAllPaid"),
-        message: t("markAllPaidConfirm"),
-      });
-      if (!ok) return;
-      setBulkBusy(true);
-      try {
-        for (const row of targets) {
-          await markPaid(row, bulkMethod, true);
-        }
-        bump();
-        await reloadRows(selectedRound);
-        dialog.toast(t("switchedPaid"), "success");
-      } catch (e) {
-        dialog.toast(e instanceof Error ? e.message : t("error"), "error");
-      } finally {
-        setBulkBusy(false);
+    setBulkPayDraft("cash");
+    setBulkPayOpen(true);
+  }
+
+  async function confirmBulkPay(method: PaymentMethod) {
+    const targets = rows.filter((r) => r.status !== "paid");
+    if (!targets.length || selectedRound == null) return;
+    setBulkPayOpen(false);
+    setBulkBusy(true);
+    try {
+      for (const row of targets) {
+        await markPaid(row, method, true);
       }
-    })();
+      bump();
+      await reloadRows(selectedRound);
+      dialog.toast(t("switchedPaid"), "success");
+    } catch (e) {
+      dialog.toast(e instanceof Error ? e.message : t("error"), "error");
+    } finally {
+      setBulkBusy(false);
+    }
   }
 
   function onMarkAllUnpaid() {
@@ -345,33 +350,6 @@ export default function GroupRoundPaymentsScreen() {
               t("roundUntilOngoing")
             )}
           </Muted>
-        </View>
-      ) : null}
-
-      {rows.length ? (
-        <View style={styles.bulkRow}>
-          <Muted>{t("method")}</Muted>
-          <View style={styles.methodRow}>
-            {METHODS.map((m) => (
-              <Pressable
-                key={m.key}
-                onPress={() => setBulkMethod(m.key)}
-                style={[
-                  styles.methodChip,
-                  bulkMethod === m.key && styles.methodChipOn,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.methodText,
-                    bulkMethod === m.key && styles.methodTextOn,
-                  ]}
-                >
-                  {m.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
         </View>
       ) : null}
     </View>
@@ -478,6 +456,70 @@ export default function GroupRoundPaymentsScreen() {
           );
         }}
       />
+
+      {/* Comment: bulk pay picks method here instead of a permanent top chip row. */}
+      <Modal
+        visible={bulkPayOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setBulkPayOpen(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setBulkPayOpen(false)}
+          />
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>{t("bulkPayMethodTitle")}</Text>
+            <Muted style={{ marginBottom: spacing.md }}>
+              {t("markAllPaidConfirm")}
+            </Muted>
+            <View style={[styles.modalOptions, rtlBlock]}>
+              {METHODS.map((m) => {
+                const on = bulkPayDraft === m.key;
+                return (
+                  <Pressable
+                    key={m.key}
+                    onPress={() => setBulkPayDraft(m.key)}
+                    style={[styles.modalOption, on && styles.modalOptionOn]}
+                  >
+                    <Text
+                      style={[
+                        styles.modalOptionText,
+                        on && styles.modalOptionTextOn,
+                      ]}
+                    >
+                      {m.label}
+                    </Text>
+                    {on ? (
+                      <FontAwesome
+                        name="check"
+                        size={14}
+                        color={colors.primary}
+                      />
+                    ) : null}
+                  </Pressable>
+                );
+              })}
+            </View>
+            <View style={[styles.modalActions, rtlRow()]}>
+              <Pressable
+                onPress={() => setBulkPayOpen(false)}
+                style={styles.modalCancel}
+              >
+                <Text style={styles.modalCancelText}>{t("cancel")}</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => void confirmBulkPay(bulkPayDraft)}
+                style={styles.modalApply}
+                disabled={bulkBusy}
+              >
+                <Text style={styles.modalApplyText}>{t("applyFilter")}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScreenWithFixedActions>
   );
 }
@@ -491,10 +533,6 @@ const styles = StyleSheet.create({
   roundBanner: {
     marginTop: 4,
     gap: 4,
-  },
-  bulkRow: {
-    marginTop: 4,
-    gap: 6,
   },
   card: {
     backgroundColor: colors.surface,
@@ -555,5 +593,86 @@ const styles = StyleSheet.create({
   },
   methodTextOn: {
     color: "#fff",
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(15, 23, 42, 0.45)",
+    justifyContent: "center",
+    paddingHorizontal: spacing.lg,
+  },
+  modalCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.xl,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  modalTitle: {
+    ...rtlText,
+    width: "100%",
+    fontSize: 18,
+    fontFamily: fonts.extraBold,
+    color: colors.text,
+    marginBottom: spacing.sm,
+  },
+  modalOptions: {
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  modalOption: {
+    ...rtlRow(),
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.backgroundAlt,
+    borderRadius: radii.md,
+    paddingVertical: 12,
+    paddingHorizontal: spacing.md,
+  },
+  modalOptionOn: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primarySoft,
+  },
+  modalOptionText: {
+    ...rtlText,
+    flex: 1,
+    fontSize: 15,
+    fontFamily: fonts.semiBold,
+    color: colors.text,
+  },
+  modalOptionTextOn: {
+    color: colors.primary,
+  },
+  modalActions: {
+    width: "100%",
+    gap: spacing.sm,
+  },
+  modalCancel: {
+    flex: 1,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  modalCancelText: {
+    ...rtlText,
+    fontFamily: fonts.bold,
+    color: colors.textMuted,
+  },
+  modalApply: {
+    flex: 1,
+    borderRadius: radii.md,
+    paddingVertical: 12,
+    alignItems: "center",
+    backgroundColor: colors.primary,
+  },
+  modalApplyText: {
+    ...rtlText,
+    fontFamily: fonts.bold,
+    color: "#fff",
+    fontSize: 15,
   },
 });

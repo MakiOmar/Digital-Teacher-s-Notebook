@@ -1,26 +1,24 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { FlatList, Pressable, View } from "react-native";
-import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { FlatList, View } from "react-native";
 import { useRouter } from "expo-router";
 import {
   EmptyState,
-  ListRow,
   Screen,
   SkeletonList,
   StatCard,
 } from "@/src/components/ui";
 import { FiltersSheet } from "@/src/components/FilterSelect";
 import { PaginationBar, pagingBarProps } from "@/src/components/PaginationBar";
+import { PaymentDueCard } from "@/src/components/PaymentDueCard";
 import { TourAnchor } from "@/src/tour/TourAnchor";
 import { t } from "@/src/i18n/ar";
 import { getOpenRoundsPaymentPage } from "@/src/services/rounds";
 import { useServerPagination } from "@/src/hooks/useServerPagination";
 import { useGeneralSettings } from "@/src/settings/GeneralSettingsContext";
 import type { PaymentStatus, StudentDueRow } from "@/src/db/types";
-import { formatMoney, formatRoundTitle } from "@/src/utils/date";
-import { colors, spacing } from "@/src/theme/colors";
+import { formatMoney } from "@/src/utils/date";
+import { spacing } from "@/src/theme/colors";
 import { rtlRow } from "@/src/theme/rtl";
-import { paymentStatusBorderColor } from "@/src/utils/statusLabels";
 
 type PaymentListState = {
   totalCollected: number;
@@ -83,6 +81,13 @@ export default function PaymentsTab() {
     fetchPage,
     pageSize,
     resetKey
+  );
+
+  const openRoundPayments = useCallback(
+    (groupId: number) => {
+      router.push(`/groups/round-payments?groupId=${groupId}` as never);
+    },
+    [router]
   );
 
   if (paging.loading) {
@@ -153,40 +158,10 @@ export default function PaymentsTab() {
           <PaginationBar {...pagingBarProps(paging)} />
         }
         renderItem={({ item }) => (
-          <ListRow
-            title={item.student_name}
-            subtitle={`${item.group_name} · ${
-              item.round_number != null
-                ? formatRoundTitle(
-                    item.round_number,
-                    item.started_at,
-                    item.closed_at,
-                    t("roundUntilOngoing")
-                  )
-                : t("currentRound")
-            } · ${t("remainingClasses")}: ${item.remaining_classes ?? 0} · ${formatMoney(item.paid)} / ${formatMoney(item.due)}`}
-            right={formatMoney(item.remaining)}
-            borderColor={paymentStatusBorderColor(item.status)}
-            onPress={() =>
-              router.push(
-                `/groups/round-payments?groupId=${item.group_id}` as never
-              )
-            }
-            trailing={
-              item.status !== "paid" ? (
-                <Pressable
-                  onPress={() => {
-                    router.push(
-                      `/groups/round-payments?groupId=${item.group_id}` as never
-                    );
-                  }}
-                  hitSlop={10}
-                  style={{ padding: 6 }}
-                >
-                  <FontAwesome name="money" size={18} color={colors.warning} />
-                </Pressable>
-              ) : null
-            }
+          <PaymentDueCard
+            item={item}
+            onPress={() => openRoundPayments(item.group_id)}
+            onPayPress={() => openRoundPayments(item.group_id)}
           />
         )}
         refreshing={paging.refreshing}

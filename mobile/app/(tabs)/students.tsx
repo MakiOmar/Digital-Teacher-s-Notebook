@@ -4,11 +4,11 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter } from "expo-router";
 import {
   EmptyState,
-  ListRow,
   Screen,
   SearchField,
   SkeletonList,
 } from "@/src/components/ui";
+import { DetailCard } from "@/src/components/DetailCard";
 import { FiltersSheet } from "@/src/components/FilterSelect";
 import { IconActionBar } from "@/src/components/IconActionBar";
 import { PaginationBar, pagingBarProps } from "@/src/components/PaginationBar";
@@ -136,10 +136,33 @@ export default function StudentsTab() {
           <PaginationBar {...pagingBarProps(paging)} />
         }
         renderItem={({ item }) => (
-          <ListRow
+          <DetailCard
             title={item.name}
-            subtitle={`${item.group_name ?? "—"}${item.guardian_phone ? ` · ${item.guardian_phone}` : ""}`}
-            right={enrollmentStatusLabel(item.status)}
+            badge={{
+              label: enrollmentStatusLabel(item.status),
+              color:
+                item.status === "active"
+                  ? colors.success
+                  : item.status === "paused"
+                    ? colors.warning
+                    : colors.danger,
+            }}
+            details={[
+              {
+                icon: "users",
+                label: t("group"),
+                value: item.group_name ?? "—",
+              },
+              ...(item.guardian_phone
+                ? [
+                    {
+                      icon: "phone" as const,
+                      label: t("guardianPhone"),
+                      value: item.guardian_phone,
+                    },
+                  ]
+                : []),
+            ]}
             borderColor={colors.primary}
             onPress={() => router.push(`/students/${item.id}`)}
             trailing={

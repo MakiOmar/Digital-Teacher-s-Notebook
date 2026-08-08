@@ -11,6 +11,7 @@ import {
   Screen,
   Title,
 } from "@/src/components/ui";
+import { DetailCard } from "@/src/components/DetailCard";
 import { PaginationBar, pagingBarProps } from "@/src/components/PaginationBar";
 import { useDialog } from "@/src/components/DialogProvider";
 import { t } from "@/src/i18n/ar";
@@ -146,13 +147,22 @@ export default function ReportsScreen() {
         ) : (
           <>
             {groupPage.pageItems.map((g) => (
-              <Card key={g.group_id}>
-                <Text style={styles.line}>{g.group_name}</Text>
-                <Muted>
-                  {formatMoney(g.collected)} · {t("remaining")}:{" "}
-                  {formatMoney(g.remaining)}
-                </Muted>
-              </Card>
+              <DetailCard
+                key={g.group_id}
+                title={g.group_name}
+                details={[
+                  {
+                    icon: "money",
+                    label: t("payments"),
+                    value: formatMoney(g.collected),
+                  },
+                  {
+                    icon: "exclamation-circle",
+                    label: t("remaining"),
+                    value: formatMoney(g.remaining),
+                  },
+                ]}
+              />
             ))}
             <PaginationBar {...pagingBarProps(groupPage)} />
           </>

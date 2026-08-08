@@ -4,11 +4,11 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter } from "expo-router";
 import {
   EmptyState,
-  ListRow,
   Screen,
   SearchField,
   SkeletonList,
 } from "@/src/components/ui";
+import { DetailCard } from "@/src/components/DetailCard";
 import { FiltersSheet } from "@/src/components/FilterSelect";
 import { IconActionBar } from "@/src/components/IconActionBar";
 import { PaginationBar, pagingBarProps } from "@/src/components/PaginationBar";
@@ -64,7 +64,7 @@ export default function GroupsTab() {
               (WEEKDAY_SORT[b.weekday] ?? 99)
           )
           .map((p) => `${WEEKDAY_LABELS[p.weekday]} ${p.start_time}`)
-          .join(" · ");
+          .join("، ");
         return {
           ...g,
           scheduleLabel,
@@ -152,10 +152,31 @@ export default function GroupsTab() {
         }
         renderItem={({ item, index }) => {
           const row = (
-            <ListRow
+            <DetailCard
               title={item.name}
-              subtitle={`${item.scheduleLabel || "—"} · ${t("studentsCount")}: ${item.student_count} · ${t("groupTotalFees")}: ${formatMoney(item.total_fees)} · ${t("classesPerRound")}: ${item.classes_per_round ?? 4}`}
               right={formatMoney(item.default_monthly_fee)}
+              details={[
+                {
+                  icon: "calendar",
+                  label: t("scheduleShort"),
+                  value: item.scheduleLabel || "—",
+                },
+                {
+                  icon: "users",
+                  label: t("studentsCount"),
+                  value: String(item.student_count),
+                },
+                {
+                  icon: "money",
+                  label: t("groupTotalFees"),
+                  value: formatMoney(item.total_fees),
+                },
+                {
+                  icon: "clock-o",
+                  label: t("classesPerRound"),
+                  value: String(item.classes_per_round ?? 4),
+                },
+              ]}
               borderColor={groupAccentColor(item.id, item.accent_color)}
               onPress={() => router.push(`/groups/${item.id}`)}
               trailing={

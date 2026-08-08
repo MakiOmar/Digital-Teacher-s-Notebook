@@ -3,11 +3,11 @@ import { FlatList, RefreshControl, View } from "react-native";
 import { useRouter } from "expo-router";
 import {
   EmptyState,
-  ListRow,
   LoadingBlock,
   Screen,
   Title,
 } from "@/src/components/ui";
+import { DetailCard } from "@/src/components/DetailCard";
 import { FiltersSheet } from "@/src/components/FilterSelect";
 import { PaginationBar, pagingBarProps } from "@/src/components/PaginationBar";
 import { TourAnchor } from "@/src/tour/TourAnchor";
@@ -91,9 +91,21 @@ export default function TodayScreen() {
           <PaginationBar {...pagingBarProps(paging)} />
         }
         renderItem={({ item }) => (
-          <ListRow
+          <DetailCard
             title={item.group_name}
-            subtitle={`${formatDateTimeAr(item.starts_at)} · ${sessionStatusLabel(item.status)}`}
+            details={[
+              {
+                icon: "calendar",
+                label: t("scheduleShort"),
+                value: formatDateTimeAr(item.starts_at),
+              },
+              {
+                icon:
+                  item.status === "cancelled" ? "flag" : "info-circle",
+                label: t("filterByStatus"),
+                value: sessionStatusLabel(item.status),
+              },
+            ]}
             borderColor={groupAccentColor(item.group_id, item.accent_color)}
             onPress={() => router.push(`/attendance/${item.id}`)}
           />

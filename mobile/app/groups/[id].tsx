@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, memo } from "react";
-import { FlatList, StyleSheet, Text, View } from "react-native";
+import { FlatList, StyleSheet, View } from "react-native";
 import {
   useFocusEffect,
   useLocalSearchParams,
@@ -7,12 +7,11 @@ import {
   useRouter,
 } from "expo-router";
 import {
-  Card,
-  ListRow,
   LoadingBlock,
   Muted,
   Title,
 } from "@/src/components/ui";
+import { DetailCard } from "@/src/components/DetailCard";
 import { ScreenWithFixedActions } from "@/src/components/ScreenWithFixedActions";
 import { t } from "@/src/i18n/ar";
 import {
@@ -42,8 +41,10 @@ import { MonthStarTitle } from "@/src/components/MonthStarTitle";
 import { useDialog } from "@/src/components/DialogProvider";
 import { useAppData } from "@/src/contexts/AppDataContext";
 import { colors, spacing } from "@/src/theme/colors";
-import { rtlText } from "@/src/theme/rtl";
-import { paymentStatusLabel } from "@/src/utils/statusLabels";
+import {
+  paymentStatusBorderColor,
+  paymentStatusLabel,
+} from "@/src/utils/statusLabels";
 
 type ListRowItem =
   | { kind: "meta" }
@@ -83,20 +84,49 @@ const StudentDueRowItem = memo(function StudentDueRowItem({
   due: StudentDueRow;
   onPress: (id: number) => void;
 }) {
+  const borderColor = paymentStatusBorderColor(due.status);
+  const roundTitle =
+    due.round_number != null
+      ? formatRoundTitle(
+          due.round_number,
+          due.started_at,
+          due.closed_at,
+          t("roundUntilOngoing")
+        )
+      : t("currentRound");
+
   return (
-    <ListRow
+    <DetailCard
       title={due.student_name}
-      subtitle={`${
-        due.round_number != null
-          ? formatRoundTitle(
-              due.round_number,
-              due.started_at,
-              due.closed_at,
-              t("roundUntilOngoing")
-            )
-          : t("currentRound")
-      } · ${t("remainingClasses")}: ${due.remaining_classes ?? 0}/${due.target_classes ?? 0} · ${paymentStatusLabel(due.status)} · ${formatMoney(due.paid)}/${formatMoney(due.due)}`}
       right={formatMoney(due.remaining)}
+      badge={{
+        label: paymentStatusLabel(due.status),
+        color: borderColor,
+        backgroundColor:
+          due.status === "paid"
+            ? colors.paid
+            : due.status === "partial"
+              ? colors.partial
+              : colors.unpaid,
+      }}
+      details={[
+        {
+          icon: "calendar",
+          label: t("selectMonth"),
+          value: roundTitle,
+        },
+        {
+          icon: "clock-o",
+          label: t("remainingClasses"),
+          value: `${due.remaining_classes ?? 0}/${due.target_classes ?? 0}`,
+        },
+        {
+          icon: "money",
+          label: t("payments"),
+          value: `${formatMoney(due.paid)} / ${formatMoney(due.due)}`,
+        },
+      ]}
+      borderColor={borderColor}
       onPress={() => onPress(due.student_id)}
     />
   );
@@ -252,28 +282,42 @@ export default function GroupDetailsScreen() {
             }`
           : t("groupStartDateMissing");
         return (
-          <View>
-            <Muted>{group.subject || "—"}</Muted>
-            <Card>
-              <Text style={styles.cardLine}>
-                {t("groupDateRange")}: {dateRangeLabel}
-              </Text>
-              <Text style={styles.cardLine}>
-                {t("defaultFee")}: {formatMoney(group.default_monthly_fee)}
-              </Text>
-              <Text style={styles.cardLine}>
-                {t("classesPerRound")}: {group.classes_per_round ?? 4}
-              </Text>
-              <Muted>
-                {patterns
-                  .map(
-                    (p) =>
-                      `${WEEKDAY_LABELS[p.weekday]} ${p.start_time}-${p.end_time}`
-                  )
-                  .join(" · ") || "—"}
-              </Muted>
-            </Card>
-          </View>
+          <DetailCard
+            title={group.name}
+            details={[
+              {
+                icon: "book",
+                label: t("subject"),
+                value: group.subject || "—",
+              },
+              {
+                icon: "calendar",
+                label: t("groupDateRange"),
+                value: dateRangeLabel,
+              },
+              {
+                icon: "money",
+                label: t("defaultFee"),
+                value: formatMoney(group.default_monthly_fee),
+              },
+              {
+                icon: "clock-o",
+                label: t("classesPerRound"),
+                value: String(group.classes_per_round ?? 4),
+              },
+              {
+                icon: "calendar-check-o",
+                label: t("scheduleShort"),
+                value:
+                  patterns
+                    .map(
+                      (p) =>
+                        `${WEEKDAY_LABELS[p.weekday]} ${p.start_time}-${p.end_time}`
+                    )
+                    .join("، ") || "—",
+              },
+            ]}
+          />
         );
       }
       if (item.kind === "studentsTitle") {
@@ -408,12 +452,6 @@ export default function GroupDetailsScreen() {
 }
 
 const styles = StyleSheet.create({
-  cardLine: {
-    ...rtlText,
-    width: "100%",
-    color: colors.text,
-    marginBottom: 4,
-  },
   roundBlock: {
     marginBottom: spacing.sm,
   },

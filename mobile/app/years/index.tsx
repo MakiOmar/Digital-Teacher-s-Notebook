@@ -3,10 +3,10 @@ import { FlatList, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import {
   EmptyState,
-  ListRow,
   LoadingBlock,
   Screen,
 } from "@/src/components/ui";
+import { DetailCard } from "@/src/components/DetailCard";
 import { IconActionBar } from "@/src/components/IconActionBar";
 import { PaginationBar, pagingBarProps } from "@/src/components/PaginationBar";
 import { t } from "@/src/i18n/ar";
@@ -20,7 +20,7 @@ import { useAppData } from "@/src/contexts/AppDataContext";
 import { useDialog } from "@/src/components/DialogProvider";
 import { useClientPagination } from "@/src/hooks/useClientPagination";
 import { useGeneralSettings } from "@/src/settings/GeneralSettingsContext";
-import { spacing } from "@/src/theme/colors";
+import { colors, spacing } from "@/src/theme/colors";
 
 export default function YearsScreen() {
   const router = useRouter();
@@ -86,10 +86,29 @@ export default function YearsScreen() {
           <PaginationBar {...pagingBarProps(paging)} />
         }
         renderItem={({ item }) => (
-          <ListRow
+          <DetailCard
             title={item.name}
-            subtitle={`${item.start_date} → ${item.end_date}`}
-            right={item.is_active ? t("activeYear") : undefined}
+            badge={
+              item.is_active
+                ? {
+                    label: t("activeYear"),
+                    color: colors.success,
+                    backgroundColor: colors.paid,
+                  }
+                : undefined
+            }
+            details={[
+              {
+                icon: "calendar",
+                label: t("startDate"),
+                value: item.start_date,
+              },
+              {
+                icon: "calendar-check-o",
+                label: t("endDate"),
+                value: item.end_date,
+              },
+            ]}
             onPress={() => {
               void (async () => {
                 const choice = await dialog.pick({

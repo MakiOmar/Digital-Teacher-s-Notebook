@@ -16,6 +16,7 @@ import {
 import { ScreenWithFixedActions } from "@/src/components/ScreenWithFixedActions";
 import { IconActionBar } from "@/src/components/IconActionBar";
 import type { IconAction } from "@/src/components/IconActionBar";
+import { DetailCard } from "@/src/components/DetailCard";
 import { t } from "@/src/i18n/ar";
 import {
   getSession,
@@ -344,10 +345,22 @@ export default function AttendanceScreen() {
     if (!session) return null;
     return (
       <View style={styles.listHeader}>
-        <Muted>{formatDateTimeAr(session.starts_at)}</Muted>
-        <Muted>
-          {sessionStatusLabel(session.status)} · {markedCount}/{students.length}
-        </Muted>
+        <DetailCard
+          title={formatDateTimeAr(session.starts_at)}
+          borderColor={colors.border}
+          details={[
+            {
+              icon: "info-circle",
+              label: t("status"),
+              value: sessionStatusLabel(session.status),
+            },
+            {
+              icon: "check-square-o",
+              label: t("markAttendance"),
+              value: `${markedCount}/${students.length}`,
+            },
+          ]}
+        />
 
         <Pressable onPress={onPickStar} style={styles.starBox}>
           <Text style={styles.starLabel}>{t("starOfClass")}</Text>

@@ -20,6 +20,7 @@ import {
   LoadingBlock,
   Muted,
 } from "@/src/components/ui";
+import { DetailCard } from "@/src/components/DetailCard";
 import { ScreenWithFixedActions } from "@/src/components/ScreenWithFixedActions";
 import { t } from "@/src/i18n/ar";
 import {
@@ -226,13 +227,22 @@ export default function StudentDetailsScreen() {
           <Muted>{t("noAttendanceHistory")}</Muted>
         ) : (
           attendance.map((a) => (
-            <Card key={`${a.session_id}-${a.starts_at}`}>
-              <Text style={styles.line}>{a.group_name}</Text>
-              <Muted>
-                {formatDateTimeAr(a.starts_at)} ·{" "}
-                {attendanceStatusLabel(a.status)}
-              </Muted>
-            </Card>
+            <DetailCard
+              key={`${a.session_id}-${a.starts_at}`}
+              title={a.group_name}
+              details={[
+                {
+                  icon: "calendar",
+                  label: t("scheduleShort"),
+                  value: formatDateTimeAr(a.starts_at),
+                },
+                {
+                  icon: "info-circle",
+                  label: t("filterByStatus"),
+                  value: attendanceStatusLabel(a.status),
+                },
+              ]}
+            />
           ))
         )}
 
@@ -241,18 +251,46 @@ export default function StudentDetailsScreen() {
           <Muted>{t("noPaymentHistory")}</Muted>
         ) : (
           payments.map((p) => (
-            <Card key={p.id}>
-              <Text style={styles.line}>
-                {formatMoney(p.amount)}
-                {p.group_name ? ` · ${p.group_name}` : ""}
-              </Text>
-              <Muted>
-                {p.paid_at}
-                {p.round_number != null
-                  ? ` · ${formatRoundTitle(p.round_number, null, null, t("roundUntilOngoing"))}`
-                  : ""}
-              </Muted>
-            </Card>
+            <DetailCard
+              key={p.id}
+              title={p.group_name ?? t("payments")}
+              right={formatMoney(p.amount)}
+              details={[
+                ...(p.group_name
+                  ? [
+                      {
+                        icon: "users" as const,
+                        label: t("group"),
+                        value: p.group_name,
+                      },
+                    ]
+                  : []),
+                ...(p.round_number != null
+                  ? [
+                      {
+                        icon: "calendar" as const,
+                        label: t("selectMonth"),
+                        value: formatRoundTitle(
+                          p.round_number,
+                          null,
+                          null,
+                          t("roundUntilOngoing")
+                        ),
+                      },
+                    ]
+                  : []),
+                {
+                  icon: "money",
+                  label: t("payments"),
+                  value: formatMoney(p.amount),
+                },
+                {
+                  icon: "calendar-check-o",
+                  label: t("paidAt"),
+                  value: p.paid_at,
+                },
+              ]}
+            />
           ))
         )}
       </ScrollView>

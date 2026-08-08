@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, ViewStyle } from "react-native";
+import { Pressable, StyleSheet, Text, View, ViewStyle } from "react-native";
+import { IconDetailRow } from "@/src/components/DetailCard";
 import type { GroupSession, SessionStatus } from "@/src/db/types";
 import { formatDateTimeAr } from "@/src/utils/date";
 import { colors, spacing } from "@/src/theme/colors";
@@ -53,12 +54,20 @@ export function SessionClassButton({
       ]}
     >
       <Text style={styles.title}>{formatDateTimeAr(session.starts_at)}</Text>
-      <Text style={styles.meta}>
-        {sessionStatusLabel(session.status)}
-        {coverage && coverage.total > 0
-          ? ` · ${coverage.marked}/${coverage.total}`
-          : ""}
-      </Text>
+      <View style={styles.details}>
+        <IconDetailRow
+          icon={cancelled ? "flag" : "info-circle"}
+          label={t("filterByStatus")}
+          value={sessionStatusLabel(session.status)}
+        />
+        {coverage && coverage.total > 0 ? (
+          <IconDetailRow
+            icon="check-square-o"
+            label={t("attendance")}
+            value={`${coverage.marked}/${coverage.total}`}
+          />
+        ) : null}
+      </View>
     </Pressable>
   );
 }
@@ -93,13 +102,12 @@ const styles = StyleSheet.create({
     width: "100%",
     fontWeight: "700",
     color: colors.text,
-    marginBottom: 4,
   },
-  meta: {
-    ...rtlText,
-    width: "100%",
-    color: colors.textMuted,
-    fontSize: 13,
-    fontWeight: "600",
+  details: {
+    gap: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    paddingTop: spacing.sm,
+    marginTop: spacing.sm,
   },
 });

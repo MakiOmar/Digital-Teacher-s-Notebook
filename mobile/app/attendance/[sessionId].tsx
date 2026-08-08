@@ -1,12 +1,11 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
-import { useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useNavigation } from "expo-router";
 import {
   FormField,
   LoadingBlock,
   Muted,
   Screen,
-  Title,
 } from "@/src/components/ui";
 import { IconActionBar } from "@/src/components/IconActionBar";
 import type { IconAction } from "@/src/components/IconActionBar";
@@ -43,6 +42,7 @@ const STATUSES: { key: AttendanceStatus; label: string }[] = [
 export default function AttendanceScreen() {
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
   const id = Number(sessionId);
+  const navigation = useNavigation();
   const { bump } = useAppData();
   const dialog = useDialog();
   const [loading, setLoading] = useState(true);
@@ -52,6 +52,12 @@ export default function AttendanceScreen() {
   const [map, setMap] = useState<Record<number, AttendanceStatus>>({});
   const [starId, setStarId] = useState<number | null>(null);
   const [notes, setNotes] = useState("");
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerTitle: groupName || t("attendance"),
+    });
+  }, [navigation, groupName]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -256,79 +262,70 @@ export default function AttendanceScreen() {
           : []),
       ];
 
+  const listHeader = (
+    <View style={styles.listHeader}>
+      <Muted>{formatDateTimeAr(session.starts_at)}</Muted>
+      <Muted>
+        {sessionStatusLabel(session.status)} · {markedCount}/{students.length}
+      </Muted>
+
+      <Pressable onPress={onPickStar} style={styles.starBox}>
+        <Text style={styles.starLabel}>{t("starOfClass")}</Text>
+        <Text style={styles.starValue} numberOfLines={1}>
+          {starStudent ? `★ ${starStudent.name}` : t("pickStarStudent")}
+        </Text>
+      </Pressable>
+
+      <FormField
+        label={t("sessionNotes")}
+        value={notes}
+        onChangeText={setNotes}
+        placeholder={t("sessionNotesHint")}
+        multiline
+      />
+      <IconActionBar
+        actions={[
+          {
+            key: "save-notes",
+            icon: "save",
+            label: t("save"),
+            tone: "accent",
+            onPress: () => {
+              void (async () => {
+                await updateSessionNotes(id, notes.trim() || null);
+                dialog.toast(t("success"), "success");
+                bump();
+              })();
+            },
+          },
+        ]}
+      />
+
+      {/* Comment: section label so the per-student list is obvious below. */}
+      <Text style={styles.studentsHeading}>{t("markAttendance")}</Text>
+      {cancelled ? <Muted>{t("sessionCancelled")}</Muted> : null}
+    </View>
+  );
+
   return (
     <Screen padded={false} style={{ flex: 1 }}>
-      <View style={{ padding: spacing.lg, gap: 10 }}>
-        <IconActionBar actions={sessionActions} />
-        <Title>{groupName}</Title>
-        <Muted>{formatDateTimeAr(session.starts_at)}</Muted>
-        <Muted>
-          {sessionStatusLabel(session.status)} · {markedCount}/{students.length}
-        </Muted>
-
-        <Pressable onPress={onPickStar} style={styles.starBox}>
-          <Text style={styles.starLabel}>{t("starOfClass")}</Text>
-          <Text style={styles.starValue}>
-            {starStudent ? `★ ${starStudent.name}` : t("pickStarStudent")}
-          </Text>
-        </Pressable>
-        <FormField
-          label={t("sessionNotes")}
-          value={notes}
-          onChangeText={setNotes}
-          placeholder={t("sessionNotesHint")}
-          multiline
-        />
-        <IconActionBar
-          actions={[
-            {
-              key: "save-notes",
-              icon: "save",
-              label: t("save"),
-              tone: "accent",
-              onPress: () => {
-                void (async () => {
-                  await updateSessionNotes(id, notes.trim() || null);
-                  dialog.toast(t("success"), "success");
-                  bump();
-                })();
-              },
-            },
-          ]}
-        />
-        <View style={styles.starChips}>
-          {students.map((s) => (
-            <Pressable
-              key={s.id}
-              onPress={() => void pickStar(starId === s.id ? null : s.id)}
-              style={[
-                styles.starChip,
-                starId === s.id && styles.starChipOn,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.starChipText,
-                  starId === s.id && styles.starChipTextOn,
-                ]}
-              >
-                {starId === s.id ? "★ " : ""}
-                {s.name}
-              </Text>
-            </Pressable>
-          ))}
+      {/* Fixed top: bulk session actions only */}
+      {!cancelled ? (
+        <View style={styles.fixedActions}>
+          <IconActionBar actions={sessionActions} />
         </View>
+      ) : null}
 
-        {cancelled ? <Muted>{t("sessionCancelled")}</Muted> : null}
-      </View>
       <FlatList
         style={{ flex: 1 }}
         contentContainerStyle={{
           paddingHorizontal: spacing.lg,
           paddingBottom: 40,
+          flexGrow: 1,
         }}
         data={students}
         keyExtractor={(item) => String(item.id)}
+        ListHeaderComponent={listHeader}
         renderItem={({ item }) => {
           const current = map[item.id];
           const isStar = starId === item.id;
@@ -343,6 +340,7 @@ export default function AttendanceScreen() {
                 {isStar ? "★ " : ""}
                 {item.name}
               </Text>
+              {/* Per-student attendance: حاضر / غياب بعذر / غياب بدون عذر */}
               <View style={styles.row}>
                 {STATUSES.map((s) => {
                   const selected = current === s.key;
@@ -350,7 +348,12 @@ export default function AttendanceScreen() {
                     <Pressable
                       key={s.key}
                       onPress={() => void setStatus(item.id, s.key)}
-                      style={[styles.chip, selected && styles.chipOn]}
+                      disabled={cancelled}
+                      style={[
+                        styles.chip,
+                        selected && styles.chipOn,
+                        cancelled && { opacity: 0.5 },
+                      ]}
                     >
                       <Text
                         style={[
@@ -373,60 +376,57 @@ export default function AttendanceScreen() {
 }
 
 const styles = StyleSheet.create({
+  fixedActions: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: 0,
+    backgroundColor: colors.background,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+    zIndex: 2,
+  },
+  listHeader: {
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
+    gap: 8,
+  },
+  studentsHeading: {
+    ...rtlText,
+    width: "100%",
+    marginTop: spacing.sm,
+    marginBottom: 4,
+    fontSize: 15,
+    fontWeight: "800",
+    color: colors.text,
+  },
   starBox: {
     backgroundColor: "#FFFBEB",
     borderRadius: radii.md,
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: colors.star,
-    padding: spacing.md,
-    marginTop: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
   },
   starLabel: {
     ...rtlText,
     width: "100%",
     fontWeight: "700",
+    fontSize: 12,
     color: colors.textMuted,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   starValue: {
     ...rtlText,
     width: "100%",
     fontWeight: "800",
-    fontSize: 16,
+    fontSize: 14,
     color: colors.text,
-  },
-  starChips: {
-    ...rtlChipRow(),
-    gap: 6,
-    marginBottom: spacing.sm,
-  },
-  starChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  starChipOn: {
-    borderColor: colors.star,
-    backgroundColor: "#FEF9C3",
-  },
-  starChipText: {
-    ...rtlText,
-    fontSize: 12,
-    fontWeight: "600",
-    color: colors.text,
-  },
-  starChipTextOn: {
-    color: colors.text,
-    fontWeight: "800",
   },
   card: {
     backgroundColor: colors.surface,
     borderRadius: radii.md,
     padding: spacing.md,
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
     borderWidth: 1.5,
     borderColor: colors.border,
   },

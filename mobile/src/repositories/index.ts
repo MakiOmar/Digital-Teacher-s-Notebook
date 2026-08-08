@@ -17,6 +17,11 @@ import type {
 import { monthBounds, yearMonthLabel, monthsOverlappingRange } from "../utils/date";
 import { getSessionRoundDateRanges } from "../services/rounds";
 
+export type PagedResult<T> = {
+  items: T[];
+  total: number;
+};
+
 // ─── Academic years ───────────────────────────────────────────
 
 export async function listAcademicYears(): Promise<AcademicYear[]> {
@@ -424,6 +429,146 @@ export async function listGroupsWithPatterns(): Promise<
   }));
 }
 
+export type PagedGroupRow = StudyGroup & {
+  patterns: SchedulePattern[];
+  student_count: number;
+  total_fees: number;
+};
+
+/** Active groups filtered and paged in SQL, with stats for the visible page. */
+export async function listGroupsWithPatternsPage(input: {
+  query?: string;
+  weekday?: Weekday;
+  limit: number;
+  offset: number;
+}): Promise<PagedResult<PagedGroupRow>> {
+  const db = await getDb();
+  const conditions = ["g.status = 'active'"];
+  const params: (string | number)[] = [];
+  const query = input.query?.trim();
+
+  if (query) {
+    conditions.push("(g.name LIKE ? OR COALESCE(g.subject, '') LIKE ?)");
+    const search = `%${query}%`;
+    params.push(search, search);
+  }
+  if (input.weekday != null) {
+    conditions.push(
+      "EXISTS (SELECT 1 FROM group_schedule_patterns fp WHERE fp.group_id = g.id AND fp.weekday = ?)"
+    );
+    params.push(input.weekday);
+  }
+
+  const where = conditions.join(" AND ");
+  const count = await db.getFirstAsync<{ total: number }>(
+    `SELECT COUNT(*) as total FROM groups g WHERE ${where}`,
+    params
+  );
+  const groups = await db.getAllAsync<
+    StudyGroup & { student_count: number; total_fees: number }
+  >(
+    `SELECT g.*,
+       COUNT(CASE WHEN s.id IS NOT NULL THEN e.id END) as student_count,
+       COALESCE(SUM(
+         CASE
+           WHEN s.id IS NULL THEN 0
+           WHEN e.custom_monthly_fee IS NOT NULL THEN e.custom_monthly_fee
+           ELSE g.default_monthly_fee
+         END
+       ), 0) as total_fees
+     FROM groups g
+     LEFT JOIN enrollments e ON e.group_id = g.id AND e.status = 'active'
+     LEFT JOIN students s ON s.id = e.student_id AND s.status = 'active'
+     WHERE ${where}
+     GROUP BY g.id
+     ORDER BY COALESCE((
+       SELECT MIN(CASE sp.weekday
+         WHEN 6 THEN 0 WHEN 0 THEN 1 WHEN 1 THEN 2 WHEN 2 THEN 3
+         WHEN 3 THEN 4 WHEN 4 THEN 5 WHEN 5 THEN 6 ELSE 99 END)
+       FROM group_schedule_patterns sp
+       WHERE sp.group_id = g.id
+     ), 99), g.name COLLATE NOCASE
+     LIMIT ? OFFSET ?`,
+    [...params, input.limit, input.offset]
+  );
+
+  const patterns = groups.length
+    ? await db.getAllAsync<SchedulePattern>(
+        `SELECT * FROM group_schedule_patterns
+         WHERE group_id IN (${groups.map(() => "?").join(",")})
+         ORDER BY group_id, weekday, start_time`,
+        groups.map((group) => group.id)
+      )
+    : [];
+  const patternsByGroup = new Map<number, SchedulePattern[]>();
+  for (const pattern of patterns) {
+    const list = patternsByGroup.get(pattern.group_id) ?? [];
+    list.push(pattern);
+    patternsByGroup.set(pattern.group_id, list);
+  }
+
+  return {
+    items: groups.map((group) => ({
+      ...group,
+      student_count: Number(group.student_count ?? 0),
+      total_fees: Number(group.total_fees ?? 0),
+      patterns: patternsByGroup.get(group.id) ?? [],
+    })),
+    total: Number(count?.total ?? 0),
+  };
+}
+
+export type StudentEnrollmentRow = Student & {
+  group_name: string | null;
+  group_id: number | null;
+};
+
+/** Students filtered and paged in SQL with their active enrollment. */
+export async function listStudentsWithEnrollmentPage(input: {
+  query?: string;
+  groupId?: number;
+  status?: string;
+  limit: number;
+  offset: number;
+}): Promise<PagedResult<StudentEnrollmentRow>> {
+  const db = await getDb();
+  const conditions = ["1 = 1"];
+  const params: (string | number)[] = [];
+  const query = input.query?.trim();
+
+  if (query) {
+    conditions.push("s.name LIKE ?");
+    params.push(`%${query}%`);
+  }
+  if (input.groupId != null) {
+    conditions.push("e.group_id = ?");
+    params.push(input.groupId);
+  }
+  if (input.status) {
+    conditions.push("s.status = ?");
+    params.push(input.status);
+  }
+
+  const from = `FROM students s
+    LEFT JOIN enrollments e
+      ON e.student_id = s.id AND e.status = 'active'
+    LEFT JOIN groups g ON g.id = e.group_id
+    WHERE ${conditions.join(" AND ")}`;
+  const count = await db.getFirstAsync<{ total: number }>(
+    `SELECT COUNT(DISTINCT s.id) as total ${from}`,
+    params
+  );
+  const items = await db.getAllAsync<StudentEnrollmentRow>(
+    `SELECT s.*, g.name as group_name, e.group_id as group_id
+     ${from}
+     ORDER BY s.name COLLATE NOCASE
+     LIMIT ? OFFSET ?`,
+    [...params, input.limit, input.offset]
+  );
+
+  return { items, total: Number(count?.total ?? 0) };
+}
+
 /** Case-insensitive name search for autocomplete. */
 export async function searchStudentsByName(
   query: string,
@@ -677,6 +822,35 @@ export async function listSessionsForGroup(
   );
 }
 
+/** Group sessions filtered and paged in SQL. */
+export async function listSessionsForGroupPage(input: {
+  groupId: number;
+  status?: GroupSession["status"];
+  limit: number;
+  offset: number;
+}): Promise<PagedResult<GroupSession>> {
+  const db = await getDb();
+  const conditions = ["group_id = ?"];
+  const params: (string | number)[] = [input.groupId];
+  if (input.status) {
+    conditions.push("status = ?");
+    params.push(input.status);
+  }
+  const where = conditions.join(" AND ");
+  const count = await db.getFirstAsync<{ total: number }>(
+    `SELECT COUNT(*) as total FROM group_sessions WHERE ${where}`,
+    params
+  );
+  const items = await db.getAllAsync<GroupSession>(
+    `SELECT * FROM group_sessions
+     WHERE ${where}
+     ORDER BY starts_at
+     LIMIT ? OFFSET ?`,
+    [...params, input.limit, input.offset]
+  );
+  return { items, total: Number(count?.total ?? 0) };
+}
+
 export async function getSession(id: number): Promise<GroupSession | null> {
   const db = await getDb();
   return (
@@ -786,9 +960,14 @@ export async function getAttendanceRatesByStudent(): Promise<
 
 /** Attendance coverage per session for a group (active enrolled students). */
 export async function getSessionAttendanceCoverage(
-  groupId: number
+  groupId: number,
+  sessionIds?: number[]
 ): Promise<Record<number, { marked: number; total: number }>> {
+  if (sessionIds && !sessionIds.length) return {};
   const db = await getDb();
+  const sessionFilter = sessionIds?.length
+    ? `AND gs.id IN (${sessionIds.map(() => "?").join(",")})`
+    : "";
   const rows = await db.getAllAsync<{
     session_id: number;
     marked: number;
@@ -815,8 +994,9 @@ export async function getSessionAttendanceCoverage(
          WHERE a.session_id = gs.id
        ) as marked
      FROM group_sessions gs
-     WHERE gs.group_id = ?`,
-    [groupId]
+     WHERE gs.group_id = ?
+       ${sessionFilter}`,
+    [groupId, ...(sessionIds ?? [])]
   );
   const map: Record<number, { marked: number; total: number }> = {};
   for (const r of rows) {
@@ -862,6 +1042,46 @@ export async function listTodaysSessions(): Promise<
        AND gs.status != 'cancelled'
      ORDER BY gs.starts_at ASC`
   );
+}
+
+export type TodaySessionRow = GroupSession & {
+  group_name: string;
+  accent_color: string | null;
+};
+
+/** Today's sessions filtered and paged in SQL. */
+export async function listTodaysSessionsPage(input: {
+  status?: GroupSession["status"];
+  limit: number;
+  offset: number;
+}): Promise<PagedResult<TodaySessionRow>> {
+  const db = await getDb();
+  const conditions = [
+    "date(gs.starts_at) = date('now', 'localtime')",
+    "gs.status != 'cancelled'",
+  ];
+  const params: (string | number)[] = [];
+  if (input.status) {
+    conditions.push("gs.status = ?");
+    params.push(input.status);
+  }
+  const where = conditions.join(" AND ");
+  const count = await db.getFirstAsync<{ total: number }>(
+    `SELECT COUNT(*) as total
+     FROM group_sessions gs
+     WHERE ${where}`,
+    params
+  );
+  const items = await db.getAllAsync<TodaySessionRow>(
+    `SELECT gs.*, g.name as group_name, g.accent_color as accent_color
+     FROM group_sessions gs
+     JOIN groups g ON g.id = gs.group_id
+     WHERE ${where}
+     ORDER BY gs.starts_at ASC
+     LIMIT ? OFFSET ?`,
+    [...params, input.limit, input.offset]
+  );
+  return { items, total: Number(count?.total ?? 0) };
 }
 
 /**

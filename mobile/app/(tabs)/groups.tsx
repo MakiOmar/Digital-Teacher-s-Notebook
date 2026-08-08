@@ -11,20 +11,17 @@ import {
 } from "@/src/components/ui";
 import { FiltersSheet } from "@/src/components/FilterSelect";
 import { IconActionBar } from "@/src/components/IconActionBar";
-import { PaginationBar } from "@/src/components/PaginationBar";
+import { PaginationBar, pagingBarProps } from "@/src/components/PaginationBar";
 import { TourAnchor } from "@/src/tour/TourAnchor";
 import { t } from "@/src/i18n/ar";
-import { listGroupsWithPatterns } from "@/src/repositories";
-import { getGroupListStats } from "@/src/services/rounds";
-import { useRefreshableList } from "@/src/hooks/useRefreshableList";
-import { useClientPagination } from "@/src/hooks/useClientPagination";
+import { listGroupsWithPatternsPage } from "@/src/repositories";
+import { useServerPagination } from "@/src/hooks/useServerPagination";
 import { useGeneralSettings } from "@/src/settings/GeneralSettingsContext";
 import type { StudyGroup, Weekday } from "@/src/db/types";
 import {
   WEEKDAY_LABELS,
   WEEKDAY_SORT,
   formatMoney,
-  primaryWeekday,
 } from "@/src/utils/date";
 import { colors, groupAccentColor, spacing } from "@/src/theme/colors";
 import { useAppData } from "@/src/contexts/AppDataContext";
@@ -33,7 +30,6 @@ type GroupRow = StudyGroup & {
   scheduleLabel: string;
   student_count: number;
   total_fees: number;
-  sortDay: number;
   weekdays: Weekday[];
 };
 
@@ -46,41 +42,42 @@ export default function GroupsTab() {
   const [query, setQuery] = useState("");
   const [weekdayFilter, setWeekdayFilter] = useState<"all" | string>("all");
 
-  const fetcher = useCallback(async () => {
-    const [list, stats] = await Promise.all([
-      listGroupsWithPatterns(),
-      getGroupListStats(),
-    ]);
-    const statsMap = new Map(stats.map((s) => [s.group_id, s]));
-    const enriched: GroupRow[] = list.map((g) => {
-      const weekdays = g.patterns.map((p) => p.weekday as Weekday);
-      const scheduleLabel = g.patterns
-        .slice()
-        .sort(
-          (a, b) =>
-            (WEEKDAY_SORT[a.weekday] ?? 99) - (WEEKDAY_SORT[b.weekday] ?? 99)
-        )
-        .map((p) => `${WEEKDAY_LABELS[p.weekday]} ${p.start_time}`)
-        .join(" · ");
-      const st = statsMap.get(g.id);
-      return {
-        ...g,
-        scheduleLabel,
-        student_count: Number(st?.student_count ?? 0),
-        total_fees: Number(st?.total_fees ?? 0),
-        sortDay: primaryWeekday(weekdays),
-        weekdays,
-      };
-    });
-    enriched.sort((a, b) => {
-      if (a.sortDay !== b.sortDay) return a.sortDay - b.sortDay;
-      return a.name.localeCompare(b.name, "ar");
-    });
-    return enriched;
-  }, [revision]);
-
-  const { data: groups, loading, refreshing, reload } =
-    useRefreshableList(fetcher);
+  const resetKey = `${query.trim()}:${weekdayFilter}`;
+  const fetchPage = useCallback(
+    async (limit: number, offset: number) => {
+      const page = await listGroupsWithPatternsPage({
+        query,
+        weekday:
+          weekdayFilter === "all"
+            ? undefined
+            : (Number(weekdayFilter) as Weekday),
+        limit,
+        offset,
+      });
+      const items: GroupRow[] = page.items.map((g) => {
+        const weekdays = g.patterns.map((p) => p.weekday as Weekday);
+        const scheduleLabel = g.patterns
+          .slice()
+          .sort(
+            (a, b) =>
+              (WEEKDAY_SORT[a.weekday] ?? 99) -
+              (WEEKDAY_SORT[b.weekday] ?? 99)
+          )
+          .map((p) => `${WEEKDAY_LABELS[p.weekday]} ${p.start_time}`)
+          .join(" · ");
+        return {
+          ...g,
+          scheduleLabel,
+          student_count: Number(g.student_count ?? 0),
+          total_fees: Number(g.total_fees ?? 0),
+          weekdays,
+        };
+      });
+      return { items, total: page.total };
+    },
+    [query, revision, weekdayFilter]
+  );
+  const paging = useServerPagination(fetchPage, pageSize, resetKey);
 
   const weekdayOptions = useMemo(
     () => [
@@ -93,25 +90,7 @@ export default function GroupsTab() {
     []
   );
 
-  const filtered = useMemo(() => {
-    let list = groups;
-    const q = query.trim();
-    if (q) {
-      list = list.filter(
-        (g) => g.name.includes(q) || (g.subject ?? "").includes(q)
-      );
-    }
-    if (weekdayFilter !== "all") {
-      const day = Number(weekdayFilter) as Weekday;
-      list = list.filter((g) => g.weekdays.includes(day));
-    }
-    return list;
-  }, [groups, query, weekdayFilter]);
-
-  const resetKey = `${query.trim()}:${weekdayFilter}`;
-  const paging = useClientPagination(filtered, pageSize, resetKey);
-
-  if (loading) {
+  if (paging.loading) {
     return (
       <Screen padded={false} style={{ flex: 1 }}>
         <SkeletonList />
@@ -169,16 +148,7 @@ export default function GroupsTab() {
           </TourAnchor>
         }
         ListFooterComponent={
-          <PaginationBar
-            page={paging.page}
-            totalPages={paging.totalPages}
-            totalItems={paging.totalItems}
-            pageSize={paging.pageSize}
-            hasPrev={paging.hasPrev}
-            hasNext={paging.hasNext}
-            onPrev={paging.prevPage}
-            onNext={paging.nextPage}
-          />
+          <PaginationBar {...pagingBarProps(paging)} />
         }
         renderItem={({ item, index }) => {
           const row = (
@@ -211,9 +181,9 @@ export default function GroupsTab() {
         }}
         onRefresh={() => {
           bump();
-          void reload();
+          void paging.reload();
         }}
-        refreshing={refreshing}
+        refreshing={paging.refreshing}
       />
     </Screen>
   );

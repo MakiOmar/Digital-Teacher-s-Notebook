@@ -1,16 +1,16 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { FlatList, View } from "react-native";
-import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   EmptyState,
   LoadingBlock,
   Screen,
 } from "@/src/components/ui";
 import { FiltersSheet } from "@/src/components/FilterSelect";
-import { PaginationBar } from "@/src/components/PaginationBar";
+import { PaginationBar, pagingBarProps } from "@/src/components/PaginationBar";
 import {
   getSessionAttendanceCoverage,
-  listSessionsForGroup,
+  listSessionsForGroupPage,
 } from "@/src/repositories";
 import type { GroupSession, SessionStatus } from "@/src/db/types";
 import {
@@ -18,69 +18,52 @@ import {
   sessionStatusLabel,
 } from "@/src/components/SessionClassButton";
 import { t } from "@/src/i18n/ar";
-import { useClientPagination } from "@/src/hooks/useClientPagination";
+import { useServerPagination } from "@/src/hooks/useServerPagination";
 import { useGeneralSettings } from "@/src/settings/GeneralSettingsContext";
 import { spacing } from "@/src/theme/colors";
-
-const STATUS_OPTIONS = [
-  { value: "all", labelKey: "filterAllStatuses" as const },
-  { value: "scheduled", labelKey: "sessionScheduled" as const },
-  { value: "completed", labelKey: "sessionCompleted" as const },
-  { value: "cancelled", labelKey: "sessionCancelled" as const },
-  { value: "rescheduled", labelKey: "sessionRescheduled" as const },
-];
+import { sessionStatusFilterOptions } from "@/src/utils/statusLabels";
 
 export default function GroupSessionsScreen() {
   const { groupId } = useLocalSearchParams<{ groupId: string }>();
   const id = Number(groupId);
   const router = useRouter();
   const { pageSize } = useGeneralSettings();
-  const [loading, setLoading] = useState(true);
-  const [sessions, setSessions] = useState<GroupSession[]>([]);
   const [coverage, setCoverage] = useState<
     Record<number, { marked: number; total: number }>
   >({});
   const [statusFilter, setStatusFilter] = useState<"all" | string>("all");
+  const coverageRequest = useRef(0);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      setSessions(await listSessionsForGroup(id));
-      setCoverage(await getSessionAttendanceCoverage(id));
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
-
-  useFocusEffect(
-    useCallback(() => {
-      void load();
-    }, [load])
+  const fetchPage = useCallback(
+    async (limit: number, offset: number) => {
+      const request = ++coverageRequest.current;
+      const page = await listSessionsForGroupPage({
+        groupId: id,
+        status:
+          statusFilter === "all"
+            ? undefined
+            : (statusFilter as SessionStatus),
+        limit,
+        offset,
+      });
+      const nextCoverage = await getSessionAttendanceCoverage(
+        id,
+        page.items.map((session) => session.id)
+      );
+      if (request === coverageRequest.current) setCoverage(nextCoverage);
+      return page;
+    },
+    [id, statusFilter]
   );
-
-  const statusOptions = useMemo(
-    () =>
-      STATUS_OPTIONS.map((o) => ({
-        value: o.value,
-        label: t(o.labelKey),
-      })),
-    []
-  );
-
-  const filtered = useMemo(() => {
-    if (statusFilter === "all") return sessions;
-    return sessions.filter(
-      (s) => s.status === (statusFilter as SessionStatus)
-    );
-  }, [sessions, statusFilter]);
-
-  const paging = useClientPagination(
-    filtered,
+  const paging = useServerPagination<GroupSession>(
+    fetchPage,
     pageSize,
     `${id}:${statusFilter}`
   );
 
-  if (loading) {
+  const statusOptions = useMemo(() => sessionStatusFilterOptions(), []);
+
+  if (paging.loading) {
     return (
       <Screen>
         <LoadingBlock />
@@ -119,16 +102,7 @@ export default function GroupSessionsScreen() {
         }
         ItemSeparatorComponent={() => <View style={{ height: spacing.xs }} />}
         ListFooterComponent={
-          <PaginationBar
-            page={paging.page}
-            totalPages={paging.totalPages}
-            totalItems={paging.totalItems}
-            pageSize={paging.pageSize}
-            hasPrev={paging.hasPrev}
-            hasNext={paging.hasNext}
-            onPrev={paging.prevPage}
-            onNext={paging.nextPage}
-          />
+          <PaginationBar {...pagingBarProps(paging)} />
         }
         renderItem={({ item }) => (
           <SessionClassButton
@@ -137,6 +111,8 @@ export default function GroupSessionsScreen() {
             onPress={() => router.push(`/attendance/${item.id}`)}
           />
         )}
+        refreshing={paging.refreshing}
+        onRefresh={() => void paging.reload()}
       />
     </Screen>
   );

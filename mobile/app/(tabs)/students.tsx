@@ -11,14 +11,18 @@ import {
 } from "@/src/components/ui";
 import { FiltersSheet } from "@/src/components/FilterSelect";
 import { IconActionBar } from "@/src/components/IconActionBar";
-import { PaginationBar } from "@/src/components/PaginationBar";
+import { PaginationBar, pagingBarProps } from "@/src/components/PaginationBar";
 import { t } from "@/src/i18n/ar";
-import { listStudentsWithEnrollment } from "@/src/repositories";
+import {
+  listGroups,
+  listStudentsWithEnrollmentPage,
+} from "@/src/repositories";
 import { useRefreshableList } from "@/src/hooks/useRefreshableList";
-import { useClientPagination } from "@/src/hooks/useClientPagination";
+import { useServerPagination } from "@/src/hooks/useServerPagination";
 import { useGeneralSettings } from "@/src/settings/GeneralSettingsContext";
 import { telUrl } from "@/src/utils/phone";
 import { spacing, colors } from "@/src/theme/colors";
+import { enrollmentStatusLabel } from "@/src/utils/statusLabels";
 
 export default function StudentsTab() {
   const router = useRouter();
@@ -26,25 +30,19 @@ export default function StudentsTab() {
   const [query, setQuery] = useState("");
   const [groupFilter, setGroupFilter] = useState<"all" | string>("all");
   const [statusFilter, setStatusFilter] = useState<"all" | string>("all");
-  const fetcher = useCallback(() => listStudentsWithEnrollment(), []);
-  const { data: rows, loading, refreshing, reload } =
-    useRefreshableList(fetcher);
+  const groupsFetcher = useCallback(() => listGroups(), []);
+  const { data: groups, reload: reloadGroups } =
+    useRefreshableList(groupsFetcher);
 
   const groupOptions = useMemo(() => {
-    const map = new Map<number, string>();
-    for (const r of rows) {
-      if (r.group_id != null && r.group_name) {
-        map.set(r.group_id, r.group_name);
-      }
-    }
     return [
       { value: "all", label: t("filterAllGroups") },
-      ...[...map.entries()].map(([id, name]) => ({
-        value: String(id),
-        label: name,
+      ...groups.map((group) => ({
+        value: String(group.id),
+        label: group.name,
       })),
     ];
-  }, [rows]);
+  }, [groups]);
 
   const statusOptions = useMemo(
     () => [
@@ -56,24 +54,21 @@ export default function StudentsTab() {
     []
   );
 
-  const filtered = useMemo(() => {
-    let list = rows;
-    const q = query.trim();
-    if (q) list = list.filter((r) => r.name.includes(q));
-    if (groupFilter !== "all") {
-      const gid = Number(groupFilter);
-      list = list.filter((r) => r.group_id === gid);
-    }
-    if (statusFilter !== "all") {
-      list = list.filter((r) => r.status === statusFilter);
-    }
-    return list;
-  }, [rows, query, groupFilter, statusFilter]);
-
   const resetKey = `${query.trim()}:${groupFilter}:${statusFilter}`;
-  const paging = useClientPagination(filtered, pageSize, resetKey);
+  const fetchPage = useCallback(
+    (limit: number, offset: number) =>
+      listStudentsWithEnrollmentPage({
+        query,
+        groupId: groupFilter === "all" ? undefined : Number(groupFilter),
+        status: statusFilter === "all" ? undefined : statusFilter,
+        limit,
+        offset,
+      }),
+    [groupFilter, query, statusFilter]
+  );
+  const paging = useServerPagination(fetchPage, pageSize, resetKey);
 
-  if (loading) {
+  if (paging.loading) {
     return (
       <Screen padded={false} style={{ flex: 1 }}>
         <SkeletonList />
@@ -138,30 +133,13 @@ export default function StudentsTab() {
           />
         }
         ListFooterComponent={
-          <PaginationBar
-            page={paging.page}
-            totalPages={paging.totalPages}
-            totalItems={paging.totalItems}
-            pageSize={paging.pageSize}
-            hasPrev={paging.hasPrev}
-            hasNext={paging.hasNext}
-            onPrev={paging.prevPage}
-            onNext={paging.nextPage}
-          />
+          <PaginationBar {...pagingBarProps(paging)} />
         }
         renderItem={({ item }) => (
           <ListRow
             title={item.name}
             subtitle={`${item.group_name ?? "—"}${item.guardian_phone ? ` · ${item.guardian_phone}` : ""}`}
-            right={
-              item.status === "active"
-                ? t("active")
-                : item.status === "paused"
-                  ? t("paused")
-                  : item.status === "withdrawn"
-                    ? t("withdrawn")
-                    : item.status
-            }
+            right={enrollmentStatusLabel(item.status)}
             borderColor={colors.primary}
             onPress={() => router.push(`/students/${item.id}`)}
             trailing={
@@ -180,8 +158,11 @@ export default function StudentsTab() {
             }
           />
         )}
-        refreshing={refreshing}
-        onRefresh={() => void reload()}
+        refreshing={paging.refreshing}
+        onRefresh={() => {
+          void paging.reload();
+          void reloadGroups();
+        }}
       />
     </Screen>
   );

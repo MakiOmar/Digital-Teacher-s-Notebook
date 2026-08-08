@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
-import { Linking, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   useFocusEffect,
   useLocalSearchParams,
@@ -10,7 +19,6 @@ import {
   Card,
   LoadingBlock,
   Muted,
-  PrimaryButton,
   Screen,
 } from "@/src/components/ui";
 import { IconActionBar } from "@/src/components/IconActionBar";
@@ -32,6 +40,8 @@ import { fonts } from "@/src/theme/typography";
 import { formatDateTimeAr, formatMoney, formatRoundTitle } from "@/src/utils/date";
 import { telUrl, whatsappUrl } from "@/src/utils/phone";
 
+const WHATSAPP_GREEN = "#25D366";
+
 function attendanceLabel(status: string): string {
   if (status === "present") return t("present");
   if (status === "absent_excused") return t("absentExcused");
@@ -44,6 +54,7 @@ export default function StudentDetailsScreen() {
   const studentId = Number(id);
   const router = useRouter();
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const { bump } = useAppData();
   const dialog = useDialog();
   const [loading, setLoading] = useState(true);
@@ -166,7 +177,7 @@ export default function StudentDetailsScreen() {
         contentContainerStyle={{
           paddingHorizontal: spacing.lg,
           paddingTop: spacing.md,
-          paddingBottom: 40,
+          paddingBottom: phone ? 120 : 40,
         }}
       >
         <Card>
@@ -185,22 +196,6 @@ export default function StudentDetailsScreen() {
             {t("studentUnpaidSummary")}: {formatMoney(remaining)}
           </Text>
         </Card>
-
-        {phone ? (
-          <View style={{ gap: 10, marginBottom: spacing.lg }}>
-            <PrimaryButton
-              label={t("callGuardian")}
-              onPress={() => void Linking.openURL(telUrl(phone))}
-            />
-            <PrimaryButton
-              label={t("whatsappGuardian")}
-              variant="ghost"
-              onPress={() => {
-                void Linking.openURL(whatsappUrl(phone));
-              }}
-            />
-          </View>
-        ) : null}
 
         <Text style={styles.section}>{t("studentAttendanceHistory")}</Text>
         {!attendance.length ? (
@@ -236,6 +231,42 @@ export default function StudentDetailsScreen() {
           ))
         )}
       </ScrollView>
+
+      {/* Comment: physical-left FABs — call + WhatsApp overlay the scroll area. */}
+      {phone ? (
+        <View
+          pointerEvents="box-none"
+          style={[
+            styles.fabColumn,
+            { bottom: Math.max(insets.bottom, spacing.md) + spacing.sm },
+          ]}
+        >
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t("callGuardian")}
+            onPress={() => void Linking.openURL(telUrl(phone))}
+            style={({ pressed }) => [
+              styles.fab,
+              styles.fabCall,
+              pressed && { opacity: 0.85 },
+            ]}
+          >
+            <FontAwesome name="phone" size={20} color="#fff" />
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t("whatsappGuardian")}
+            onPress={() => void Linking.openURL(whatsappUrl(phone))}
+            style={({ pressed }) => [
+              styles.fab,
+              styles.fabWhatsApp,
+              pressed && { opacity: 0.85 },
+            ]}
+          >
+            <FontAwesome name="whatsapp" size={22} color="#fff" />
+          </Pressable>
+        </View>
+      ) : null}
     </Screen>
   );
 }
@@ -249,6 +280,30 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
     zIndex: 2,
+  },
+  fabColumn: {
+    position: "absolute",
+    left: spacing.lg,
+    gap: 12,
+    zIndex: 5,
+  },
+  fab: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 4,
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.22,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+  },
+  fabCall: {
+    backgroundColor: colors.primary,
+  },
+  fabWhatsApp: {
+    backgroundColor: WHATSAPP_GREEN,
   },
   line: {
     ...rtlText,

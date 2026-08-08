@@ -1,13 +1,17 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Linking, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import {
+  useFocusEffect,
+  useLocalSearchParams,
+  useNavigation,
+  useRouter,
+} from "expo-router";
 import {
   Card,
   LoadingBlock,
   Muted,
   PrimaryButton,
   Screen,
-  Title,
 } from "@/src/components/ui";
 import { IconActionBar } from "@/src/components/IconActionBar";
 import { t } from "@/src/i18n/ar";
@@ -39,6 +43,7 @@ export default function StudentDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const studentId = Number(id);
   const router = useRouter();
+  const navigation = useNavigation();
   const { bump } = useAppData();
   const dialog = useDialog();
   const [loading, setLoading] = useState(true);
@@ -63,6 +68,12 @@ export default function StudentDetailsScreen() {
       round_number: number | null;
     }[]
   >([]);
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerTitle: student?.name || t("students"),
+    });
+  }, [navigation, student?.name]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -127,27 +138,37 @@ export default function StudentDetailsScreen() {
   const phone = student.guardian_phone?.trim() || null;
 
   return (
-    <Screen>
-      <IconActionBar
-        actions={[
-          {
-            key: "edit",
-            icon: "pencil",
-            label: t("edit"),
-            onPress: () =>
-              router.push(`/students/form?id=${student.id}` as never),
-          },
-          {
-            key: "delete",
-            icon: "trash",
-            label: t("delete"),
-            tone: "danger",
-            onPress: () => void onDelete(),
-          },
-        ]}
-      />
-      <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
-        <Title>{student.name}</Title>
+    <Screen padded={false} style={{ flex: 1 }}>
+      {/* Fixed top: edit / delete only */}
+      <View style={styles.fixedActions}>
+        <IconActionBar
+          actions={[
+            {
+              key: "edit",
+              icon: "pencil",
+              label: t("edit"),
+              onPress: () =>
+                router.push(`/students/form?id=${student.id}` as never),
+            },
+            {
+              key: "delete",
+              icon: "trash",
+              label: t("delete"),
+              tone: "danger",
+              onPress: () => void onDelete(),
+            },
+          ]}
+        />
+      </View>
+
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{
+          paddingHorizontal: spacing.lg,
+          paddingTop: spacing.md,
+          paddingBottom: 40,
+        }}
+      >
         <Card>
           <Text style={styles.line}>
             {t("groups")}: {groupName}
@@ -220,6 +241,15 @@ export default function StudentDetailsScreen() {
 }
 
 const styles = StyleSheet.create({
+  fixedActions: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: 0,
+    backgroundColor: colors.background,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+    zIndex: 2,
+  },
   line: {
     ...rtlText,
     width: "100%",

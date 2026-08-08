@@ -1,6 +1,11 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
-import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import {
+  useFocusEffect,
+  useLocalSearchParams,
+  useNavigation,
+  useRouter,
+} from "expo-router";
 import {
   Card,
   ListRow,
@@ -66,6 +71,7 @@ export default function GroupDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const groupId = Number(id);
   const router = useRouter();
+  const navigation = useNavigation();
   const { bump } = useAppData();
   const dialog = useDialog();
   const [loading, setLoading] = useState(true);
@@ -79,6 +85,12 @@ export default function GroupDetailsScreen() {
   const [roundStars, setRoundStars] = useState<
     Record<number, { student_id: number; student_name: string }>
   >({});
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerTitle: group?.name || t("groups"),
+    });
+  }, [navigation, group?.name]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -155,10 +167,8 @@ export default function GroupDetailsScreen() {
 
   return (
     <Screen padded={false} style={{ flex: 1 }}>
-      <ScrollView
-        contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40 }}
-      >
-        {/* Top icon actions */}
+      {/* Fixed top: group actions only */}
+      <View style={styles.fixedActions}>
         <IconActionBar
           actions={[
             {
@@ -205,9 +215,16 @@ export default function GroupDetailsScreen() {
             },
           ]}
         />
+      </View>
 
-        {/* Group header */}
-        <Title>{group.name}</Title>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{
+          paddingHorizontal: spacing.lg,
+          paddingTop: spacing.md,
+          paddingBottom: 40,
+        }}
+      >
         <Muted>{group.subject || "—"}</Muted>
         <Card>
           <Text style={styles.cardLine}>
@@ -229,7 +246,6 @@ export default function GroupDetailsScreen() {
           </Muted>
         </Card>
 
-        {/* Open-round status per student */}
         <Title>{t("groupStudents")}</Title>
         {!dues.length ? (
           <Muted style={{ marginBottom: spacing.md }}>{t("noStudents")}</Muted>
@@ -298,6 +314,15 @@ export default function GroupDetailsScreen() {
 }
 
 const styles = StyleSheet.create({
+  fixedActions: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: 0,
+    backgroundColor: colors.background,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+    zIndex: 2,
+  },
   cardLine: {
     ...rtlText,
     width: "100%",
@@ -308,8 +333,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   divider: {
-    height: 1,
+    height: StyleSheet.hairlineWidth,
     backgroundColor: colors.border,
-    marginVertical: 6,
+    width: "100%",
+    marginVertical: 4,
   },
 });

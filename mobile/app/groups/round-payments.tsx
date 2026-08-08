@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FlatList,
   Pressable,
@@ -14,10 +14,9 @@ import {
   EmptyState,
   LoadingBlock,
   Muted,
-  Screen,
 } from "@/src/components/ui";
-import { IconActionBar } from "@/src/components/IconActionBar";
-import { PaginationBar } from "@/src/components/PaginationBar";
+import { ScreenWithFixedActions } from "@/src/components/ScreenWithFixedActions";
+import { PaginationBar, pagingBarProps } from "@/src/components/PaginationBar";
 import { t } from "@/src/i18n/ar";
 import {
   createPayment,
@@ -71,6 +70,7 @@ export default function GroupRoundPaymentsScreen() {
   >({});
   const [bulkMethod, setBulkMethod] = useState<PaymentMethod>("cash");
   const [monthStarName, setMonthStarName] = useState<string | null>(null);
+  const initialRoundReloadRef = useRef<number | null>(null);
 
   useEffect(() => {
     navigation.setOptions({
@@ -111,31 +111,41 @@ export default function GroupRoundPaymentsScreen() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const g = await getGroup(groupId);
+      const [g, summaries] = await Promise.all([
+        getGroup(groupId),
+        getGroupRoundSummaries(groupId),
+      ]);
       setGroupName(g?.name ?? "");
-      const summaries = await getGroupRoundSummaries(groupId);
       setRoundSummaries(summaries);
-      const round =
-        selectedRound != null &&
-        summaries.some((s) => s.round_number === selectedRound)
-          ? selectedRound
-          : summaries[0]?.round_number ?? null;
+      const round = summaries[0]?.round_number ?? null;
+      initialRoundReloadRef.current = round;
       setSelectedRound(round);
       if (round != null) {
         await reloadRows(round);
       } else {
         setRows([]);
+        setMonthStarName(null);
       }
     } finally {
       setLoading(false);
     }
-  }, [groupId, selectedRound, reloadRows]);
+  }, [groupId, reloadRows]);
 
   useFocusEffect(
     useCallback(() => {
       void load();
     }, [load])
   );
+
+  useEffect(() => {
+    if (selectedRound == null) return;
+    if (initialRoundReloadRef.current === selectedRound) {
+      initialRoundReloadRef.current = null;
+      return;
+    }
+    initialRoundReloadRef.current = null;
+    void reloadRows(selectedRound);
+  }, [reloadRows, selectedRound]);
 
   function methodFor(studentId: number): PaymentMethod {
     return methodsByStudent[studentId] ?? "cash";
@@ -274,9 +284,9 @@ export default function GroupRoundPaymentsScreen() {
 
   if (loading) {
     return (
-      <Screen>
+      <ScreenWithFixedActions actions={[]}>
         <LoadingBlock />
-      </Screen>
+      </ScreenWithFixedActions>
     );
   }
 
@@ -351,12 +361,10 @@ export default function GroupRoundPaymentsScreen() {
   );
 
   return (
-    <Screen padded={false} style={{ flex: 1 }}>
-      {/* Fixed top: bulk pay / unpay actions only */}
-      {rows.length ? (
-        <View style={styles.fixedActions}>
-          <IconActionBar
-            actions={[
+    <ScreenWithFixedActions
+      actions={
+        rows.length
+          ? [
               {
                 key: "paid",
                 icon: "check-circle",
@@ -373,11 +381,10 @@ export default function GroupRoundPaymentsScreen() {
                 disabled: bulkBusy,
                 onPress: onMarkAllUnpaid,
               },
-            ]}
-          />
-        </View>
-      ) : null}
-
+            ]
+          : []
+      }
+    >
       <FlatList
         style={{ flex: 1 }}
         contentContainerStyle={{
@@ -390,16 +397,7 @@ export default function GroupRoundPaymentsScreen() {
         ListHeaderComponent={listHeader}
         ListEmptyComponent={<EmptyState message={t("noStudentsInGroup")} />}
         ListFooterComponent={
-          <PaginationBar
-            page={paging.page}
-            totalPages={paging.totalPages}
-            totalItems={paging.totalItems}
-            pageSize={paging.pageSize}
-            hasPrev={paging.hasPrev}
-            hasNext={paging.hasNext}
-            onPrev={paging.prevPage}
-            onNext={paging.nextPage}
-          />
+          <PaginationBar {...pagingBarProps(paging)} />
         }
         renderItem={({ item }) => {
           const isPaid = item.status === "paid";
@@ -463,20 +461,11 @@ export default function GroupRoundPaymentsScreen() {
           );
         }}
       />
-    </Screen>
+    </ScreenWithFixedActions>
   );
 }
 
 const styles = StyleSheet.create({
-  fixedActions: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-    paddingBottom: 0,
-    backgroundColor: colors.background,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-    zIndex: 2,
-  },
   listHeader: {
     paddingTop: spacing.md,
     paddingBottom: spacing.sm,

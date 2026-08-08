@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useMemo, useState, memo } from "react";
+import { FlatList, StyleSheet, Text, View } from "react-native";
 import {
   useFocusEffect,
   useLocalSearchParams,
@@ -11,9 +11,9 @@ import {
   ListRow,
   LoadingBlock,
   Muted,
-  Screen,
   Title,
 } from "@/src/components/ui";
+import { ScreenWithFixedActions } from "@/src/components/ScreenWithFixedActions";
 import { t } from "@/src/i18n/ar";
 import {
   getGroup,
@@ -39,17 +39,26 @@ import { generateSessionsForGroup } from "@/src/services/schedule";
 import { getRoundDues } from "@/src/services/rounds";
 import { SessionClassButton } from "@/src/components/SessionClassButton";
 import { MonthStarTitle } from "@/src/components/MonthStarTitle";
-import { IconActionBar } from "@/src/components/IconActionBar";
 import { useDialog } from "@/src/components/DialogProvider";
 import { useAppData } from "@/src/contexts/AppDataContext";
 import { colors, spacing } from "@/src/theme/colors";
 import { rtlText } from "@/src/theme/rtl";
+import { paymentStatusLabel } from "@/src/utils/statusLabels";
 
-function statusLabel(status: StudentDueRow["status"]): string {
-  if (status === "paid") return t("paid");
-  if (status === "partial") return t("partial");
-  return t("unpaid");
-}
+type ListRowItem =
+  | { kind: "meta" }
+  | { kind: "studentsTitle" }
+  | { kind: "studentEmpty" }
+  | { kind: "student"; due: StudentDueRow }
+  | { kind: "sessionsTitle" }
+  | { kind: "sessionsEmpty" }
+  | {
+      kind: "roundHeader";
+      roundNumber: number;
+      title: string;
+      starName?: string;
+    }
+  | { kind: "session"; session: GroupSession };
 
 function chunkSessionsByRound(
   sessions: GroupSession[],
@@ -57,15 +66,41 @@ function chunkSessionsByRound(
 ): { roundNumber: number; sessions: GroupSession[] }[] {
   const per = Math.max(1, classesPerRound || 4);
   const active = sessions.filter((s) => s.status !== "cancelled");
-  const chunks: { roundNumber: number; sessions: GroupSession[] }[] = [];
+  const out: { roundNumber: number; sessions: GroupSession[] }[] = [];
   for (let i = 0; i < active.length; i += per) {
-    chunks.push({
+    out.push({
       roundNumber: Math.floor(i / per) + 1,
       sessions: active.slice(i, i + per),
     });
   }
-  return chunks;
+  return out;
 }
+
+const StudentDueRowItem = memo(function StudentDueRowItem({
+  due,
+  onPress,
+}: {
+  due: StudentDueRow;
+  onPress: (id: number) => void;
+}) {
+  return (
+    <ListRow
+      title={due.student_name}
+      subtitle={`${
+        due.round_number != null
+          ? formatRoundTitle(
+              due.round_number,
+              due.started_at,
+              due.closed_at,
+              t("roundUntilOngoing")
+            )
+          : t("currentRound")
+      } · ${t("remainingClasses")}: ${due.remaining_classes ?? 0}/${due.target_classes ?? 0} · ${paymentStatusLabel(due.status)} · ${formatMoney(due.paid)}/${formatMoney(due.due)}`}
+      right={formatMoney(due.remaining)}
+      onPress={() => onPress(due.student_id)}
+    />
+  );
+});
 
 export default function GroupDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -110,10 +145,64 @@ export default function GroupDetailsScreen() {
     return chunkSessionsByRound(sessions, group?.classes_per_round ?? 4);
   }, [sessions, group?.classes_per_round]);
 
+  const listData = useMemo((): ListRowItem[] => {
+    const rows: ListRowItem[] = [{ kind: "meta" }, { kind: "studentsTitle" }];
+    if (!dues.length) {
+      rows.push({ kind: "studentEmpty" });
+    } else {
+      for (const due of dues) {
+        rows.push({ kind: "student", due });
+      }
+    }
+    rows.push({ kind: "sessionsTitle" });
+    if (!sessionRounds.length) {
+      rows.push({ kind: "sessionsEmpty" });
+    } else {
+      const per = group?.classes_per_round ?? 4;
+      for (const chunk of sessionRounds) {
+        const start = chunk.sessions[0]?.starts_at;
+        const end =
+          chunk.sessions.length >= per
+            ? chunk.sessions[chunk.sessions.length - 1]?.starts_at
+            : null;
+        const title = formatRoundTitle(
+          chunk.roundNumber,
+          start,
+          end,
+          t("roundUntilOngoing")
+        );
+        rows.push({
+          kind: "roundHeader",
+          roundNumber: chunk.roundNumber,
+          title,
+          starName: roundStars[chunk.roundNumber]?.student_name,
+        });
+        for (const s of chunk.sessions) {
+          rows.push({ kind: "session", session: s });
+        }
+      }
+    }
+    return rows;
+  }, [dues, sessionRounds, group?.classes_per_round, roundStars]);
+
   useFocusEffect(
     useCallback(() => {
       void load();
     }, [load])
+  );
+
+  const onStudentPress = useCallback(
+    (studentId: number) => {
+      router.push(`/students/${studentId}`);
+    },
+    [router]
+  );
+
+  const onSessionPress = useCallback(
+    (sessionId: number) => {
+      router.push(`/attendance/${sessionId}`);
+    },
+    [router]
   );
 
   async function onGenerate() {
@@ -151,178 +240,174 @@ export default function GroupDetailsScreen() {
     router.back();
   }
 
+  const renderItem = useCallback(
+    ({ item }: { item: ListRowItem }) => {
+      if (item.kind === "meta") {
+        if (!group) return null;
+        const dateRangeLabel = group.start_date
+          ? `${formatDateAr(group.start_date)}${
+              group.end_date
+                ? ` — ${formatDateAr(group.end_date)}`
+                : ` — ${t("ongoing")}`
+            }`
+          : t("groupStartDateMissing");
+        return (
+          <View>
+            <Muted>{group.subject || "—"}</Muted>
+            <Card>
+              <Text style={styles.cardLine}>
+                {t("groupDateRange")}: {dateRangeLabel}
+              </Text>
+              <Text style={styles.cardLine}>
+                {t("defaultFee")}: {formatMoney(group.default_monthly_fee)}
+              </Text>
+              <Text style={styles.cardLine}>
+                {t("classesPerRound")}: {group.classes_per_round ?? 4}
+              </Text>
+              <Muted>
+                {patterns
+                  .map(
+                    (p) =>
+                      `${WEEKDAY_LABELS[p.weekday]} ${p.start_time}-${p.end_time}`
+                  )
+                  .join(" · ") || "—"}
+              </Muted>
+            </Card>
+          </View>
+        );
+      }
+      if (item.kind === "studentsTitle") {
+        return <Title>{t("groupStudents")}</Title>;
+      }
+      if (item.kind === "studentEmpty") {
+        return (
+          <Muted style={{ marginBottom: spacing.md }}>{t("noStudents")}</Muted>
+        );
+      }
+      if (item.kind === "student") {
+        return (
+          <StudentDueRowItem due={item.due} onPress={onStudentPress} />
+        );
+      }
+      if (item.kind === "sessionsTitle") {
+        return <Title>{t("sessions")}</Title>;
+      }
+      if (item.kind === "sessionsEmpty") {
+        return <Muted>{t("noSessions")}</Muted>;
+      }
+      if (item.kind === "roundHeader") {
+        return (
+          <View style={styles.roundBlock}>
+            <View style={styles.divider} />
+            <MonthStarTitle title={item.title} starName={item.starName} />
+            <View style={styles.divider} />
+          </View>
+        );
+      }
+      return (
+        <SessionClassButton
+          session={item.session}
+          coverage={coverage[item.session.id]}
+          onPress={() => onSessionPress(item.session.id)}
+        />
+      );
+    },
+    [group, patterns, coverage, onStudentPress, onSessionPress]
+  );
+
+  const keyExtractor = useCallback((item: ListRowItem, index: number) => {
+    switch (item.kind) {
+      case "meta":
+        return "meta";
+      case "studentsTitle":
+        return "studentsTitle";
+      case "studentEmpty":
+        return "studentEmpty";
+      case "student":
+        return `student-${item.due.student_id}`;
+      case "sessionsTitle":
+        return "sessionsTitle";
+      case "sessionsEmpty":
+        return "sessionsEmpty";
+      case "roundHeader":
+        return `round-${item.roundNumber}`;
+      case "session":
+        return `session-${item.session.id}`;
+      default:
+        return String(index);
+    }
+  }, []);
+
   if (loading || !group) {
     return (
-      <Screen>
+      <ScreenWithFixedActions actions={[]}>
         <LoadingBlock />
-      </Screen>
+      </ScreenWithFixedActions>
     );
   }
 
-  const dateRangeLabel = group.start_date
-    ? `${formatDateAr(group.start_date)}${
-        group.end_date ? ` — ${formatDateAr(group.end_date)}` : ` — ${t("ongoing")}`
-      }`
-    : t("groupStartDateMissing");
-
   return (
-    <Screen padded={false} style={{ flex: 1 }}>
-      {/* Fixed top: group actions only */}
-      <View style={styles.fixedActions}>
-        <IconActionBar
-          actions={[
-            {
-              key: "students",
-              icon: "user-plus",
-              label: t("students"),
-              tone: "accent",
-              onPress: () =>
-                router.push(
-                  `/groups/add-students?groupId=${groupId}` as never
-                ),
-            },
-            {
-              key: "payments",
-              icon: "money",
-              label: t("payments"),
-              onPress: () =>
-                router.push(
-                  `/groups/round-payments?groupId=${groupId}` as never
-                ),
-            },
-            {
-              key: "edit",
-              icon: "pencil",
-              label: t("edit"),
-              onPress: () =>
-                router.push({
-                  pathname: "/groups/form",
-                  params: { id: String(groupId) },
-                }),
-            },
-            {
-              key: "schedule",
-              icon: "calendar",
-              label: t("scheduleShort"),
-              onPress: () => void onGenerate(),
-            },
-            {
-              key: "delete",
-              icon: "trash",
-              label: t("delete"),
-              tone: "danger",
-              onPress: () => void onDeleteGroup(),
-            },
-          ]}
-        />
-      </View>
-
-      <ScrollView
+    <ScreenWithFixedActions
+      actions={[
+        {
+          key: "students",
+          icon: "user-plus",
+          label: t("students"),
+          tone: "accent",
+          onPress: () =>
+            router.push(`/groups/add-students?groupId=${groupId}` as never),
+        },
+        {
+          key: "payments",
+          icon: "money",
+          label: t("payments"),
+          onPress: () =>
+            router.push(`/groups/round-payments?groupId=${groupId}` as never),
+        },
+        {
+          key: "edit",
+          icon: "pencil",
+          label: t("edit"),
+          onPress: () =>
+            router.push({
+              pathname: "/groups/form",
+              params: { id: String(groupId) },
+            }),
+        },
+        {
+          key: "schedule",
+          icon: "calendar",
+          label: t("scheduleShort"),
+          onPress: () => void onGenerate(),
+        },
+        {
+          key: "delete",
+          icon: "trash",
+          label: t("delete"),
+          tone: "danger",
+          onPress: () => void onDeleteGroup(),
+        },
+      ]}
+    >
+      <FlatList
         style={{ flex: 1 }}
+        data={listData}
+        keyExtractor={keyExtractor}
+        renderItem={renderItem}
         contentContainerStyle={{
           paddingHorizontal: spacing.lg,
           paddingTop: spacing.md,
           paddingBottom: 40,
         }}
-      >
-        <Muted>{group.subject || "—"}</Muted>
-        <Card>
-          <Text style={styles.cardLine}>
-            {t("groupDateRange")}: {dateRangeLabel}
-          </Text>
-          <Text style={styles.cardLine}>
-            {t("defaultFee")}: {formatMoney(group.default_monthly_fee)}
-          </Text>
-          <Text style={styles.cardLine}>
-            {t("classesPerRound")}: {group.classes_per_round ?? 4}
-          </Text>
-          <Muted>
-            {patterns
-              .map(
-                (p) =>
-                  `${WEEKDAY_LABELS[p.weekday]} ${p.start_time}-${p.end_time}`
-              )
-              .join(" · ") || "—"}
-          </Muted>
-        </Card>
-
-        <Title>{t("groupStudents")}</Title>
-        {!dues.length ? (
-          <Muted style={{ marginBottom: spacing.md }}>{t("noStudents")}</Muted>
-        ) : (
-          dues.map((d) => (
-            <ListRow
-              key={d.student_id}
-              title={d.student_name}
-              subtitle={`${
-                d.round_number != null
-                  ? formatRoundTitle(
-                      d.round_number,
-                      d.started_at,
-                      d.closed_at,
-                      t("roundUntilOngoing")
-                    )
-                  : t("currentRound")
-              } · ${t("remainingClasses")}: ${d.remaining_classes ?? 0}/${d.target_classes ?? 0} · ${statusLabel(d.status)} · ${formatMoney(d.paid)}/${formatMoney(d.due)}`}
-              right={formatMoney(d.remaining)}
-              onPress={() => router.push(`/students/${d.student_id}`)}
-            />
-          ))
-        )}
-
-        <Title>{t("sessions")}</Title>
-        {!sessionRounds.length ? (
-          <Muted>{t("noSessions")}</Muted>
-        ) : (
-          sessionRounds.map((chunk) => {
-            const per = group?.classes_per_round ?? 4;
-            const start = chunk.sessions[0]?.starts_at;
-            const end =
-              chunk.sessions.length >= per
-                ? chunk.sessions[chunk.sessions.length - 1]?.starts_at
-                : null;
-            const title = formatRoundTitle(
-              chunk.roundNumber,
-              start,
-              end,
-              t("roundUntilOngoing")
-            );
-            const star = roundStars[chunk.roundNumber];
-            return (
-              <View key={chunk.roundNumber} style={styles.roundBlock}>
-                <View style={styles.divider} />
-                <MonthStarTitle
-                  title={title}
-                  starName={star?.student_name}
-                />
-                <View style={styles.divider} />
-                {chunk.sessions.map((s) => (
-                  <SessionClassButton
-                    key={s.id}
-                    session={s}
-                    coverage={coverage[s.id]}
-                    onPress={() => router.push(`/attendance/${s.id}`)}
-                  />
-                ))}
-              </View>
-            );
-          })
-        )}
-      </ScrollView>
-    </Screen>
+        initialNumToRender={12}
+        windowSize={7}
+        removeClippedSubviews
+      />
+    </ScreenWithFixedActions>
   );
 }
 
 const styles = StyleSheet.create({
-  fixedActions: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-    paddingBottom: 0,
-    backgroundColor: colors.background,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-    zIndex: 2,
-  },
   cardLine: {
     ...rtlText,
     width: "100%",
@@ -330,7 +415,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   roundBlock: {
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
   },
   divider: {
     height: StyleSheet.hairlineWidth,

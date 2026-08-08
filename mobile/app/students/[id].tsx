@@ -19,9 +19,8 @@ import {
   Card,
   LoadingBlock,
   Muted,
-  Screen,
 } from "@/src/components/ui";
-import { IconActionBar } from "@/src/components/IconActionBar";
+import { ScreenWithFixedActions } from "@/src/components/ScreenWithFixedActions";
 import { t } from "@/src/i18n/ar";
 import {
   deleteStudent,
@@ -39,15 +38,9 @@ import { colors, spacing } from "@/src/theme/colors";
 import { fonts } from "@/src/theme/typography";
 import { formatDateTimeAr, formatMoney, formatRoundTitle } from "@/src/utils/date";
 import { telUrl, whatsappUrl } from "@/src/utils/phone";
+import { attendanceStatusLabel } from "@/src/utils/statusLabels";
 
 const WHATSAPP_GREEN = "#25D366";
-
-function attendanceLabel(status: string): string {
-  if (status === "present") return t("present");
-  if (status === "absent_excused") return t("absentExcused");
-  if (status === "absent_unexcused") return t("absentUnexcused");
-  return status;
-}
 
 export default function StudentDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -132,46 +125,77 @@ export default function StudentDetailsScreen() {
 
   if (loading && !student) {
     return (
-      <Screen>
+      <ScreenWithFixedActions actions={[]}>
         <LoadingBlock />
-      </Screen>
+      </ScreenWithFixedActions>
     );
   }
 
   if (!student) {
     return (
-      <Screen>
+      <ScreenWithFixedActions actions={[]}>
         <Muted>{t("empty")}</Muted>
-      </Screen>
+      </ScreenWithFixedActions>
     );
   }
 
   const phone = student.guardian_phone?.trim() || null;
 
   return (
-    <Screen padded={false} style={{ flex: 1 }}>
-      {/* Fixed top: edit / delete only */}
-      <View style={styles.fixedActions}>
-        <IconActionBar
-          actions={[
-            {
-              key: "edit",
-              icon: "pencil",
-              label: t("edit"),
-              onPress: () =>
-                router.push(`/students/form?id=${student.id}` as never),
-            },
-            {
-              key: "delete",
-              icon: "trash",
-              label: t("delete"),
-              tone: "danger",
-              onPress: () => void onDelete(),
-            },
-          ]}
-        />
-      </View>
-
+    <ScreenWithFixedActions
+      actions={[
+        {
+          key: "edit",
+          icon: "pencil",
+          label: t("edit"),
+          onPress: () =>
+            router.push(`/students/form?id=${student.id}` as never),
+        },
+        {
+          key: "delete",
+          icon: "trash",
+          label: t("delete"),
+          tone: "danger",
+          onPress: () => void onDelete(),
+        },
+      ]}
+      floating={
+        phone ? (
+          <View
+            pointerEvents="box-none"
+            style={[
+              styles.fabColumn,
+              { bottom: Math.max(insets.bottom, spacing.md) + spacing.sm },
+            ]}
+          >
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t("callGuardian")}
+              onPress={() => void Linking.openURL(telUrl(phone))}
+              style={({ pressed }) => [
+                styles.fab,
+                styles.fabCall,
+                pressed && { opacity: 0.85 },
+              ]}
+            >
+              <FontAwesome name="phone" size={20} color="#fff" />
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t("whatsappGuardian")}
+              onPress={() => void Linking.openURL(whatsappUrl(phone))}
+              style={({ pressed }) => [
+                styles.fab,
+                styles.fabWhatsApp,
+                pressed && { opacity: 0.85 },
+              ]}
+            >
+              <FontAwesome name="whatsapp" size={22} color="#fff" />
+            </Pressable>
+          </View>
+        ) : null
+      }
+    >
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{
@@ -205,7 +229,8 @@ export default function StudentDetailsScreen() {
             <Card key={`${a.session_id}-${a.starts_at}`}>
               <Text style={styles.line}>{a.group_name}</Text>
               <Muted>
-                {formatDateTimeAr(a.starts_at)} · {attendanceLabel(a.status)}
+                {formatDateTimeAr(a.starts_at)} ·{" "}
+                {attendanceStatusLabel(a.status)}
               </Muted>
             </Card>
           ))
@@ -231,56 +256,11 @@ export default function StudentDetailsScreen() {
           ))
         )}
       </ScrollView>
-
-      {/* Comment: physical-left FABs — call + WhatsApp overlay the scroll area. */}
-      {phone ? (
-        <View
-          pointerEvents="box-none"
-          style={[
-            styles.fabColumn,
-            { bottom: Math.max(insets.bottom, spacing.md) + spacing.sm },
-          ]}
-        >
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t("callGuardian")}
-            onPress={() => void Linking.openURL(telUrl(phone))}
-            style={({ pressed }) => [
-              styles.fab,
-              styles.fabCall,
-              pressed && { opacity: 0.85 },
-            ]}
-          >
-            <FontAwesome name="phone" size={20} color="#fff" />
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t("whatsappGuardian")}
-            onPress={() => void Linking.openURL(whatsappUrl(phone))}
-            style={({ pressed }) => [
-              styles.fab,
-              styles.fabWhatsApp,
-              pressed && { opacity: 0.85 },
-            ]}
-          >
-            <FontAwesome name="whatsapp" size={22} color="#fff" />
-          </Pressable>
-        </View>
-      ) : null}
-    </Screen>
+    </ScreenWithFixedActions>
   );
 }
 
 const styles = StyleSheet.create({
-  fixedActions: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-    paddingBottom: 0,
-    backgroundColor: colors.background,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-    zIndex: 2,
-  },
   fabColumn: {
     position: "absolute",
     left: spacing.lg,

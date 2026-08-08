@@ -1,12 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type ListRenderItem,
+} from "react-native";
 import { useFocusEffect, useLocalSearchParams, useNavigation } from "expo-router";
 import {
   FormField,
   LoadingBlock,
   Muted,
-  Screen,
 } from "@/src/components/ui";
+import { ScreenWithFixedActions } from "@/src/components/ScreenWithFixedActions";
 import { IconActionBar } from "@/src/components/IconActionBar";
 import type { IconAction } from "@/src/components/IconActionBar";
 import { t } from "@/src/i18n/ar";
@@ -32,11 +39,18 @@ import { colors, radii, spacing } from "@/src/theme/colors";
 import { rtlChipRow, rtlText } from "@/src/theme/rtl";
 import { useAppData } from "@/src/contexts/AppDataContext";
 import { useDialog } from "@/src/components/DialogProvider";
+import { attendanceStatusLabel } from "@/src/utils/statusLabels";
 
 const STATUSES: { key: AttendanceStatus; label: string }[] = [
-  { key: "present", label: t("present") },
-  { key: "absent_excused", label: t("absentExcused") },
-  { key: "absent_unexcused", label: t("absentUnexcused") },
+  { key: "present", label: attendanceStatusLabel("present") },
+  {
+    key: "absent_excused",
+    label: attendanceStatusLabel("absent_excused"),
+  },
+  {
+    key: "absent_unexcused",
+    label: attendanceStatusLabel("absent_unexcused"),
+  },
 ];
 
 export default function AttendanceScreen() {
@@ -101,35 +115,44 @@ export default function AttendanceScreen() {
     [students, starId]
   );
 
-  async function setStatus(studentId: number, status: AttendanceStatus) {
-    setMap((prev) => ({ ...prev, [studentId]: status }));
-    await upsertAttendance({
-      session_id: id,
-      student_id: studentId,
-      status,
-    });
-    bump();
-  }
+  const setStatus = useCallback(
+    async (studentId: number, status: AttendanceStatus) => {
+      setMap((prev) => ({ ...prev, [studentId]: status }));
+      await upsertAttendance({
+        session_id: id,
+        student_id: studentId,
+        status,
+      });
+      bump();
+    },
+    [bump, id]
+  );
 
-  async function setAllStatus(status: AttendanceStatus) {
-    const next: Record<number, AttendanceStatus> = { ...map };
-    for (const s of students) next[s.id] = status;
-    setMap(next);
-    await upsertAttendanceBatch(
-      id,
-      students.map((s) => s.id),
-      status
-    );
-    bump();
-  }
+  const setAllStatus = useCallback(
+    async (status: AttendanceStatus) => {
+      const next: Record<number, AttendanceStatus> = { ...map };
+      for (const student of students) next[student.id] = status;
+      setMap(next);
+      await upsertAttendanceBatch(
+        id,
+        students.map((student) => student.id),
+        status
+      );
+      bump();
+    },
+    [bump, id, map, students]
+  );
 
-  async function pickStar(studentId: number | null) {
-    setStarId(studentId);
-    await setSessionStarStudent(id, studentId);
-    bump();
-  }
+  const pickStar = useCallback(
+    async (studentId: number | null) => {
+      setStarId(studentId);
+      await setSessionStarStudent(id, studentId);
+      bump();
+    },
+    [bump, id]
+  );
 
-  function onPickStar() {
+  const onPickStar = useCallback(() => {
     void (async () => {
       const choice = await dialog.pick({
         title: t("pickStarStudent"),
@@ -145,9 +168,9 @@ export default function AttendanceScreen() {
       }
       await pickStar(Number(choice));
     })();
-  }
+  }, [dialog, pickStar, students]);
 
-  function onMarkAllPresent() {
+  const onMarkAllPresent = useCallback(() => {
     void (async () => {
       const ok = await dialog.confirm({
         title: t("markAllPresent"),
@@ -155,9 +178,9 @@ export default function AttendanceScreen() {
       });
       if (ok) await setAllStatus("present");
     })();
-  }
+  }, [dialog, setAllStatus]);
 
-  function onMarkAllAbsent() {
+  const onMarkAllAbsent = useCallback(() => {
     void (async () => {
       const ok = await dialog.confirm({
         title: t("markAllAbsent"),
@@ -166,9 +189,9 @@ export default function AttendanceScreen() {
       });
       if (ok) await setAllStatus("absent_unexcused");
     })();
-  }
+  }, [dialog, setAllStatus]);
 
-  function onCompleteSession() {
+  const onCompleteSession = useCallback(() => {
     void (async () => {
       if (!allAttendanceSet) {
         await dialog.alert({
@@ -186,136 +209,206 @@ export default function AttendanceScreen() {
       bump();
       await load();
     })();
-  }
+  }, [allAttendanceSet, bump, dialog, id, load]);
 
-  function onReopenSession() {
+  const onReopenSession = useCallback(() => {
     void updateSessionStatus(id, "scheduled").then(() => {
       bump();
       void load();
     });
-  }
+  }, [bump, id, load]);
+
+  const cancelled = session?.status === "cancelled";
+  const completed = session?.status === "completed";
+
+  const onCancelSession = useCallback(() => {
+    void (async () => {
+      const ok = await dialog.confirm({
+        title: t("cancelSession"),
+        message: t("deleteConfirm"),
+        confirmLabel: t("confirm"),
+        danger: true,
+      });
+      if (!ok) return;
+      await updateSessionStatus(id, "cancelled");
+      bump();
+      await load();
+    })();
+  }, [bump, dialog, id, load]);
+
+  const sessionActions = useMemo<IconAction[]>(
+    () =>
+      cancelled
+        ? []
+        : [
+            {
+              key: "present",
+              icon: "check",
+              label: t("actionPresent"),
+              tone: "accent",
+              onPress: onMarkAllPresent,
+            },
+            {
+              key: "absent",
+              icon: "times",
+              label: t("actionAbsent"),
+              onPress: onMarkAllAbsent,
+            },
+            completed
+              ? {
+                  key: "reopen",
+                  icon: "undo",
+                  label: t("actionReopen"),
+                  onPress: onReopenSession,
+                }
+              : {
+                  key: "complete",
+                  icon: "flag-checkered",
+                  label: t("actionComplete"),
+                  disabled: !allAttendanceSet,
+                  onPress: onCompleteSession,
+                },
+            ...(!completed
+              ? [
+                  {
+                    key: "cancel",
+                    icon: "ban" as const,
+                    label: t("cancel"),
+                    tone: "danger" as const,
+                    onPress: onCancelSession,
+                  },
+                ]
+              : []),
+          ],
+    [
+      allAttendanceSet,
+      cancelled,
+      completed,
+      onCancelSession,
+      onCompleteSession,
+      onMarkAllAbsent,
+      onMarkAllPresent,
+      onReopenSession,
+    ]
+  );
+
+  const renderItem = useCallback<ListRenderItem<Student>>(
+    ({ item }) => {
+      const current = map[item.id];
+      const isStar = starId === item.id;
+      return (
+        <View
+          style={[
+            styles.card,
+            isStar && { borderColor: colors.star, borderWidth: 2 },
+          ]}
+        >
+          <Text style={styles.name}>
+            {isStar ? "★ " : ""}
+            {item.name}
+          </Text>
+          {/* Per-student attendance: حاضر / غياب بعذر / غياب بدون عذر */}
+          <View style={styles.row}>
+            {STATUSES.map((status) => {
+              const selected = current === status.key;
+              return (
+                <Pressable
+                  key={status.key}
+                  onPress={() => void setStatus(item.id, status.key)}
+                  disabled={cancelled}
+                  style={[
+                    styles.chip,
+                    selected && styles.chipOn,
+                    cancelled && { opacity: 0.5 },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.chipText,
+                      selected && styles.chipTextOn,
+                    ]}
+                  >
+                    {status.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      );
+    },
+    [cancelled, map, setStatus, starId]
+  );
+
+  const listHeader = useMemo(() => {
+    if (!session) return null;
+    return (
+      <View style={styles.listHeader}>
+        <Muted>{formatDateTimeAr(session.starts_at)}</Muted>
+        <Muted>
+          {sessionStatusLabel(session.status)} · {markedCount}/{students.length}
+        </Muted>
+
+        <Pressable onPress={onPickStar} style={styles.starBox}>
+          <Text style={styles.starLabel}>{t("starOfClass")}</Text>
+          <Text style={styles.starValue} numberOfLines={1}>
+            {starStudent ? `★ ${starStudent.name}` : t("pickStarStudent")}
+          </Text>
+        </Pressable>
+
+        <FormField
+          label={t("sessionNotes")}
+          value={notes}
+          onChangeText={setNotes}
+          placeholder={t("sessionNotesHint")}
+          multiline
+        />
+        <IconActionBar
+          actions={[
+            {
+              key: "save-notes",
+              icon: "save",
+              label: t("save"),
+              tone: "accent",
+              onPress: () => {
+                void (async () => {
+                  await updateSessionNotes(id, notes.trim() || null);
+                  dialog.toast(t("success"), "success");
+                  bump();
+                })();
+              },
+            },
+          ]}
+        />
+
+        {/* Comment: section label so the per-student list is obvious below. */}
+        <Text style={styles.studentsHeading}>{t("markAttendance")}</Text>
+        {cancelled ? <Muted>{t("sessionCancelled")}</Muted> : null}
+      </View>
+    );
+  }, [
+    session,
+    markedCount,
+    students.length,
+    onPickStar,
+    starStudent,
+    notes,
+    id,
+    dialog,
+    bump,
+    cancelled,
+  ]);
 
   if (loading || !session) {
     return (
-      <Screen>
+      <ScreenWithFixedActions actions={[]}>
         <LoadingBlock />
-      </Screen>
+      </ScreenWithFixedActions>
     );
   }
 
-  const cancelled = session.status === "cancelled";
-  const completed = session.status === "completed";
-
-  const sessionActions: IconAction[] = cancelled
-    ? []
-    : [
-        {
-          key: "present",
-          icon: "check",
-          label: t("actionPresent"),
-          tone: "accent",
-          onPress: onMarkAllPresent,
-        },
-        {
-          key: "absent",
-          icon: "times",
-          label: t("actionAbsent"),
-          onPress: onMarkAllAbsent,
-        },
-        completed
-          ? {
-              key: "reopen",
-              icon: "undo",
-              label: t("actionReopen"),
-              onPress: onReopenSession,
-            }
-          : {
-              key: "complete",
-              icon: "flag-checkered",
-              label: t("actionComplete"),
-              disabled: !allAttendanceSet,
-              onPress: onCompleteSession,
-            },
-        ...(!completed
-          ? [
-              {
-                key: "cancel",
-                icon: "ban" as const,
-                label: t("cancel"),
-                tone: "danger" as const,
-                onPress: () => {
-                  void (async () => {
-                    const ok = await dialog.confirm({
-                      title: t("cancelSession"),
-                      message: t("deleteConfirm"),
-                      confirmLabel: t("confirm"),
-                      danger: true,
-                    });
-                    if (!ok) return;
-                    await updateSessionStatus(id, "cancelled");
-                    bump();
-                    await load();
-                  })();
-                },
-              },
-            ]
-          : []),
-      ];
-
-  const listHeader = (
-    <View style={styles.listHeader}>
-      <Muted>{formatDateTimeAr(session.starts_at)}</Muted>
-      <Muted>
-        {sessionStatusLabel(session.status)} · {markedCount}/{students.length}
-      </Muted>
-
-      <Pressable onPress={onPickStar} style={styles.starBox}>
-        <Text style={styles.starLabel}>{t("starOfClass")}</Text>
-        <Text style={styles.starValue} numberOfLines={1}>
-          {starStudent ? `★ ${starStudent.name}` : t("pickStarStudent")}
-        </Text>
-      </Pressable>
-
-      <FormField
-        label={t("sessionNotes")}
-        value={notes}
-        onChangeText={setNotes}
-        placeholder={t("sessionNotesHint")}
-        multiline
-      />
-      <IconActionBar
-        actions={[
-          {
-            key: "save-notes",
-            icon: "save",
-            label: t("save"),
-            tone: "accent",
-            onPress: () => {
-              void (async () => {
-                await updateSessionNotes(id, notes.trim() || null);
-                dialog.toast(t("success"), "success");
-                bump();
-              })();
-            },
-          },
-        ]}
-      />
-
-      {/* Comment: section label so the per-student list is obvious below. */}
-      <Text style={styles.studentsHeading}>{t("markAttendance")}</Text>
-      {cancelled ? <Muted>{t("sessionCancelled")}</Muted> : null}
-    </View>
-  );
-
   return (
-    <Screen padded={false} style={{ flex: 1 }}>
-      {/* Fixed top: bulk session actions only */}
-      {!cancelled ? (
-        <View style={styles.fixedActions}>
-          <IconActionBar actions={sessionActions} />
-        </View>
-      ) : null}
-
+    <ScreenWithFixedActions actions={sessionActions}>
       <FlatList
         style={{ flex: 1 }}
         contentContainerStyle={{
@@ -326,65 +419,13 @@ export default function AttendanceScreen() {
         data={students}
         keyExtractor={(item) => String(item.id)}
         ListHeaderComponent={listHeader}
-        renderItem={({ item }) => {
-          const current = map[item.id];
-          const isStar = starId === item.id;
-          return (
-            <View
-              style={[
-                styles.card,
-                isStar && { borderColor: colors.star, borderWidth: 2 },
-              ]}
-            >
-              <Text style={styles.name}>
-                {isStar ? "★ " : ""}
-                {item.name}
-              </Text>
-              {/* Per-student attendance: حاضر / غياب بعذر / غياب بدون عذر */}
-              <View style={styles.row}>
-                {STATUSES.map((s) => {
-                  const selected = current === s.key;
-                  return (
-                    <Pressable
-                      key={s.key}
-                      onPress={() => void setStatus(item.id, s.key)}
-                      disabled={cancelled}
-                      style={[
-                        styles.chip,
-                        selected && styles.chipOn,
-                        cancelled && { opacity: 0.5 },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.chipText,
-                          selected && styles.chipTextOn,
-                        ]}
-                      >
-                        {s.label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </View>
-          );
-        }}
+        renderItem={renderItem}
       />
-    </Screen>
+    </ScreenWithFixedActions>
   );
 }
 
 const styles = StyleSheet.create({
-  fixedActions: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-    paddingBottom: 0,
-    backgroundColor: colors.background,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-    zIndex: 2,
-  },
   listHeader: {
     paddingTop: spacing.md,
     paddingBottom: spacing.sm,

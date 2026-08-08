@@ -4,6 +4,17 @@ import { t } from "@/src/i18n/ar";
 import { colors, radii, spacing } from "@/src/theme/colors";
 import { fonts } from "@/src/theme/typography";
 import { rtlRow, rtlText } from "@/src/theme/rtl";
+/** Shared shape from useClientPagination / useServerPagination. */
+type PagingLike = {
+  page: number;
+  totalPages: number;
+  totalItems: number;
+  pageSize: number;
+  hasPrev: boolean;
+  hasNext: boolean;
+  prevPage: () => void;
+  nextPage: () => void;
+};
 
 type Props = {
   page: number;
@@ -17,6 +28,24 @@ type Props = {
   /** Hide when a single page covers everything. */
   hideWhenSinglePage?: boolean;
 };
+
+/** Build PaginationBar props from a paging hook result. */
+export function pagingBarProps(
+  paging: PagingLike,
+  hideWhenSinglePage = true
+): Props {
+  return {
+    page: paging.page,
+    totalPages: paging.totalPages,
+    totalItems: paging.totalItems,
+    pageSize: paging.pageSize,
+    hasPrev: paging.hasPrev,
+    hasNext: paging.hasNext,
+    onPrev: paging.prevPage,
+    onNext: paging.nextPage,
+    hideWhenSinglePage,
+  };
+}
 
 /** Prev / next bar shared by paginated FlatLists. */
 export function PaginationBar({
@@ -91,7 +120,6 @@ const styles = StyleSheet.create({
   meta: {
     ...rtlText,
     width: "100%",
-    textAlign: "center",
     color: colors.textMuted,
     fontFamily: fonts.semiBold,
     fontSize: 12,
@@ -104,30 +132,28 @@ const styles = StyleSheet.create({
   },
   pageLabel: {
     ...rtlText,
-    flex: 1,
-    textAlign: "center",
     fontFamily: fonts.bold,
-    fontWeight: "700",
     color: colors.text,
+    fontSize: 13,
   },
   btn: {
     ...rtlRow(),
     alignItems: "center",
     gap: 6,
-    paddingHorizontal: 12,
     paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: radii.md,
     borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    borderColor: colors.primary,
+    backgroundColor: colors.primarySoft,
   },
   btnDisabled: {
-    opacity: 0.45,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
   btnText: {
     ...rtlText,
     fontFamily: fonts.bold,
-    fontWeight: "700",
     color: colors.primary,
     fontSize: 13,
   },

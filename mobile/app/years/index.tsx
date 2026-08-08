@@ -8,7 +8,7 @@ import {
   Screen,
 } from "@/src/components/ui";
 import { IconActionBar } from "@/src/components/IconActionBar";
-import { PaginationBar } from "@/src/components/PaginationBar";
+import { PaginationBar, pagingBarProps } from "@/src/components/PaginationBar";
 import { t } from "@/src/i18n/ar";
 import {
   deleteAcademicYear,
@@ -83,16 +83,7 @@ export default function YearsScreen() {
           />
         }
         ListFooterComponent={
-          <PaginationBar
-            page={paging.page}
-            totalPages={paging.totalPages}
-            totalItems={paging.totalItems}
-            pageSize={paging.pageSize}
-            hasPrev={paging.hasPrev}
-            hasNext={paging.hasNext}
-            onPrev={paging.prevPage}
-            onNext={paging.nextPage}
-          />
+          <PaginationBar {...pagingBarProps(paging)} />
         }
         renderItem={({ item }) => (
           <ListRow

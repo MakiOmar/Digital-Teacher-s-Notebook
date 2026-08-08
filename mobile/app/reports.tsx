@@ -11,7 +11,7 @@ import {
   Screen,
   Title,
 } from "@/src/components/ui";
-import { PaginationBar } from "@/src/components/PaginationBar";
+import { PaginationBar, pagingBarProps } from "@/src/components/PaginationBar";
 import { useDialog } from "@/src/components/DialogProvider";
 import { t } from "@/src/i18n/ar";
 import { getAttendanceRatesByStudent } from "@/src/repositories";
@@ -136,16 +136,7 @@ export default function ReportsScreen() {
                 </Card>
               );
             })}
-            <PaginationBar
-              page={attendancePage.page}
-              totalPages={attendancePage.totalPages}
-              totalItems={attendancePage.totalItems}
-              pageSize={attendancePage.pageSize}
-              hasPrev={attendancePage.hasPrev}
-              hasNext={attendancePage.hasNext}
-              onPrev={attendancePage.prevPage}
-              onNext={attendancePage.nextPage}
-            />
+            <PaginationBar {...pagingBarProps(attendancePage)} />
           </>
         )}
 
@@ -163,16 +154,7 @@ export default function ReportsScreen() {
                 </Muted>
               </Card>
             ))}
-            <PaginationBar
-              page={groupPage.page}
-              totalPages={groupPage.totalPages}
-              totalItems={groupPage.totalItems}
-              pageSize={groupPage.pageSize}
-              hasPrev={groupPage.hasPrev}
-              hasNext={groupPage.hasNext}
-              onPrev={groupPage.prevPage}
-              onNext={groupPage.nextPage}
-            />
+            <PaginationBar {...pagingBarProps(groupPage)} />
           </>
         )}
       </ScrollView>

@@ -4,7 +4,6 @@ import {
   Modal,
   Pressable,
   StyleSheet,
-  Switch,
   Text,
   View,
 } from "react-native";
@@ -18,6 +17,7 @@ import {
 import { ScreenWithFixedActions } from "@/src/components/ScreenWithFixedActions";
 import { PaginationBar, pagingBarProps } from "@/src/components/PaginationBar";
 import { FiltersSheet } from "@/src/components/FilterSelect";
+import { RoundPaymentCard } from "@/src/components/RoundPaymentCard";
 import { t } from "@/src/i18n/ar";
 import {
   createPayment,
@@ -32,13 +32,12 @@ import {
 } from "@/src/services/rounds";
 import type { PaymentMethod, StudentDueRow } from "@/src/db/types";
 import {
-  formatMoney,
   formatRoundRange,
   formatRoundTitle,
   todayDateOnly,
 } from "@/src/utils/date";
 import { colors, radii, spacing } from "@/src/theme/colors";
-import { rtlBlock, rtlChipRow, rtlRow, rtlText } from "@/src/theme/rtl";
+import { rtlBlock, rtlRow, rtlText } from "@/src/theme/rtl";
 import { fonts } from "@/src/theme/typography";
 import { useAppData } from "@/src/contexts/AppDataContext";
 import { MonthStarTitle } from "@/src/components/MonthStarTitle";
@@ -395,64 +394,20 @@ export default function GroupRoundPaymentsScreen() {
           <PaginationBar {...pagingBarProps(paging)} />
         }
         renderItem={({ item }) => {
-          const isPaid = item.status === "paid";
           const busy = bulkBusy || busyStudentId === item.student_id;
-          const method = methodFor(item.student_id);
           return (
-            <View style={styles.card}>
-              <View style={styles.row}>
-                <View style={styles.info}>
-                  <Text style={styles.name}>{item.student_name}</Text>
-                  <Muted>
-                    {formatMoney(item.paid)} / {formatMoney(item.due)}
-                    {item.status === "partial" ? ` · ${t("partial")}` : ""}
-                  </Muted>
-                </View>
-                <View style={styles.switchBlock}>
-                  <Text style={[styles.switchLabel, isPaid && styles.paidLabel]}>
-                    {isPaid ? t("paid") : t("unpaid")}
-                  </Text>
-                  <Switch
-                    value={isPaid}
-                    disabled={busy}
-                    onValueChange={(v) => onToggle(item, v)}
-                    trackColor={{
-                      false: colors.border,
-                      true: colors.primarySoft,
-                    }}
-                    thumbColor={isPaid ? colors.primary : colors.textMuted}
-                  />
-                </View>
-              </View>
-              {!isPaid ? (
-                <View style={styles.methodRow}>
-                  {METHODS.map((m) => (
-                    <Pressable
-                      key={m.key}
-                      onPress={() =>
-                        setMethodsByStudent((prev) => ({
-                          ...prev,
-                          [item.student_id]: m.key,
-                        }))
-                      }
-                      style={[
-                        styles.methodChip,
-                        method === m.key && styles.methodChipOn,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.methodText,
-                          method === m.key && styles.methodTextOn,
-                        ]}
-                      >
-                        {m.label}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              ) : null}
-            </View>
+            <RoundPaymentCard
+              item={item}
+              method={methodFor(item.student_id)}
+              busy={busy}
+              onTogglePaid={(v) => onToggle(item, v)}
+              onChangeMethod={(next) =>
+                setMethodsByStudent((prev) => ({
+                  ...prev,
+                  [item.student_id]: next,
+                }))
+              }
+            />
           );
         }}
       />
@@ -533,66 +488,6 @@ const styles = StyleSheet.create({
   roundBanner: {
     marginTop: 4,
     gap: 4,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: 10,
-  },
-  row: {
-    ...rtlRow(),
-    alignItems: "center",
-    gap: 12,
-  },
-  info: { flex: 1 },
-  name: {
-    ...rtlText,
-    width: "100%",
-    fontWeight: "700",
-    color: colors.text,
-    marginBottom: 4,
-  },
-  switchBlock: {
-    alignItems: "center",
-    gap: 4,
-  },
-  switchLabel: {
-    ...rtlText,
-    fontSize: 12,
-    fontWeight: "700",
-    color: colors.danger,
-  },
-  paidLabel: {
-    color: colors.success,
-  },
-  methodRow: {
-    ...rtlChipRow(),
-    gap: 6,
-  },
-  methodChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
-  },
-  methodChipOn: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  methodText: {
-    ...rtlText,
-    fontSize: 12,
-    fontWeight: "600",
-    color: colors.text,
-  },
-  methodTextOn: {
-    color: "#fff",
   },
   modalBackdrop: {
     flex: 1,

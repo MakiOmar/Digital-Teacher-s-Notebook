@@ -288,15 +288,17 @@ export async function listPayableRoundsForStudent(
     }
   >(
     `SELECT br.*, g.name as group_name, g.default_monthly_fee, e.custom_monthly_fee,
-       (
-         SELECT COALESCE(SUM(p.amount), 0)
-         FROM payments p
-         WHERE p.billing_round_id = br.id
-       ) as paid
+       COALESCE(payment_totals.paid, 0) as paid
      FROM billing_rounds br
      JOIN groups g ON g.id = br.group_id
      LEFT JOIN enrollments e
        ON e.student_id = br.student_id AND e.group_id = br.group_id AND e.status = 'active'
+     LEFT JOIN (
+       SELECT billing_round_id, SUM(amount) as paid
+       FROM payments
+       WHERE billing_round_id IS NOT NULL
+       GROUP BY billing_round_id
+     ) payment_totals ON payment_totals.billing_round_id = br.id
      WHERE br.student_id = ?
      ORDER BY br.round_number DESC`,
     [studentId]
@@ -360,6 +362,73 @@ export type GroupRoundSummary = {
   has_open: boolean;
 };
 
+type SessionRoundDateRange = {
+  started_at: string;
+  closed_at: string | null;
+};
+
+function sessionRangeCacheKey(groupId: number, classesPerRound: number): string {
+  return `${groupId}:${classesPerRound}`;
+}
+
+function buildSessionRoundDateRanges(
+  sessions: { starts_at: string }[],
+  classesPerRound: number
+): Map<number, SessionRoundDateRange> {
+  const ranges = new Map<number, SessionRoundDateRange>();
+  const per = Math.max(1, classesPerRound);
+  for (let i = 0; i < sessions.length; i++) {
+    const roundNumber = Math.floor(i / per) + 1;
+    const existing = ranges.get(roundNumber);
+    if (!existing) {
+      ranges.set(roundNumber, {
+        started_at: sessions[i].starts_at,
+        closed_at: null,
+      });
+    } else if (i % per === per - 1) {
+      existing.closed_at = sessions[i].starts_at;
+    }
+  }
+  return ranges;
+}
+
+async function getSessionRoundDateRangesForGroups(
+  classesPerRoundByGroup: Map<number, number>
+): Promise<Map<string, Map<number, SessionRoundDateRange>>> {
+  const cache = new Map<string, Map<number, SessionRoundDateRange>>();
+  const groupIds = [...classesPerRoundByGroup.keys()];
+  if (!groupIds.length) return cache;
+
+  const db = await getDb();
+  const placeholders = groupIds.map(() => "?").join(", ");
+  const sessions = await db.getAllAsync<{
+    group_id: number;
+    starts_at: string;
+  }>(
+    `SELECT group_id, starts_at
+     FROM group_sessions
+     WHERE group_id IN (${placeholders}) AND status != 'cancelled'
+     ORDER BY group_id ASC, starts_at ASC`,
+    groupIds
+  );
+
+  const sessionsByGroup = new Map<number, { starts_at: string }[]>();
+  for (const session of sessions) {
+    const groupSessions = sessionsByGroup.get(session.group_id) ?? [];
+    groupSessions.push({ starts_at: session.starts_at });
+    sessionsByGroup.set(session.group_id, groupSessions);
+  }
+
+  for (const [groupId, classesPerRound] of classesPerRoundByGroup) {
+    const per = Math.max(1, classesPerRound);
+    cache.set(
+      sessionRangeCacheKey(groupId, per),
+      buildSessionRoundDateRanges(sessionsByGroup.get(groupId) ?? [], per)
+    );
+  }
+  return cache;
+}
+
 /**
  * Round calendar dates from scheduled class sessions (not DB open/close timestamps).
  * Round N = sessions [(N-1)*classes_per_round, N*classes_per_round).
@@ -372,32 +441,13 @@ export async function getSessionRoundDateRanges(
     "SELECT classes_per_round FROM groups WHERE id = ?",
     [groupId]
   );
-  const per = Math.max(1, group?.classes_per_round ?? 4);
-  const sessions = await db.getAllAsync<{ starts_at: string }>(
-    `SELECT starts_at FROM group_sessions
-     WHERE group_id = ? AND status != 'cancelled'
-     ORDER BY starts_at ASC`,
-    [groupId]
+  const classesPerRound = Math.max(1, group?.classes_per_round ?? 4);
+  const cache = await getSessionRoundDateRangesForGroups(
+    new Map([[groupId, classesPerRound]])
   );
-
-  const map = new Map<number, { started_at: string; closed_at: string | null }>();
-  for (let i = 0; i < sessions.length; i++) {
-    const roundNumber = Math.floor(i / per) + 1;
-    const existing = map.get(roundNumber);
-    if (!existing) {
-      map.set(roundNumber, {
-        started_at: sessions[i].starts_at,
-        closed_at: null,
-      });
-    } else {
-      const indexInRound = i % per;
-      // End date = last session in a full round; partial rounds stay open (مستمرة)
-      if (indexInRound === per - 1) {
-        existing.closed_at = sessions[i].starts_at;
-      }
-    }
-  }
-  return map;
+  return (
+    cache.get(sessionRangeCacheKey(groupId, classesPerRound)) ?? new Map()
+  );
 }
 
 export async function getGroupRoundSummaries(
@@ -492,15 +542,17 @@ export async function getGroupDuesForRoundNumber(
        g.name as group_name,
        g.default_monthly_fee,
        e.custom_monthly_fee,
-       (
-         SELECT COALESCE(SUM(p.amount), 0)
-         FROM payments p
-         WHERE p.billing_round_id = br.id
-       ) as paid
+       COALESCE(payment_totals.paid, 0) as paid
      FROM billing_rounds br
      JOIN students s ON s.id = br.student_id
      JOIN groups g ON g.id = br.group_id
      JOIN enrollments e ON e.student_id = s.id AND e.group_id = g.id AND e.status = 'active'
+     LEFT JOIN (
+       SELECT billing_round_id, SUM(amount) as paid
+       FROM payments
+       WHERE billing_round_id IS NOT NULL
+       GROUP BY billing_round_id
+     ) payment_totals ON payment_totals.billing_round_id = br.id
      WHERE br.group_id = ?
        AND br.round_number = ?
        AND s.status = 'active'
@@ -550,6 +602,7 @@ export async function getRoundDues(groupId?: number): Promise<StudentDueRow[]> {
     guardian_phone: string | null;
     group_id: number;
     group_name: string;
+    classes_per_round: number;
     default_monthly_fee: number;
     custom_monthly_fee: number | null;
     paid: number | null;
@@ -566,17 +619,20 @@ export async function getRoundDues(groupId?: number): Promise<StudentDueRow[]> {
        s.guardian_phone,
        g.id as group_id,
        g.name as group_name,
+       g.classes_per_round,
        g.default_monthly_fee,
        e.custom_monthly_fee,
-       (
-         SELECT COALESCE(SUM(p.amount), 0)
-         FROM payments p
-         WHERE p.billing_round_id = br.id
-       ) as paid
+       COALESCE(payment_totals.paid, 0) as paid
      FROM billing_rounds br
      JOIN students s ON s.id = br.student_id
      JOIN groups g ON g.id = br.group_id
      JOIN enrollments e ON e.student_id = s.id AND e.group_id = g.id AND e.status = 'active'
+     LEFT JOIN (
+       SELECT billing_round_id, SUM(amount) as paid
+       FROM payments
+       WHERE billing_round_id IS NOT NULL
+       GROUP BY billing_round_id
+     ) payment_totals ON payment_totals.billing_round_id = br.id
      WHERE br.status = 'open'
        AND s.status = 'active'
        ${groupId != null ? "AND br.group_id = ?" : ""}
@@ -610,21 +666,32 @@ export async function getRoundDues(groupId?: number): Promise<StudentDueRow[]> {
     };
   });
 
-  if (groupId != null) {
-    return attachSessionRoundDates(groupId, mapped);
+  const classesPerRoundByGroup = new Map<number, number>();
+  for (const row of rows) {
+    classesPerRoundByGroup.set(
+      row.group_id,
+      Math.max(1, row.classes_per_round ?? 4)
+    );
   }
 
-  const byGroup = new Map<number, StudentDueRow[]>();
-  for (const row of mapped) {
-    const list = byGroup.get(row.group_id) ?? [];
-    list.push(row);
-    byGroup.set(row.group_id, list);
-  }
-  const out: StudentDueRow[] = [];
-  for (const [gid, list] of byGroup) {
-    out.push(...(await attachSessionRoundDates(gid, list)));
-  }
-  return out;
+  const rangeCache = await getSessionRoundDateRangesForGroups(
+    classesPerRoundByGroup
+  );
+  return mapped.map((row) => {
+    const classesPerRound = classesPerRoundByGroup.get(row.group_id) ?? 4;
+    const ranges = rangeCache.get(
+      sessionRangeCacheKey(row.group_id, classesPerRound)
+    );
+    const range =
+      row.round_number != null ? ranges?.get(row.round_number) : undefined;
+    return range
+      ? {
+          ...row,
+          started_at: range.started_at,
+          closed_at: range.closed_at,
+        }
+      : row;
+  });
 }
 
 /** Open-round dues for one student only (avoids full-app summary scan). */
@@ -662,15 +729,17 @@ export async function getRoundDuesForStudent(
        g.name as group_name,
        g.default_monthly_fee,
        e.custom_monthly_fee,
-       (
-         SELECT COALESCE(SUM(p.amount), 0)
-         FROM payments p
-         WHERE p.billing_round_id = br.id
-       ) as paid
+       COALESCE(payment_totals.paid, 0) as paid
      FROM billing_rounds br
      JOIN students s ON s.id = br.student_id
      JOIN groups g ON g.id = br.group_id
      JOIN enrollments e ON e.student_id = s.id AND e.group_id = g.id AND e.status = 'active'
+     LEFT JOIN (
+       SELECT billing_round_id, SUM(amount) as paid
+       FROM payments
+       WHERE billing_round_id IS NOT NULL
+       GROUP BY billing_round_id
+     ) payment_totals ON payment_totals.billing_round_id = br.id
      WHERE br.status = 'open'
        AND s.status = 'active'
        AND br.student_id = ?
@@ -735,6 +804,155 @@ export async function getOpenRoundsPaymentSummary(groupId?: number): Promise<{
     partialCount: dues.filter((d) => d.status === "partial").length,
     paidCount: dues.filter((d) => d.status === "paid").length,
     dues,
+  };
+}
+
+type OpenRoundDueSqlRow = {
+  round_id: number;
+  round_number: number;
+  counted_classes: number;
+  target_classes: number;
+  started_at: string;
+  closed_at: string | null;
+  student_id: number;
+  student_name: string;
+  guardian_phone: string | null;
+  group_id: number;
+  group_name: string;
+  due: number;
+  paid: number;
+  remaining: number;
+  status: PaymentStatus;
+};
+
+const OPEN_ROUND_DUES_CTE = `
+  WITH due_rows AS (
+    SELECT
+      br.id as round_id,
+      br.round_number,
+      br.counted_classes,
+      br.target_classes,
+      br.started_at,
+      br.closed_at,
+      s.id as student_id,
+      s.name as student_name,
+      s.guardian_phone,
+      g.id as group_id,
+      g.name as group_name,
+      CASE
+        WHEN e.custom_monthly_fee IS NOT NULL AND e.custom_monthly_fee >= 0
+          THEN e.custom_monthly_fee
+        ELSE g.default_monthly_fee
+      END as due,
+      COALESCE(SUM(p.amount), 0) as paid
+    FROM billing_rounds br
+    JOIN students s ON s.id = br.student_id
+    JOIN groups g ON g.id = br.group_id
+    JOIN enrollments e
+      ON e.student_id = s.id
+      AND e.group_id = g.id
+      AND e.status = 'active'
+    LEFT JOIN payments p ON p.billing_round_id = br.id
+    WHERE br.status = 'open' AND s.status = 'active'
+    GROUP BY br.id
+  ),
+  classified AS (
+    SELECT *,
+      MAX(0, due - paid) as remaining,
+      CASE
+        WHEN due <= 0 THEN 'paid'
+        WHEN paid <= 0 THEN 'unpaid'
+        WHEN paid + 0.001 >= due THEN 'paid'
+        ELSE 'partial'
+      END as status
+    FROM due_rows
+  )`;
+
+export type OpenRoundPaymentPage = {
+  items: StudentDueRow[];
+  total: number;
+  totalCollected: number;
+  totalRemaining: number;
+  groups: { id: number; name: string }[];
+};
+
+/** Open-round payment rows with status/group filtering and paging in SQL. */
+export async function getOpenRoundsPaymentPage(input: {
+  status?: PaymentStatus;
+  groupId?: number;
+  limit: number;
+  offset: number;
+}): Promise<OpenRoundPaymentPage> {
+  const db = await getDb();
+  const conditions = ["1 = 1"];
+  const params: (string | number)[] = [];
+  if (input.groupId != null) {
+    conditions.push("group_id = ?");
+    params.push(input.groupId);
+  }
+  if (input.status) {
+    conditions.push("status = ?");
+    params.push(input.status);
+  }
+  const where = conditions.join(" AND ");
+
+  const summary = await db.getFirstAsync<{
+    total_collected: number;
+    total_remaining: number;
+  }>(
+    `${OPEN_ROUND_DUES_CTE}
+     SELECT
+       COALESCE(SUM(paid), 0) as total_collected,
+       COALESCE(SUM(remaining), 0) as total_remaining
+     FROM classified`
+  );
+  const groups = await db.getAllAsync<{ id: number; name: string }>(
+    `${OPEN_ROUND_DUES_CTE}
+     SELECT DISTINCT group_id as id, group_name as name
+     FROM classified
+     ORDER BY group_name COLLATE NOCASE`
+  );
+  const count = await db.getFirstAsync<{ total: number }>(
+    `${OPEN_ROUND_DUES_CTE}
+     SELECT COUNT(*) as total FROM classified WHERE ${where}`,
+    params
+  );
+  const rows = await db.getAllAsync<OpenRoundDueSqlRow>(
+    `${OPEN_ROUND_DUES_CTE}
+     SELECT * FROM classified
+     WHERE ${where}
+     ORDER BY group_name COLLATE NOCASE, student_name COLLATE NOCASE
+     LIMIT ? OFFSET ?`,
+    [...params, input.limit, input.offset]
+  );
+
+  const mapped: StudentDueRow[] = rows.map((row) => ({
+    ...row,
+    due: Number(row.due),
+    paid: Number(row.paid),
+    remaining: Number(row.remaining),
+    remaining_classes: Math.max(
+      0,
+      row.target_classes - row.counted_classes
+    ),
+  }));
+  const byGroup = new Map<number, StudentDueRow[]>();
+  for (const row of mapped) {
+    const list = byGroup.get(row.group_id) ?? [];
+    list.push(row);
+    byGroup.set(row.group_id, list);
+  }
+  const items: StudentDueRow[] = [];
+  for (const [groupId, groupRows] of byGroup) {
+    items.push(...(await attachSessionRoundDates(groupId, groupRows)));
+  }
+
+  return {
+    items,
+    total: Number(count?.total ?? 0),
+    totalCollected: Number(summary?.total_collected ?? 0),
+    totalRemaining: Number(summary?.total_remaining ?? 0),
+    groups,
   };
 }
 

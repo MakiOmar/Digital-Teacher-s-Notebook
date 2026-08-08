@@ -88,9 +88,16 @@ async function migrate(db: SQLite.SQLiteDatabase): Promise<void> {
 
   await db.execAsync(`
     CREATE INDEX IF NOT EXISTS idx_payments_round ON payments(billing_round_id);
+    CREATE INDEX IF NOT EXISTS idx_semesters_academic_year ON semesters(academic_year_id);
+    CREATE INDEX IF NOT EXISTS idx_attendances_student ON attendances(student_id);
+    CREATE INDEX IF NOT EXISTS idx_schedule_patterns_group ON group_schedule_patterns(group_id);
     CREATE INDEX IF NOT EXISTS idx_rounds_student ON billing_rounds(student_id);
     CREATE INDEX IF NOT EXISTS idx_rounds_group ON billing_rounds(group_id);
     CREATE INDEX IF NOT EXISTS idx_rounds_open ON billing_rounds(status);
+    CREATE INDEX IF NOT EXISTS idx_rounds_student_group_status
+      ON billing_rounds(student_id, group_id, status);
+    CREATE INDEX IF NOT EXISTS idx_rounds_group_status
+      ON billing_rounds(group_id, status);
   `);
 
   await db.execAsync(`

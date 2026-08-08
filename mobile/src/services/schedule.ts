@@ -15,6 +15,7 @@ import {
   resolveGroupScheduleEnd,
   todayDateOnly,
 } from "../utils/date";
+import { withTransaction } from "../db/client";
 
 export type GenerateResult = {
   created: number;
@@ -27,6 +28,12 @@ export type GenerateResult = {
  * Start may be any calendar date (before/after semester or year bounds).
  */
 export async function generateSessionsForGroup(
+  groupId: number
+): Promise<GenerateResult> {
+  return withTransaction(() => generateSessionsForGroupInTransaction(groupId));
+}
+
+async function generateSessionsForGroupInTransaction(
   groupId: number
 ): Promise<GenerateResult> {
   const patterns = await listPatterns(groupId);

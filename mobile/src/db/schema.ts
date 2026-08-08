@@ -122,17 +122,24 @@ CREATE TABLE IF NOT EXISTS payments (
 );
 
 CREATE INDEX IF NOT EXISTS idx_study_months_year ON study_months(academic_year_id);
+CREATE INDEX IF NOT EXISTS idx_semesters_academic_year ON semesters(academic_year_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_group ON group_sessions(group_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_month ON group_sessions(study_month_id);
 CREATE INDEX IF NOT EXISTS idx_attendances_session ON attendances(session_id);
+CREATE INDEX IF NOT EXISTS idx_attendances_student ON attendances(student_id);
 CREATE INDEX IF NOT EXISTS idx_payments_student ON payments(student_id);
 CREATE INDEX IF NOT EXISTS idx_payments_month ON payments(study_month_id);
 CREATE INDEX IF NOT EXISTS idx_payments_round ON payments(billing_round_id);
 CREATE INDEX IF NOT EXISTS idx_enrollments_student ON enrollments(student_id);
 CREATE INDEX IF NOT EXISTS idx_enrollments_group ON enrollments(group_id);
+CREATE INDEX IF NOT EXISTS idx_schedule_patterns_group ON group_schedule_patterns(group_id);
 CREATE INDEX IF NOT EXISTS idx_rounds_student ON billing_rounds(student_id);
 CREATE INDEX IF NOT EXISTS idx_rounds_group ON billing_rounds(group_id);
 CREATE INDEX IF NOT EXISTS idx_rounds_open ON billing_rounds(status);
+CREATE INDEX IF NOT EXISTS idx_rounds_student_group_status
+  ON billing_rounds(student_id, group_id, status);
+CREATE INDEX IF NOT EXISTS idx_rounds_group_status
+  ON billing_rounds(group_id, status);
 
 CREATE TABLE IF NOT EXISTS round_stars (
   group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,

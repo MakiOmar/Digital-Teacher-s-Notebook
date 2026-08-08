@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   FlatList,
   Pressable,
+  ScrollView,
   StyleSheet,
   Switch,
   Text,
@@ -30,7 +31,12 @@ import {
   type GroupRoundSummary,
 } from "@/src/services/rounds";
 import type { PaymentMethod, StudentDueRow } from "@/src/db/types";
-import { formatMoney, formatRoundRange, formatRoundTitle, todayDateOnly } from "@/src/utils/date";
+import {
+  formatMoney,
+  formatRoundRange,
+  formatRoundTitle,
+  todayDateOnly,
+} from "@/src/utils/date";
 import { colors, spacing } from "@/src/theme/colors";
 import { rtlChipRow, rtlRow, rtlText } from "@/src/theme/rtl";
 import { useAppData } from "@/src/contexts/AppDataContext";
@@ -67,8 +73,10 @@ export default function GroupRoundPaymentsScreen() {
   const [monthStarName, setMonthStarName] = useState<string | null>(null);
 
   useEffect(() => {
-    navigation.setOptions({ headerTitle: "" });
-  }, [navigation]);
+    navigation.setOptions({
+      headerTitle: groupName || t("roundPayments"),
+    });
+  }, [navigation, groupName]);
 
   const selectedSummary = useMemo(
     () => roundSummaries.find((r) => r.round_number === selectedRound) ?? null,
@@ -272,110 +280,114 @@ export default function GroupRoundPaymentsScreen() {
     );
   }
 
-  return (
-    <Screen padded={false} style={{ flex: 1 }}>
-      <View style={styles.header}>
-        <IconActionBar
-          actions={
-            rows.length
-              ? [
-                  {
-                    key: "paid",
-                    icon: "check-circle",
-                    label: t("actionPaidAll"),
-                    tone: "accent",
-                    disabled: bulkBusy,
-                    onPress: onMarkAllPaid,
-                  },
-                  {
-                    key: "unpaid",
-                    icon: "times-circle",
-                    label: t("actionUnpaidAll"),
-                    tone: "danger",
-                    disabled: bulkBusy,
-                    onPress: onMarkAllUnpaid,
-                  },
-                ]
-              : []
-          }
-        />
-        <Text style={styles.title}>{groupName}</Text>
-        <Muted>{t("selectRound")}</Muted>
-        {!roundSummaries.length ? (
-          <Muted style={{ marginTop: 8 }}>{t("noRoundsYet")}</Muted>
-        ) : (
-          <View style={styles.rounds}>
-            {roundSummaries.map((s) => (
-              <Chip
-                key={s.round_number}
-                label={formatRoundTitle(
-                  s.round_number,
-                  s.started_at,
-                  s.closed_at,
-                  t("roundUntilOngoing")
-                )}
-                selected={selectedRound === s.round_number}
-                onPress={() => setSelectedRound(s.round_number)}
-              />
-            ))}
-          </View>
-        )}
-
-        {selectedSummary ? (
-          <View style={styles.roundBanner}>
-            <View style={styles.divider} />
-            <MonthStarTitle
-              title={roundHeading}
-              starName={monthStarName}
-            />
-            <Muted>
-              {t("roundRange")}:{" "}
-              {formatRoundRange(
-                selectedSummary.started_at,
-                selectedSummary.closed_at,
+  const listHeader = (
+    <View style={styles.listHeader}>
+      {/* Comment: month / context scrolls with students — only actions stay fixed. */}
+      <Muted>{t("selectRound")}</Muted>
+      {!roundSummaries.length ? (
+        <Muted style={{ marginTop: 6 }}>{t("noRoundsYet")}</Muted>
+      ) : (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.roundsScroll}
+        >
+          {roundSummaries.map((s) => (
+            <Chip
+              key={s.round_number}
+              label={formatRoundTitle(
+                s.round_number,
+                s.started_at,
+                s.closed_at,
                 t("roundUntilOngoing")
               )}
-            </Muted>
-            <View style={styles.divider} />
-          </View>
-        ) : null}
+              selected={selectedRound === s.round_number}
+              onPress={() => setSelectedRound(s.round_number)}
+            />
+          ))}
+        </ScrollView>
+      )}
 
-        {rows.length ? (
-          <View style={styles.bulkRow}>
-            <Muted>{t("method")}</Muted>
-            <View style={styles.methodRow}>
-              {METHODS.map((m) => (
-                <Pressable
-                  key={m.key}
-                  onPress={() => setBulkMethod(m.key)}
+      {selectedSummary ? (
+        <View style={styles.roundBanner}>
+          <MonthStarTitle title={roundHeading} starName={monthStarName} />
+          <Muted>
+            {formatRoundRange(
+              selectedSummary.started_at,
+              selectedSummary.closed_at,
+              t("roundUntilOngoing")
+            )}
+          </Muted>
+        </View>
+      ) : null}
+
+      {rows.length ? (
+        <View style={styles.bulkRow}>
+          <Muted>{t("method")}</Muted>
+          <View style={styles.methodRow}>
+            {METHODS.map((m) => (
+              <Pressable
+                key={m.key}
+                onPress={() => setBulkMethod(m.key)}
+                style={[
+                  styles.methodChip,
+                  bulkMethod === m.key && styles.methodChipOn,
+                ]}
+              >
+                <Text
                   style={[
-                    styles.methodChip,
-                    bulkMethod === m.key && styles.methodChipOn,
+                    styles.methodText,
+                    bulkMethod === m.key && styles.methodTextOn,
                   ]}
                 >
-                  <Text
-                    style={[
-                      styles.methodText,
-                      bulkMethod === m.key && styles.methodTextOn,
-                    ]}
-                  >
-                    {m.label}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
+                  {m.label}
+                </Text>
+              </Pressable>
+            ))}
           </View>
-        ) : null}
-      </View>
+        </View>
+      ) : null}
+    </View>
+  );
+
+  return (
+    <Screen padded={false} style={{ flex: 1 }}>
+      {/* Fixed top: bulk pay / unpay actions only */}
+      {rows.length ? (
+        <View style={styles.fixedActions}>
+          <IconActionBar
+            actions={[
+              {
+                key: "paid",
+                icon: "check-circle",
+                label: t("actionPaidAll"),
+                tone: "accent",
+                disabled: bulkBusy,
+                onPress: onMarkAllPaid,
+              },
+              {
+                key: "unpaid",
+                icon: "times-circle",
+                label: t("actionUnpaidAll"),
+                tone: "danger",
+                disabled: bulkBusy,
+                onPress: onMarkAllUnpaid,
+              },
+            ]}
+          />
+        </View>
+      ) : null}
 
       <FlatList
         style={{ flex: 1 }}
         contentContainerStyle={{
           paddingHorizontal: spacing.lg,
           paddingBottom: 40,
+          flexGrow: 1,
         }}
         data={paging.pageItems}
         keyExtractor={(item) => String(item.round_id ?? item.student_id)}
+        ListHeaderComponent={listHeader}
         ListEmptyComponent={<EmptyState message={t("noStudentsInGroup")} />}
         ListFooterComponent={
           <PaginationBar
@@ -456,42 +468,32 @@ export default function GroupRoundPaymentsScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: {
-    padding: spacing.lg,
+  fixedActions: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: 0,
+    backgroundColor: colors.background,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+    zIndex: 2,
+  },
+  listHeader: {
+    paddingTop: spacing.md,
     paddingBottom: spacing.sm,
-  },
-  title: {
-    ...rtlText,
-    width: "100%",
-    fontSize: 20,
-    fontWeight: "700",
-    color: colors.text,
-    marginBottom: spacing.sm,
-  },
-  rounds: {
-    ...rtlChipRow(),
-    marginTop: spacing.sm,
-  },
-  roundBanner: {
-    marginTop: spacing.md,
     gap: 6,
   },
-  roundBannerTitle: {
-    ...rtlText,
-    width: "100%",
-    fontSize: 16,
-    fontWeight: "800",
-    color: colors.text,
+  roundsScroll: {
+    ...rtlChipRow(),
+    gap: 8,
+    paddingVertical: 4,
   },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.border,
-    width: "100%",
-    marginVertical: 4,
+  roundBanner: {
+    marginTop: 4,
+    gap: 4,
   },
   bulkRow: {
-    marginTop: spacing.md,
-    gap: 8,
+    marginTop: 4,
+    gap: 6,
   },
   card: {
     backgroundColor: colors.surface,

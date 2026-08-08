@@ -3,6 +3,18 @@ import { SCHEMA_SQL } from "./schema";
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
+/** Serialize write transactions so concurrent BEGIN/COMMIT never race. */
+let writeGate: Promise<unknown> = Promise.resolve();
+
+function enqueueWrite<T>(fn: () => Promise<T>): Promise<T> {
+  const run = writeGate.then(fn, fn);
+  writeGate = run.then(
+    () => undefined,
+    () => undefined
+  );
+  return run;
+}
+
 async function tableColumns(
   db: SQLite.SQLiteDatabase,
   table: string
@@ -113,7 +125,12 @@ export async function getDb(): Promise<SQLite.SQLiteDatabase> {
   if (!dbPromise) {
     dbPromise = (async () => {
       const db = await SQLite.openDatabaseAsync("tutoring_manager.db");
-      await db.execAsync("PRAGMA foreign_keys = ON;");
+      // Readers can proceed while a writer is mid-flight; wait instead of fail.
+      await db.execAsync(`
+        PRAGMA foreign_keys = ON;
+        PRAGMA journal_mode = WAL;
+        PRAGMA busy_timeout = 8000;
+      `);
       await db.execAsync(SCHEMA_SQL);
       await migrate(db);
       return db;
@@ -124,29 +141,38 @@ export async function getDb(): Promise<SQLite.SQLiteDatabase> {
 
 /** Reset module-level DB handle after full replace (import backup). */
 export async function reopenDb(): Promise<SQLite.SQLiteDatabase> {
-  if (dbPromise) {
-    try {
-      const existing = await dbPromise;
-      await existing.closeAsync();
-    } catch {
-      // ignore
+  return enqueueWrite(async () => {
+    if (dbPromise) {
+      try {
+        const existing = await dbPromise;
+        await existing.closeAsync();
+      } catch {
+        // ignore
+      }
     }
-  }
-  dbPromise = null;
-  return getDb();
+    dbPromise = null;
+    return getDb();
+  });
 }
 
 export async function withTransaction<T>(
   fn: (db: SQLite.SQLiteDatabase) => Promise<T>
 ): Promise<T> {
-  const db = await getDb();
-  await db.execAsync("BEGIN");
-  try {
-    const result = await fn(db);
-    await db.execAsync("COMMIT");
-    return result;
-  } catch (e) {
-    await db.execAsync("ROLLBACK");
-    throw e;
-  }
+  return enqueueWrite(async () => {
+    const db = await getDb();
+    // IMMEDIATE grabs the write lock up front (avoids upgrade deadlocks).
+    await db.execAsync("BEGIN IMMEDIATE");
+    try {
+      const result = await fn(db);
+      await db.execAsync("COMMIT");
+      return result;
+    } catch (e) {
+      try {
+        await db.execAsync("ROLLBACK");
+      } catch {
+        // ignore rollback failures after a hard lock/abort
+      }
+      throw e;
+    }
+  });
 }

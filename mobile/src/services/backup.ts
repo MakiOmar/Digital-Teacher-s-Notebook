@@ -170,6 +170,7 @@ async function restoreBackup(
   );
   let inserted = 0;
 
+  // Clear existing data in one short write (no event-loop yields while locked).
   await withTransaction(async (db) => {
     const dropOrder = [...TABLES].reverse();
     report(onProgress, "clear", 0, dropOrder.length, 20, 28);
@@ -177,37 +178,40 @@ async function restoreBackup(
       await db.execAsync(`DELETE FROM ${dropOrder[i]}`);
       report(onProgress, "clear", i + 1, dropOrder.length, 20, 28);
     }
-    await yieldToUi();
+  });
+  await yieldToUi();
 
-    for (const t of TABLES) {
-      const rows = (payload.tables[t] ?? []) as Record<string, unknown>[];
-      if (!rows.length) continue;
+  // Insert in small committed chunks so the UI can paint and other reads wait
+  // via busy_timeout instead of contending on one long open transaction.
+  for (const t of TABLES) {
+    const rows = (payload.tables[t] ?? []) as Record<string, unknown>[];
+    if (!rows.length) continue;
 
-      // Backups use a stable column set per table — key off the first row.
-      const keys = Object.keys(rows[0] ?? {});
-      if (!keys.length) continue;
-      const cols = keys.join(", ");
-      const oneRow = `(${keys.map(() => "?").join(", ")})`;
-      const batchSize = Math.max(1, Math.floor(MAX_VARS / keys.length));
+    const keys = Object.keys(rows[0] ?? {});
+    if (!keys.length) continue;
+    const cols = keys.join(", ");
+    const oneRow = `(${keys.map(() => "?").join(", ")})`;
+    const batchSize = Math.max(1, Math.floor(MAX_VARS / keys.length));
 
-      for (let i = 0; i < rows.length; i += batchSize) {
-        const chunk = rows.slice(i, i + batchSize);
-        const valuesSql = chunk.map(() => oneRow).join(", ");
-        const params = chunk.flatMap((r) =>
-          keys.map((k) => (r[k] as string | number | null) ?? null)
-        );
+    for (let i = 0; i < rows.length; i += batchSize) {
+      const chunk = rows.slice(i, i + batchSize);
+      const valuesSql = chunk.map(() => oneRow).join(", ");
+      const params = chunk.flatMap((r) =>
+        keys.map((k) => (r[k] as string | number | null) ?? null)
+      );
+      await withTransaction(async (db) => {
         await db.runAsync(
           `INSERT INTO ${t} (${cols}) VALUES ${valuesSql}`,
           params
         );
-        inserted += chunk.length;
-        report(onProgress, "insert", inserted, Math.max(totalRows, 1), 28, 98);
-        if (inserted % YIELD_EVERY < batchSize) {
-          await yieldToUi();
-        }
+      });
+      inserted += chunk.length;
+      report(onProgress, "insert", inserted, Math.max(totalRows, 1), 28, 98);
+      if (inserted % YIELD_EVERY < batchSize) {
+        await yieldToUi();
       }
     }
-  });
+  }
 
   report(onProgress, "insert", totalRows, Math.max(totalRows, 1), 98, 100);
   await yieldToUi();

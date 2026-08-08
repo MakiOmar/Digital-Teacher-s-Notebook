@@ -27,18 +27,31 @@ export type FilterField = {
 };
 
 /**
- * Filter trigger (تصفية) → modal with option lists → تطبيق / إلغاء.
+ * Filter trigger → modal with option lists → تطبيق / إلغاء.
  * Draft values only commit when the user taps Apply.
  */
 export function FiltersSheet({
   fields,
   onApply,
+  triggerLabel,
+  title,
+  icon = "filter",
+  showBadge = true,
 }: {
   fields: FilterField[];
   onApply: (values: Record<string, string>) => void;
+  /** Button label; defaults to تصفية. */
+  triggerLabel?: string;
+  /** Modal title; defaults to triggerLabel or تصفية. */
+  title?: string;
+  icon?: React.ComponentProps<typeof FontAwesome>["name"];
+  /** Hide the numeric badge (useful for single required selects like month). */
+  showBadge?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<Record<string, string>>({});
+  const buttonLabel = triggerLabel ?? t("filter");
+  const sheetTitle = title ?? buttonLabel;
 
   const appliedSummary = useMemo(() => {
     return fields
@@ -51,7 +64,7 @@ export function FiltersSheet({
   }, [fields]);
 
   const activeCount = useMemo(() => {
-    return fields.filter((f) => f.value !== "all").length;
+    return fields.filter((f) => f.value !== "all" && f.value !== "").length;
   }, [fields]);
 
   const openSheet = () => {
@@ -75,16 +88,16 @@ export function FiltersSheet({
       <Pressable
         onPress={openSheet}
         accessibilityRole="button"
-        accessibilityLabel={t("filter")}
+        accessibilityLabel={buttonLabel}
         style={({ pressed }) => [
           styles.trigger,
           rtlRow(),
           pressed && { opacity: 0.75 },
         ]}
       >
-        <FontAwesome name="filter" size={14} color={colors.primary} />
-        <Text style={styles.triggerText}>{t("filter")}</Text>
-        {activeCount > 0 ? (
+        <FontAwesome name={icon} size={14} color={colors.primary} />
+        <Text style={styles.triggerText}>{buttonLabel}</Text>
+        {showBadge && activeCount > 0 ? (
           <View style={styles.badge}>
             <Text style={styles.badgeText}>{activeCount}</Text>
           </View>
@@ -105,7 +118,7 @@ export function FiltersSheet({
         <View style={styles.backdrop}>
           <Pressable style={StyleSheet.absoluteFill} onPress={close} />
           <View style={styles.card}>
-            <Text style={styles.title}>{t("filter")}</Text>
+            <Text style={styles.title}>{sheetTitle}</Text>
             <ScrollView
               style={styles.body}
               contentContainerStyle={{

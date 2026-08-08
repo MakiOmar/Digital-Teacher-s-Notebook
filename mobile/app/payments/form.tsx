@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -15,6 +15,7 @@ import {
 } from "@/src/components/ui";
 import { IconActionBar } from "@/src/components/IconActionBar";
 import { DateField } from "@/src/components/DateFields";
+import { FiltersSheet } from "@/src/components/FilterSelect";
 import { t } from "@/src/i18n/ar";
 import {
   createPayment,
@@ -150,6 +151,44 @@ export default function PaymentFormScreen() {
     setRoundId(null);
     setRounds([]);
     setAmount("");
+  }
+
+  const roundOptions = useMemo(
+    () =>
+      rounds.map((r) => ({
+        value: String(r.id),
+        label: `${formatRoundTitle(
+          r.round_number,
+          r.started_at,
+          r.closed_at,
+          t("roundUntilOngoing")
+        )} · ${formatMoney(r.remaining)}${
+          r.status === "closed" ? ` (${t("unpaid")})` : ""
+        }`,
+      })),
+    [rounds]
+  );
+
+  const monthFilterFields = useMemo(
+    () => [
+      {
+        key: "round",
+        label: t("selectMonth"),
+        value: roundId != null ? String(roundId) : "",
+        options: roundOptions,
+      },
+    ],
+    [roundId, roundOptions]
+  );
+
+  function onApplyRound(values: Record<string, string>) {
+    const nextId = Number(values.round);
+    if (!Number.isFinite(nextId)) return;
+    const r = rounds.find((row) => row.id === nextId);
+    setRoundId(nextId);
+    if (!r) return;
+    if (r.remaining > 0) setAmount(String(r.remaining));
+    else setAmount(String(r.due));
   }
 
   async function onSave() {
@@ -291,42 +330,21 @@ export default function PaymentFormScreen() {
                 </View>
               )}
 
-              {/* Step 3: round for that student in the group */}
+              {/* Step 3: month/round via Apply modal */}
               <Text style={styles.label}>{t("selectRound")}</Text>
               {!studentId ? (
                 <Text style={styles.hint}>{t("required")}</Text>
               ) : !rounds.length ? (
                 <Text style={styles.hint}>{t("noOpenRound")}</Text>
               ) : (
-                <View style={styles.wrap}>
-                  {rounds.map((r) => (
-                    <Pressable
-                      key={r.id}
-                      onPress={() => {
-                        setRoundId(r.id);
-                        if (r.remaining > 0) setAmount(String(r.remaining));
-                        else setAmount(String(r.due));
-                      }}
-                      style={[styles.chip, roundId === r.id && styles.chipOn]}
-                    >
-                      <Text
-                        style={[
-                          styles.chipText,
-                          roundId === r.id && styles.chipTextOn,
-                        ]}
-                      >
-                        {formatRoundTitle(
-                          r.round_number,
-                          r.started_at,
-                          r.closed_at,
-                          t("roundUntilOngoing")
-                        )}{" "}
-                        · {formatMoney(r.remaining)}
-                        {r.status === "closed" ? ` (${t("unpaid")})` : ""}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
+                <FiltersSheet
+                  triggerLabel={t("selectRound")}
+                  title={t("selectMonth")}
+                  icon="calendar"
+                  showBadge={false}
+                  fields={monthFilterFields}
+                  onApply={onApplyRound}
+                />
               )}
             </>
           ) : null}

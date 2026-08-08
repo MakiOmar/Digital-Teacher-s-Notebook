@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FlatList,
   Pressable,
-  ScrollView,
   StyleSheet,
   Switch,
   Text,
@@ -10,13 +9,13 @@ import {
 } from "react-native";
 import { useFocusEffect, useLocalSearchParams, useNavigation } from "expo-router";
 import {
-  Chip,
   EmptyState,
   LoadingBlock,
   Muted,
 } from "@/src/components/ui";
 import { ScreenWithFixedActions } from "@/src/components/ScreenWithFixedActions";
 import { PaginationBar, pagingBarProps } from "@/src/components/PaginationBar";
+import { FiltersSheet } from "@/src/components/FilterSelect";
 import { t } from "@/src/i18n/ar";
 import {
   createPayment,
@@ -98,6 +97,32 @@ export default function GroupRoundPaymentsScreen() {
       t("roundUntilOngoing")
     );
   }, [selectedSummary]);
+
+  const roundOptions = useMemo(
+    () =>
+      roundSummaries.map((s) => ({
+        value: String(s.round_number),
+        label: formatRoundTitle(
+          s.round_number,
+          s.started_at,
+          s.closed_at,
+          t("roundUntilOngoing")
+        ),
+      })),
+    [roundSummaries]
+  );
+
+  const monthFilterFields = useMemo(
+    () => [
+      {
+        key: "round",
+        label: t("selectMonth"),
+        value: selectedRound != null ? String(selectedRound) : "",
+        options: roundOptions,
+      },
+    ],
+    [roundOptions, selectedRound]
+  );
 
   const reloadRows = useCallback(
     async (round: number) => {
@@ -292,30 +317,22 @@ export default function GroupRoundPaymentsScreen() {
 
   const listHeader = (
     <View style={styles.listHeader}>
-      {/* Comment: month / context scrolls with students — only actions stay fixed. */}
-      <Muted>{t("selectRound")}</Muted>
+      {/* Comment: pick month in Apply modal, then show that month’s results. */}
       {!roundSummaries.length ? (
-        <Muted style={{ marginTop: 6 }}>{t("noRoundsYet")}</Muted>
+        <Muted>{t("noRoundsYet")}</Muted>
       ) : (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.roundsScroll}
-        >
-          {roundSummaries.map((s) => (
-            <Chip
-              key={s.round_number}
-              label={formatRoundTitle(
-                s.round_number,
-                s.started_at,
-                s.closed_at,
-                t("roundUntilOngoing")
-              )}
-              selected={selectedRound === s.round_number}
-              onPress={() => setSelectedRound(s.round_number)}
-            />
-          ))}
-        </ScrollView>
+        <FiltersSheet
+          triggerLabel={t("selectRound")}
+          title={t("selectMonth")}
+          icon="calendar"
+          showBadge={false}
+          fields={monthFilterFields}
+          onApply={(values) => {
+            const next = Number(values.round);
+            if (!Number.isFinite(next)) return;
+            setSelectedRound(next);
+          }}
+        />
       )}
 
       {selectedSummary ? (
@@ -470,11 +487,6 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
     paddingBottom: spacing.sm,
     gap: 6,
-  },
-  roundsScroll: {
-    ...rtlChipRow(),
-    gap: 8,
-    paddingVertical: 4,
   },
   roundBanner: {
     marginTop: 4,

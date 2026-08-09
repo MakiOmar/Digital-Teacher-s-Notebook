@@ -1,4 +1,9 @@
 {
-  "CFBundleDisplayName": "دفتر المعلم الرقمي",
-  "CFBundleName": "دفتر المعلم الرقمي"
+  "ios": {
+    "CFBundleDisplayName": "دفتر المعلم الرقمي",
+    "CFBundleName": "دفتر المعلم الرقمي"
+  },
+  "android": {
+    "app_name": "دفتر المعلم الرقمي"
+  }
 }

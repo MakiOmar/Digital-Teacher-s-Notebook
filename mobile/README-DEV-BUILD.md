@@ -1,6 +1,6 @@
 # Using a development build (not Expo Go, not the browser)
 
-A **development build** is your own Android/iOS app (package `com.tutoringmanager.app`) that still loads JS from Metro. It is **not** opening `http://localhost:8081` in Chrome.
+A **development build** is your own Android/iOS app (package `com.itqandev.digitalteachernotebook`) that still loads JS from Metro. It is **not** opening `http://localhost:8081` in Chrome.
 
 ## Common mistake
 

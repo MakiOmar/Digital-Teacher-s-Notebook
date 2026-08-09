@@ -22,10 +22,13 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.tutoringmanager.app"
+      "bundleIdentifier": "com.itqandev.digitalteachernotebook",
+      "infoPlist": {
+        "CFBundleAllowMixedLocalizations": true
+      }
     },
     "android": {
-      "package": "com.tutoringmanager.app",
+      "package": "com.itqandev.digitalteachernotebook",
       "versionCode": 1,
       "supportsRtl": true,
       "softwareKeyboardLayoutMode": "resize",

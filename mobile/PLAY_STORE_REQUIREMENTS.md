@@ -1,6 +1,6 @@
 # Google Play — release requirements & checklist
 
-App: **دفتر المعلم الرقمي** (`com.tutoringmanager.app`)  
+App: **دفتر المعلم الرقمي** (`com.itqandev.digitalteachernotebook`)  
 Target artifact: signed **Android App Bundle (`.aab`)**
 
 ---
@@ -9,12 +9,13 @@ Target artifact: signed **Android App Bundle (`.aab`)**
 
 | Item | Value |
 |------|--------|
-| applicationId | `com.tutoringmanager.app` |
+| applicationId | `com.itqandev.digitalteachernotebook` |
+| iOS bundle ID | `com.itqandev.digitalteachernotebook` |
 | versionName | `1.0.0` |
 | versionCode | `1` (must increase for every Play upload) |
 | minSdk | 24 |
 | targetSdk | 36 |
-| ABIs in AAB | `armeabi-v7a`, `arm64-v8a` (Play delivers matching split) |
+| ABIs in AAB | `armeabi-v7a`, `arm64-v8a` only — enough for phones; Play delivers the matching split. Do **not** add `x86`/`x86_64` for store builds. |
 | JS engine | Hermes |
 | Minify / shrink | R8 + resource shrinking **on** |
 | Upload signing | `credentials/upload-keystore.p12` (local, gitignored) |

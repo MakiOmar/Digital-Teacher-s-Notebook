@@ -133,7 +133,7 @@ Expo Go does **not** apply custom native config the same way a release APK does.
 | App name / icon / splash | Expo Go branding / default splash behavior | Full brand assets from `app.json` / plugins |
 | Custom native plugins | Often skipped or partial | Applied (`withFullBleedSplash`, build properties, etc.) |
 | Notifications / reminders | Preferences save; scheduling disabled on Android Expo Go | Full local reminder scheduling |
-| Absolute “store-like” install | Runs inside Expo Go | Standalone package `com.tutoringmanager.app` |
+| Absolute “store-like” install | Runs inside Expo Go | Standalone package `com.itqandev.digitalteachernotebook` |
 
 For branding, splash, ProGuard, and installable APK testing, use:
 

@@ -191,6 +191,24 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
 
       const deviceId = await getOrCreateDeviceId();
       try {
+        // When upgrading from trial, release the trial activation first.
+        const previous = await loadLicenseState();
+        if (
+          previous.isTrial &&
+          previous.licenseKey &&
+          previous.activationHash &&
+          previous.licenseKey !== key
+        ) {
+          try {
+            await deactivateLicense(
+              previous.licenseKey,
+              previous.activationHash
+            );
+          } catch {
+            // Continue — paid activation may still succeed on the server.
+          }
+        }
+
         const act = await activateLicense(key, deviceId);
         let expiresAt: string | null = null;
         let isTrial = false;

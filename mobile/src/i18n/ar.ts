@@ -7,6 +7,7 @@ export const ar = {
   payments: "المدفوعات",
   more: "المزيد",
   save: "حفظ",
+  date: "التاريخ",
   cancel: "إلغاء",
   delete: "حذف",
   edit: "تعديل",
@@ -178,6 +179,14 @@ export const ar = {
   completeSessionConfirm: "تأكيد إنهاء هذه الحصة؟",
   reopenSession: "إعادة فتح الحصة",
   cancelSession: "إلغاء الحصة",
+  cancelSessionConfirm:
+    "سيتم إلغاء هذه الحصة والاحتفاظ بها في السجل كملغاة. يمكنك استعادتها لاحقاً. المتابعة؟",
+  restoreSession: "استعادة الحصة",
+  sessionRestored: "تمت استعادة الحصة",
+  rescheduleSession: "تغيير الموعد",
+  rescheduleSessionHint: "اختر التاريخ والوقت الجديدين للحصة.",
+  rescheduleSessionSaved: "تم تغيير موعد الحصة",
+  startTime: "وقت البداية",
   noSessions: "لا توجد حصص — ولّد الجدول أولاً",
 
   // Payments
@@ -406,6 +415,10 @@ export const ar = {
   licenseTrialApiKey: "تعذر بدء التجربة بسبب مفتاح الـ API غير صالح.",
   licenseTrialActive: "نوع الترخيص: فترة تجريبية",
   licenseDaysRemaining: "متبقي {days} يوماً",
+  licenseUpgradeTitle: "تفعيل الترخيص الكامل",
+  licenseUpgradeHint:
+    "أدخل مفتاح الترخيص المشترى لتفعيل التطبيق نهائياً أثناء الفترة التجريبية (يتطلب إنترنت).",
+  licenseUpgradeActivate: "تفعيل المفتاح",
   licenseInvalid: "الترخيص غير صالح",
   licenseNetworkError: "تعذر الاتصال بخادم الترخيص. تحقق من الإنترنت وحاول مرة أخرى.",
   licenseGraceExpired:

@@ -1,18 +1,22 @@
 import { useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Linking, StyleSheet, Text, View } from "react-native";
 import {
   Card,
+  FormField,
   Muted,
+  PrimaryButton,
   Screen,
   Title,
 } from "@/src/components/ui";
 import { IconActionBar } from "@/src/components/IconActionBar";
+import { SUPPORT_WHATSAPP } from "@/src/config/support";
 import { useLicense } from "@/src/license/LicenseContext";
 import { useDialog } from "@/src/components/DialogProvider";
 import { t } from "@/src/i18n/ar";
 import { colors, spacing } from "@/src/theme/colors";
 import { formatDateAr, dateOnlyFromDateTime } from "@/src/utils/date";
 import { rtlText } from "@/src/theme/rtl";
+import { whatsappUrl } from "@/src/utils/phone";
 
 function formatIsoDate(iso: string | null): string {
   if (!iso) return "—";
@@ -20,7 +24,7 @@ function formatIsoDate(iso: string | null): string {
   return day ? formatDateAr(day) : iso;
 }
 
-/** Manage / status screen for an active license. */
+/** Manage / status screen for an active license (including trial → paid upgrade). */
 export default function LicenseManageScreen() {
   const {
     licenseKeyMasked,
@@ -28,11 +32,13 @@ export default function LicenseManageScreen() {
     lastValidatedAt,
     isTrial,
     daysRemaining,
+    activate,
     refresh,
     removeLicense,
   } = useLicense();
   const dialog = useDialog();
   const [busy, setBusy] = useState(false);
+  const [upgradeKey, setUpgradeKey] = useState("");
 
   async function onRefresh() {
     setBusy(true);
@@ -68,6 +74,44 @@ export default function LicenseManageScreen() {
       });
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function onActivatePaid() {
+    if (!upgradeKey.trim()) {
+      await dialog.alert({
+        title: t("error"),
+        message: t("licenseKeyRequired"),
+      });
+      return;
+    }
+    setBusy(true);
+    try {
+      await activate(upgradeKey);
+      setUpgradeKey("");
+      dialog.toast(t("licenseActivated"), "success");
+    } catch (e) {
+      await dialog.alert({
+        title: t("error"),
+        message: e instanceof Error ? e.message : t("licenseInvalid"),
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onRequestLicense() {
+    const url = whatsappUrl(
+      SUPPORT_WHATSAPP,
+      t("licenseRequestWhatsAppMessage")
+    );
+    try {
+      await Linking.openURL(url);
+    } catch {
+      await dialog.alert({
+        title: t("error"),
+        message: t("supportWhatsAppFailed"),
+      });
     }
   }
 
@@ -116,6 +160,35 @@ export default function LicenseManageScreen() {
         </Muted>
         <Muted style={{ marginTop: spacing.sm }}>{t("licenseStatusActive")}</Muted>
       </Card>
+
+      {/* Comment: online paid activation is available during trial without removing the trial license first. */}
+      {isTrial ? (
+        <Card style={{ marginTop: spacing.md }}>
+          <Text style={styles.line}>{t("licenseUpgradeTitle")}</Text>
+          <Muted style={{ marginBottom: spacing.md }}>
+            {t("licenseUpgradeHint")}
+          </Muted>
+          <FormField
+            label={t("licenseKey")}
+            value={upgradeKey}
+            onChangeText={setUpgradeKey}
+            placeholder="XXXX-XXXX-XXXX-XXXX"
+          />
+          <View style={{ marginTop: spacing.md, gap: 10 }}>
+            <PrimaryButton
+              label={busy ? t("loading") : t("licenseUpgradeActivate")}
+              onPress={() => void onActivatePaid()}
+              disabled={busy}
+            />
+            <PrimaryButton
+              label={t("licenseRequestWhatsApp")}
+              variant="ghost"
+              onPress={() => void onRequestLicense()}
+              disabled={busy}
+            />
+          </View>
+        </Card>
+      ) : null}
     </Screen>
   );
 }

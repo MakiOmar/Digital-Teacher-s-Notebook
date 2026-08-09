@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   FlatList,
+  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -17,6 +18,7 @@ import { ScreenWithFixedActions } from "@/src/components/ScreenWithFixedActions"
 import { IconActionBar } from "@/src/components/IconActionBar";
 import type { IconAction } from "@/src/components/IconActionBar";
 import { DetailCard } from "@/src/components/DetailCard";
+import { DateField, TimeField } from "@/src/components/DateFields";
 import { t } from "@/src/i18n/ar";
 import {
   getSession,
@@ -29,6 +31,12 @@ import {
   updateSessionNotes,
   setSessionStarStudent,
 } from "@/src/repositories";
+import {
+  cancelGroupSession,
+  rescheduleGroupSession,
+  restoreGroupSession,
+  sessionDateAndTime,
+} from "@/src/services/sessions";
 import type {
   AttendanceStatus,
   GroupSession,
@@ -37,7 +45,7 @@ import type {
 import { formatDateTimeAr } from "@/src/utils/date";
 import { sessionStatusLabel } from "@/src/components/SessionClassButton";
 import { colors, radii, spacing } from "@/src/theme/colors";
-import { rtlChipRow, rtlText } from "@/src/theme/rtl";
+import { rtlBlock, rtlChipRow, rtlRow, rtlText } from "@/src/theme/rtl";
 import { useAppData } from "@/src/contexts/AppDataContext";
 import { useDialog } from "@/src/components/DialogProvider";
 import { attendanceStatusLabel } from "@/src/utils/statusLabels";
@@ -67,6 +75,10 @@ export default function AttendanceScreen() {
   const [map, setMap] = useState<Record<number, AttendanceStatus>>({});
   const [starId, setStarId] = useState<number | null>(null);
   const [notes, setNotes] = useState("");
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [rescheduleDate, setRescheduleDate] = useState("");
+  const [rescheduleTime, setRescheduleTime] = useState("");
+  const [rescheduleBusy, setRescheduleBusy] = useState(false);
 
   useEffect(() => {
     navigation.setOptions({
@@ -226,72 +238,153 @@ export default function AttendanceScreen() {
     void (async () => {
       const ok = await dialog.confirm({
         title: t("cancelSession"),
-        message: t("deleteConfirm"),
-        confirmLabel: t("confirm"),
+        message: t("cancelSessionConfirm"),
+        confirmLabel: t("cancelSession"),
         danger: true,
       });
       if (!ok) return;
-      await updateSessionStatus(id, "cancelled");
-      bump();
-      await load();
+      try {
+        await cancelGroupSession(id);
+        dialog.toast(t("sessionCancelled"), "success");
+        bump();
+        await load();
+      } catch (e) {
+        await dialog.alert({
+          title: t("error"),
+          message: e instanceof Error ? e.message : t("error"),
+        });
+      }
     })();
   }, [bump, dialog, id, load]);
 
-  const sessionActions = useMemo<IconAction[]>(
-    () =>
-      cancelled
-        ? []
-        : [
+  const onRestoreSession = useCallback(() => {
+    void (async () => {
+      try {
+        await restoreGroupSession(id);
+        dialog.toast(t("sessionRestored"), "success");
+        bump();
+        await load();
+      } catch (e) {
+        await dialog.alert({
+          title: t("error"),
+          message: e instanceof Error ? e.message : t("error"),
+        });
+      }
+    })();
+  }, [bump, dialog, id, load]);
+
+  const openReschedule = useCallback(() => {
+    if (!session) return;
+    const { date, time } = sessionDateAndTime(session);
+    setRescheduleDate(date);
+    setRescheduleTime(time);
+    setRescheduleOpen(true);
+  }, [session]);
+
+  const onSaveReschedule = useCallback(() => {
+    void (async () => {
+      if (!rescheduleDate || !rescheduleTime) {
+        await dialog.alert({
+          title: t("error"),
+          message: t("rescheduleSessionHint"),
+        });
+        return;
+      }
+      setRescheduleBusy(true);
+      try {
+        await rescheduleGroupSession(id, rescheduleDate, rescheduleTime);
+        setRescheduleOpen(false);
+        dialog.toast(t("rescheduleSessionSaved"), "success");
+        bump();
+        await load();
+      } catch (e) {
+        await dialog.alert({
+          title: t("error"),
+          message: e instanceof Error ? e.message : t("error"),
+        });
+      } finally {
+        setRescheduleBusy(false);
+      }
+    })();
+  }, [bump, dialog, id, load, rescheduleDate, rescheduleTime]);
+
+  const sessionActions = useMemo<IconAction[]>(() => {
+    if (cancelled) {
+      return [
+        {
+          key: "restore",
+          icon: "undo",
+          label: t("restoreSession"),
+          tone: "accent",
+          onPress: onRestoreSession,
+        },
+        {
+          key: "reschedule",
+          icon: "calendar",
+          label: t("rescheduleSession"),
+          onPress: openReschedule,
+        },
+      ];
+    }
+
+    return [
+      {
+        key: "present",
+        icon: "check",
+        label: t("actionPresent"),
+        tone: "accent",
+        onPress: onMarkAllPresent,
+      },
+      {
+        key: "absent",
+        icon: "times",
+        label: t("actionAbsent"),
+        onPress: onMarkAllAbsent,
+      },
+      completed
+        ? {
+            key: "reopen",
+            icon: "undo",
+            label: t("actionReopen"),
+            onPress: onReopenSession,
+          }
+        : {
+            key: "complete",
+            icon: "flag-checkered",
+            label: t("actionComplete"),
+            disabled: !allAttendanceSet,
+            onPress: onCompleteSession,
+          },
+      ...(!completed
+        ? [
             {
-              key: "present",
-              icon: "check",
-              label: t("actionPresent"),
-              tone: "accent",
-              onPress: onMarkAllPresent,
+              key: "reschedule",
+              icon: "calendar" as const,
+              label: t("rescheduleSession"),
+              onPress: openReschedule,
             },
             {
-              key: "absent",
-              icon: "times",
-              label: t("actionAbsent"),
-              onPress: onMarkAllAbsent,
+              key: "cancel",
+              icon: "ban" as const,
+              label: t("cancel"),
+              tone: "danger" as const,
+              onPress: onCancelSession,
             },
-            completed
-              ? {
-                  key: "reopen",
-                  icon: "undo",
-                  label: t("actionReopen"),
-                  onPress: onReopenSession,
-                }
-              : {
-                  key: "complete",
-                  icon: "flag-checkered",
-                  label: t("actionComplete"),
-                  disabled: !allAttendanceSet,
-                  onPress: onCompleteSession,
-                },
-            ...(!completed
-              ? [
-                  {
-                    key: "cancel",
-                    icon: "ban" as const,
-                    label: t("cancel"),
-                    tone: "danger" as const,
-                    onPress: onCancelSession,
-                  },
-                ]
-              : []),
-          ],
-    [
-      allAttendanceSet,
-      cancelled,
-      completed,
-      onCancelSession,
-      onCompleteSession,
-      onMarkAllAbsent,
-      onMarkAllPresent,
-      onReopenSession,
-    ]
-  );
+          ]
+        : []),
+    ];
+  }, [
+    allAttendanceSet,
+    cancelled,
+    completed,
+    onCancelSession,
+    onCompleteSession,
+    onMarkAllAbsent,
+    onMarkAllPresent,
+    onReopenSession,
+    onRestoreSession,
+    openReschedule,
+  ]);
 
   const renderItem = useCallback<ListRenderItem<Student>>(
     ({ item }) => {
@@ -362,7 +455,7 @@ export default function AttendanceScreen() {
           ]}
         />
 
-        <Pressable onPress={onPickStar} style={styles.starBox}>
+        <Pressable onPress={onPickStar} style={styles.starBox} disabled={cancelled}>
           <Text style={styles.starLabel}>{t("starOfClass")}</Text>
           <Text style={styles.starValue} numberOfLines={1}>
             {starStudent ? `★ ${starStudent.name}` : t("pickStarStudent")}
@@ -434,6 +527,57 @@ export default function AttendanceScreen() {
         ListHeaderComponent={listHeader}
         renderItem={renderItem}
       />
+
+      {/* Comment: reschedule keeps the previous duration; only start date/time change. */}
+      <Modal
+        visible={rescheduleOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setRescheduleOpen(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setRescheduleOpen(false)}
+          />
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>{t("rescheduleSession")}</Text>
+            <Muted style={{ marginBottom: spacing.md }}>
+              {t("rescheduleSessionHint")}
+            </Muted>
+            <View style={rtlBlock}>
+              <DateField
+                label={t("date")}
+                value={rescheduleDate}
+                onChange={setRescheduleDate}
+              />
+              <TimeField
+                label={t("startTime")}
+                value={rescheduleTime}
+                onChange={setRescheduleTime}
+              />
+            </View>
+            <View style={[styles.modalActions, rtlRow()]}>
+              <Pressable
+                onPress={() => setRescheduleOpen(false)}
+                style={styles.modalCancel}
+                disabled={rescheduleBusy}
+              >
+                <Text style={styles.modalCancelText}>{t("cancel")}</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => void onSaveReschedule()}
+                style={styles.modalApply}
+                disabled={rescheduleBusy}
+              >
+                <Text style={styles.modalApplyText}>
+                  {rescheduleBusy ? t("loading") : t("save")}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScreenWithFixedActions>
   );
 }
@@ -507,4 +651,53 @@ const styles = StyleSheet.create({
     ...rtlText,
   },
   chipTextOn: { color: "#fff" },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(15, 23, 42, 0.45)",
+    justifyContent: "center",
+    padding: spacing.lg,
+  },
+  modalCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  modalTitle: {
+    ...rtlText,
+    width: "100%",
+    fontSize: 17,
+    fontWeight: "800",
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  modalActions: {
+    marginTop: spacing.md,
+    gap: spacing.sm,
+    justifyContent: "flex-end",
+  },
+  modalCancel: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  modalCancelText: {
+    ...rtlText,
+    color: colors.text,
+    fontWeight: "700",
+  },
+  modalApply: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: radii.md,
+    backgroundColor: colors.primary,
+  },
+  modalApplyText: {
+    ...rtlText,
+    color: "#fff",
+    fontWeight: "800",
+  },
 });

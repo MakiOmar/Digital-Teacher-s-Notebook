@@ -872,6 +872,31 @@ export async function updateSessionStatus(
   ]);
 }
 
+/** Move a session clock + study month; typically used with source=manual. */
+export async function updateSessionSchedule(input: {
+  id: number;
+  starts_at: string;
+  ends_at: string;
+  study_month_id: number;
+  status: GroupSession["status"];
+  source: GroupSession["source"];
+}): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    `UPDATE group_sessions
+     SET starts_at = ?, ends_at = ?, study_month_id = ?, status = ?, source = ?
+     WHERE id = ?`,
+    [
+      input.starts_at,
+      input.ends_at,
+      input.study_month_id,
+      input.status,
+      input.source,
+      input.id,
+    ]
+  );
+}
+
 export async function updateSessionNotes(
   id: number,
   notes: string | null
@@ -1020,7 +1045,7 @@ export async function listUpcomingSessions(
     `SELECT gs.*, g.name as group_name, g.accent_color as accent_color
      FROM group_sessions gs
      JOIN groups g ON g.id = gs.group_id
-     WHERE gs.status = 'scheduled' AND gs.starts_at >= datetime('now', 'localtime')
+     WHERE gs.status IN ('scheduled', 'rescheduled') AND gs.starts_at >= datetime('now', 'localtime')
      ORDER BY gs.starts_at
      LIMIT ?`,
     [limit]

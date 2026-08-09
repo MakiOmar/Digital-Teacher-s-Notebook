@@ -54,13 +54,22 @@ const RTL_RELOAD_KEY = "tutoring.rtl.reload.v2";
 I18nManager.allowRTL(true);
 I18nManager.forceRTL(true);
 
-void SplashScreen.preventAutoHideAsync().catch(() => undefined);
+/**
+ * Do NOT call preventAutoHideAsync here. Keeping the native splash with
+ * OnPreDraw while Metro/JS is still loading causes Android's splash-transfer
+ * timeout → black surface that never paints. Rely on CONTENT_APPEARED auto-hide
+ * + an explicit hide on RootLayout mount; JS SplashBackground covers boot.
+ */
 
 export { ErrorBoundary } from "expo-router";
 
 export const unstable_settings = {
   initialRouteName: "(tabs)",
 };
+
+function hideNativeSplashSoon() {
+  void SplashScreen.hideAsync().catch(() => undefined);
+}
 
 function Bootstrap({
   children,
@@ -93,7 +102,13 @@ function Bootstrap({
           return;
         }
         await AsyncStorage.setItem(RTL_RELOAD_KEY, "1");
-        // One-time reload for native RTL chrome; if it fails, continue booting
+        // In DEV, skip full reload — it freezes the JS bridge while Metro is
+        // cold and often surfaces as Android ANR ("App isn't responding").
+        // Visual RTL helpers already work without a native chrome reload.
+        if (__DEV__) {
+          if (!cancelled) setRtlReady(true);
+          return;
+        }
         await reloadAppAsync();
       } catch {
         if (!cancelled) setRtlReady(true);
@@ -224,20 +239,18 @@ export default function RootLayout() {
 
   const fontsOk = fontsLoaded || fontsTimedOut;
 
+  // Unblock Android OnPreDraw immediately — do not wait for DB/license/fonts.
+  // JS SplashBackground covers boot until Bootstrap sets appReady.
   useEffect(() => {
-    if (!appReady || !fontsOk) return;
-    const id = setTimeout(() => {
-      void SplashScreen.hideAsync().catch(() => undefined);
-    }, 16);
-    return () => clearTimeout(id);
-  }, [appReady, fontsOk]);
-
-  useEffect(() => {
-    const id = setTimeout(() => {
-      void SplashScreen.hideAsync().catch(() => undefined);
-    }, 3500);
+    hideNativeSplashSoon();
+    const id = setTimeout(hideNativeSplashSoon, 50);
     return () => clearTimeout(id);
   }, []);
+
+  useEffect(() => {
+    if (!appReady || !fontsOk) return;
+    hideNativeSplashSoon();
+  }, [appReady, fontsOk]);
 
   if (!fontsOk) {
     return (
@@ -266,12 +279,22 @@ export default function RootLayout() {
                         headerTitle: "",
                         headerTitleStyle: { fontFamily: fonts.bold },
                         headerShadowVisible: false,
-                        headerStyle: { backgroundColor: "transparent" },
+                        // Opaque scenes — transparent content lets both pages'
+                        // text paint during the slide, which looks like overlap.
+                        headerStyle: { backgroundColor: colors.background },
                         headerTintColor: colors.text,
-                        contentStyle: { backgroundColor: "transparent" },
+                        contentStyle: { flex: 1, backgroundColor: colors.background },
+                        animation: "slide_from_right",
                       }}
                     >
-                      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                      <Stack.Screen
+                        name="(tabs)"
+                        options={{
+                          headerShown: false,
+                          contentStyle: { flex: 1, backgroundColor: colors.background },
+                          animation: "fade",
+                        }}
+                      />
                       <Stack.Screen name="groups/form" />
                       <Stack.Screen name="groups/[id]" />
                       <Stack.Screen name="groups/add-students" />

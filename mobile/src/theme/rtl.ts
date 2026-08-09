@@ -28,7 +28,7 @@ export function inputTextAlign(): "left" | "right" {
 /** Isolate TextInput from Yoga RTL so textAlign:'right' stays on the right. */
 export const inputShell: ViewStyle = {
   width: "100%",
-  direction: "ltr",
+  alignSelf: "stretch",
 };
 
 /**

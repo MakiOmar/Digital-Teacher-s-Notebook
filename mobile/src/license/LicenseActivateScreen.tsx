@@ -136,7 +136,7 @@ export function LicenseActivateScreen() {
         : t("licenseStartTrial");
 
   return (
-    <Screen padded={false} style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
+    <Screen safeTop padded={false} style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}

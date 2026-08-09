@@ -72,7 +72,7 @@ export default function MoreTab() {
   }, [active, stepId]);
 
   return (
-    <Screen padded={false} style={{ flex: 1 }}>
+    <Screen safeTop padded={false} style={{ flex: 1 }}>
       <ScrollView
         ref={scrollRef}
         contentContainerStyle={{

@@ -29,7 +29,7 @@ export function AppLockScreen() {
   }, []);
 
   return (
-    <Screen padded={false} style={styles.root}>
+    <Screen safeTop padded={false} style={styles.root}>
       <View style={styles.content}>
         <Title>{t("appLockTitle")}</Title>
         <Muted style={{ marginBottom: spacing.lg }}>{t("appLockHint")}</Muted>

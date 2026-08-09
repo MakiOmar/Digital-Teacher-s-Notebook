@@ -156,7 +156,7 @@ export default function HomeScreen() {
 
   if (!activeYear) {
     return (
-      <Screen>
+      <Screen safeTop>
         <TourAnchor id="homeHeader">
           <View style={styles.header}>
             {/* Logo physical left; profile cluster on the right */}
@@ -180,14 +180,14 @@ export default function HomeScreen() {
 
   if (loading && !nextSession && groupCount === 0) {
     return (
-      <Screen padded={false} style={{ flex: 1 }}>
+      <Screen safeTop padded={false} style={{ flex: 1 }}>
         <SkeletonList rows={6} />
       </Screen>
     );
   }
 
   return (
-    <Screen padded={false} style={{ flex: 1 }}>
+    <Screen safeTop padded={false} style={{ flex: 1 }}>
       <ScrollView
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 48 }}
         refreshControl={
@@ -316,10 +316,10 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  // Under I18nManager.forceRTL, plain `row` still packs from the right.
-  // Force physical LTR so logo stays on the left edge of the screen.
+  // Under I18nManager.forceRTL, plain `row` packs from the right.
+  // Yoga `direction:'ltr'` keeps logo physically left (web may warn; ignore).
   header: {
-    direction: "ltr",
+    direction: "ltr" as const,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
   },
   // Keep profile cluster RTL so avatar sits toward the physical right.
   profileWelcome: {
-    direction: "rtl",
+    direction: "rtl" as const,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,

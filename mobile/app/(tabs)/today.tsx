@@ -50,14 +50,14 @@ export default function TodayScreen() {
 
   if (paging.loading) {
     return (
-      <Screen>
+      <Screen safeTop>
         <LoadingBlock />
       </Screen>
     );
   }
 
   return (
-    <Screen padded={false} style={{ flex: 1 }}>
+    <Screen safeTop padded={false} style={{ flex: 1 }}>
       <FlatList
         data={paging.pageItems}
         keyExtractor={(item) => String(item.id)}

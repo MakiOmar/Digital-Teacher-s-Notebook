@@ -92,14 +92,14 @@ export default function PaymentsTab() {
 
   if (paging.loading) {
     return (
-      <Screen padded={false} style={{ flex: 1 }}>
+      <Screen safeTop padded={false} style={{ flex: 1 }}>
         <SkeletonList />
       </Screen>
     );
   }
 
   return (
-    <Screen padded={false} style={{ flex: 1 }}>
+    <Screen safeTop padded={false} style={{ flex: 1 }}>
       <View style={{ padding: spacing.lg }}>
         <TourAnchor id="paymentsHeader">
           {/* Equal-width summary tiles in one row (RTL: collected on the right). */}

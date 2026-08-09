@@ -141,7 +141,7 @@ export function TourSpotlight() {
   return (
     <View
       pointerEvents="box-none"
-      style={[styles.overlay, { direction: "ltr" }]}
+      style={[styles.overlay]}
     >
       {hole ? (
         <>
@@ -198,7 +198,6 @@ export function TourSpotlight() {
           styles.sheet,
           {
             paddingBottom: Math.max(insets.bottom, spacing.md),
-            direction: "rtl",
           },
         ]}
       >

@@ -32,6 +32,19 @@ yarn-error.*
 
 # local env files
 .env*.local
+.env
+
+# Play upload signing (NEVER commit secrets)
+credentials/**
+!credentials/keystore.properties.example
+*.keystore
+*.p12
+
+# release artifacts
+dist/
+*.aab
+*.apk
+!android/app/debug.keystore
 
 # typescript
 *.tsbuildinfo

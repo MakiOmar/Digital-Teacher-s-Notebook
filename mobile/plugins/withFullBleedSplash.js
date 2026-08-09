@@ -2,13 +2,14 @@ const {
   withMainActivity,
   withAndroidStyles,
   withDangerousMod,
+  withAndroidManifest,
 } = require("expo/config-plugins");
 const fs = require("fs");
 const path = require("path");
 
 const SPLASH_FULL_XML = `<?xml version="1.0" encoding="utf-8"?>
 <!--
-  White splash with the home wordmark so native boot frames match JS.
+  White splash with the home wordmark so first frames match JS SplashBackground.
 -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
   <item android:drawable="@color/splashscreen_background" />
@@ -25,8 +26,10 @@ const SPLASH_FULL_XML = `<?xml version="1.0" encoding="utf-8"?>
 
 /**
  * Android splash / theme:
- * - Skip AndroidX SplashScreen (API 31+ centered icon)
- * - Splash + app window: white + home wordmark drawable (matches JS SplashBackground)
+ * - Skip Android 12+ SplashScreenManager ownership (when Metro is slow it
+ *   times out / leaves a black covering surface forever)
+ * - windowDisablePreview skips the stuck system splash window
+ * - AppTheme windowBackground shows the wordmark until JS paints
  */
 function withFullBleedSplash(config) {
   config = withAndroidStyles(config, (cfg) => {
@@ -51,12 +54,22 @@ function withFullBleedSplash(config) {
         $: { name: "android:windowBackground" },
         _: "@drawable/splashscreen_full",
       },
+      {
+        $: { name: "android:colorBackground" },
+        _: "@color/splashscreen_background",
+      },
+      // Avoid black "preview" frames while the activity warms up
+      { $: { name: "android:windowDisablePreview" }, _: "true" },
     ];
 
     const splashThemeItems = [
       {
         $: { name: "android:windowBackground" },
         _: "@drawable/splashscreen_full",
+      },
+      {
+        $: { name: "android:colorBackground" },
+        _: "@color/splashscreen_background",
       },
       {
         $: { name: "android:statusBarColor" },
@@ -67,6 +80,7 @@ function withFullBleedSplash(config) {
         _: "@android:color/transparent",
       },
       { $: { name: "android:windowNoTitle" }, _: "true" },
+      { $: { name: "android:windowDisablePreview" }, _: "true" },
     ];
 
     const without = styleList.filter(
@@ -79,19 +93,31 @@ function withFullBleedSplash(config) {
       {
         $: {
           name: "AppTheme",
-          parent: "Theme.AppCompat.DayNight.NoActionBar",
+          parent: "Theme.AppCompat.Light.NoActionBar",
         },
         item: appThemeItems,
       },
       {
         $: {
           name: "Theme.App.SplashScreen",
-          parent: "Theme.AppCompat.DayNight.NoActionBar",
+          parent: "Theme.AppCompat.Light.NoActionBar",
         },
         item: splashThemeItems,
       },
     ];
 
+    return cfg;
+  });
+
+  config = withAndroidManifest(config, (cfg) => {
+    const app = cfg.modResults.manifest.application?.[0];
+    const activities = app?.activity ?? [];
+    for (const activity of activities) {
+      const name = activity.$?.["android:name"] ?? "";
+      if (name.endsWith(".MainActivity") || name === "MainActivity") {
+        activity.$["android:theme"] = "@style/Theme.App.SplashScreen";
+      }
+    }
     return cfg;
   });
 
@@ -114,9 +140,11 @@ function withFullBleedSplash(config) {
         "utf8"
       );
 
-      // Keep launcher label in sync with Expo app name
-      const appName =
-        (cfg.name || cfg.expo?.name || "دفتر المعلم الرقمي").toString();
+      const appName = (
+        cfg.name ||
+        cfg.expo?.name ||
+        "دفتر المعلم الرقمي"
+      ).toString();
       const valuesDir = path.join(
         projectRoot,
         "app",
@@ -138,16 +166,18 @@ function withFullBleedSplash(config) {
   config = withMainActivity(config, (cfg) => {
     let src = cfg.modResults.contents;
 
+    // Do NOT call SplashScreenManager.registerOnActivity — installSplashScreen
+    // + OnPreDraw while Metro is cold leaves a timed-out black covering layer.
     src = src.replace(
       /import\s+expo\.modules\.splashscreen\.SplashScreenManager\s*\n?/g,
       ""
     );
     src = src.replace(
-      /\/\/ @generated begin expo-splashscreen[\s\S]*?\/\/ @generated end expo-splashscreen\s*/g,
+      /SplashScreenManager\.registerOnActivity\(this\)\s*/g,
       ""
     );
     src = src.replace(
-      /SplashScreenManager\.registerOnActivity\(this\)\s*/g,
+      /\/\/\s*SplashScreenManager\.registerOnActivity\(this\)\s*/g,
       ""
     );
 
@@ -155,7 +185,7 @@ function withFullBleedSplash(config) {
       src = src.replace(
         /override fun onCreate\(savedInstanceState: Bundle\?\) \{\s*/,
         `override fun onCreate(savedInstanceState: Bundle?) {
-    // Wordmark window background; JS SplashBackground uses the same mark.
+    // Wordmark windowBackground; JS SplashBackground covers until bootReady.
     setTheme(R.style.AppTheme)
     `
       );

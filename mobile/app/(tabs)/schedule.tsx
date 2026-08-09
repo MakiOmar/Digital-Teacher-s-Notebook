@@ -114,14 +114,14 @@ export default function WeeklyScheduleScreen() {
 
   if (loading && !rows.length) {
     return (
-      <Screen>
+      <Screen safeTop>
         <LoadingBlock />
       </Screen>
     );
   }
 
   return (
-    <Screen padded={false} style={{ flex: 1 }}>
+    <Screen safeTop padded={false} style={{ flex: 1 }}>
       <ScrollView
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 48 }}
         refreshControl={

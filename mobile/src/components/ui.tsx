@@ -22,8 +22,12 @@ export function Screen({
   children,
   style,
   padded = true,
-  /** Clear the system status bar (time / network). Default on. */
-  safeTop = true,
+  /**
+   * Extra top inset for the status bar.
+   * Default false — stack routes already clear the status bar via the header.
+   * Tab roots (no stack header) must pass safeTop.
+   */
+  safeTop = false,
 }: {
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
@@ -413,7 +417,8 @@ export function ChipRow({ children }: { children: React.ReactNode }) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "transparent",
+    // Opaque so stack/tab transitions don't show the previous page's text.
+    backgroundColor: colors.background,
   },
   center: {
     flex: 1,

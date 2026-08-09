@@ -21,7 +21,7 @@ export function ScreenWithFixedActions({
   style?: StyleProp<ViewStyle>;
 }) {
   return (
-    <Screen padded={false} style={[{ flex: 1 }, style]}>
+    <Screen padded={false} style={[{ flex: 1 }, style]} safeTop={false}>
       {actions.length ? (
         <View style={styles.fixedActions}>
           <IconActionBar actions={actions} />

@@ -92,14 +92,14 @@ export default function GroupsTab() {
 
   if (paging.loading) {
     return (
-      <Screen padded={false} style={{ flex: 1 }}>
+      <Screen safeTop padded={false} style={{ flex: 1 }}>
         <SkeletonList />
       </Screen>
     );
   }
 
   return (
-    <Screen padded={false} style={{ flex: 1 }}>
+    <Screen safeTop padded={false} style={{ flex: 1 }}>
       <View style={{ padding: spacing.lg, paddingBottom: 0 }}>
         <IconActionBar
           actions={[

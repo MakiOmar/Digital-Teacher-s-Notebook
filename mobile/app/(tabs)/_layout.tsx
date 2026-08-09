@@ -56,13 +56,14 @@ export default function TabLayout() {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: {
-          backgroundColor: "rgba(255,255,255,0.97)",
+          backgroundColor: colors.surface,
           borderTopColor: colors.border,
           height: TAB_BAR_CONTENT_HEIGHT + bottomInset,
           paddingBottom: bottomInset,
           paddingTop: 4,
         },
-        sceneStyle: { backgroundColor: "transparent" },
+        // Opaque scenes — transparent tab scenes show both tabs' text mid-switch.
+        sceneStyle: { backgroundColor: colors.background },
         tabBarLabel: ({ color, children }) => (
           <TabLabel color={String(color)}>{String(children)}</TabLabel>
         ),

@@ -2,10 +2,8 @@ import "react-native-gesture-handler";
 import "react-native-reanimated";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { reloadAppAsync } from "expo";
 import { useCallback, useEffect, useState } from "react";
 import { AppState, I18nManager, StyleSheet, Text, View } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import {
@@ -39,20 +37,15 @@ import { AppLockScreen } from "@/src/security/AppLockScreen";
 import { GeneralSettingsProvider } from "@/src/settings/GeneralSettingsContext";
 import { TourProvider } from "@/src/tour/TourContext";
 import { TourSpotlight } from "@/src/tour/TourSpotlight";
-
-const RTL_RELOAD_KEY = "tutoring.rtl.reload.v2";
+import { LanguageProvider } from "@/src/i18n/LanguageContext";
+import { bootstrapLanguageLayout } from "@/src/i18n/language";
 
 /**
- * Do NOT wrap the tree with style direction:'rtl' — that flips textAlign.
- * Use src/theme/rtl.ts helpers (visualTextAlign / rtlRow / rtlChipRow) so
- * Arabic text stays on the physical right whether or not forceRTL has applied.
- *
- * Expo Go: also set expo.extra.supportsRTL / forcesRTL + expo-localization
- * plugin flags in app.json — runtime I18nManager alone is reset/ignored there.
- * forceRTL still needs one reload for native navigation chrome (back button).
+ * Prefer reading-start alignment helpers in src/theme/rtl.ts.
+ * Preferred language drives I18nManager.forceRTL (ar) / false (en).
+ * app.json forcesRTL is false so English LTR works after prebuild.
  */
 I18nManager.allowRTL(true);
-I18nManager.forceRTL(true);
 
 /**
  * Do NOT call preventAutoHideAsync here. Keeping the native splash with
@@ -82,34 +75,15 @@ function Bootstrap({
   const { status: licenseStatus, ready: licenseReady } = useLicense();
   const { ready: profileReady, setupComplete } = useTutorProfile();
   const { ready: appLockReady, locked: appLocked } = useAppLock();
-  const [rtlReady, setRtlReady] = useState(I18nManager.isRTL);
+  const [rtlReady, setRtlReady] = useState(false);
   const [forceShow, setForceShow] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       try {
-        I18nManager.allowRTL(true);
-        I18nManager.forceRTL(true);
-        if (I18nManager.isRTL) {
-          if (!cancelled) setRtlReady(true);
-          return;
-        }
-        const already = await AsyncStorage.getItem(RTL_RELOAD_KEY);
-        if (already === "1") {
-          // Already attempted a reload — do not kill the process again
-          if (!cancelled) setRtlReady(true);
-          return;
-        }
-        await AsyncStorage.setItem(RTL_RELOAD_KEY, "1");
-        // In DEV, skip full reload — it freezes the JS bridge while Metro is
-        // cold and often surfaces as Android ANR ("App isn't responding").
-        // Visual RTL helpers already work without a native chrome reload.
-        if (__DEV__) {
-          if (!cancelled) setRtlReady(true);
-          return;
-        }
-        await reloadAppAsync();
+        await bootstrapLanguageLayout();
+        if (!cancelled) setRtlReady(true);
       } catch {
         if (!cancelled) setRtlReady(true);
       }
@@ -263,68 +237,76 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider style={styles.root}>
       <StatusBar style="dark" />
-      <AppDataProvider>
-        <LicenseProvider>
-          <TutorProfileProvider>
-            <AppLockProvider>
-              <GeneralSettingsProvider>
-              <TourProvider>
-              <DialogProvider>
-                <Bootstrap onAppReady={onAppReady}>
-                  <AppShell>
-                    <Stack
-                      screenOptions={{
-                        // No page titles — back button only on stack screens
-                        headerShown: true,
-                        headerTitle: "",
-                        headerTitleStyle: { fontFamily: fonts.bold },
-                        headerShadowVisible: false,
-                        // Opaque scenes — transparent content lets both pages'
-                        // text paint during the slide, which looks like overlap.
-                        headerStyle: { backgroundColor: colors.background },
-                        headerTintColor: colors.text,
-                        contentStyle: { flex: 1, backgroundColor: colors.background },
-                        animation: "slide_from_right",
-                      }}
-                    >
-                      <Stack.Screen
-                        name="(tabs)"
-                        options={{
-                          headerShown: false,
-                          contentStyle: { flex: 1, backgroundColor: colors.background },
-                          animation: "fade",
-                        }}
-                      />
-                      <Stack.Screen name="groups/form" />
-                      <Stack.Screen name="groups/[id]" />
-                      <Stack.Screen name="groups/add-students" />
-                      <Stack.Screen name="groups/round-payments" />
-                      <Stack.Screen name="groups/sessions" />
-                      <Stack.Screen name="attendance/[sessionId]" />
-                      <Stack.Screen name="students/form" />
-                      <Stack.Screen name="students/[id]" />
-                      <Stack.Screen name="payments/form" />
-                      <Stack.Screen name="years/index" />
-                      <Stack.Screen name="years/form" />
-                      <Stack.Screen name="backup" />
-                      <Stack.Screen name="about" />
-                      <Stack.Screen name="license-manage" />
-                      <Stack.Screen name="profile-edit" />
-                      <Stack.Screen name="app-lock" />
-                      <Stack.Screen name="reminders" />
-                      <Stack.Screen name="general-settings" />
-                      <Stack.Screen name="reports" />
-                    </Stack>
-                    <TourSpotlight />
-                  </AppShell>
-                </Bootstrap>
-              </DialogProvider>
-              </TourProvider>
-              </GeneralSettingsProvider>
-            </AppLockProvider>
-          </TutorProfileProvider>
-        </LicenseProvider>
-      </AppDataProvider>
+      <LanguageProvider>
+        <AppDataProvider>
+          <LicenseProvider>
+            <TutorProfileProvider>
+              <AppLockProvider>
+                <GeneralSettingsProvider>
+                  <TourProvider>
+                    <DialogProvider>
+                      <Bootstrap onAppReady={onAppReady}>
+                        <AppShell>
+                          <Stack
+                            screenOptions={{
+                              // No page titles — back button only on stack screens
+                              headerShown: true,
+                              headerTitle: "",
+                              headerTitleStyle: { fontFamily: fonts.bold },
+                              headerShadowVisible: false,
+                              // Opaque scenes — transparent content lets both pages'
+                              // text paint during the slide, which looks like overlap.
+                              headerStyle: { backgroundColor: colors.background },
+                              headerTintColor: colors.text,
+                              contentStyle: {
+                                flex: 1,
+                                backgroundColor: colors.background,
+                              },
+                              animation: "slide_from_right",
+                            }}
+                          >
+                            <Stack.Screen
+                              name="(tabs)"
+                              options={{
+                                headerShown: false,
+                                contentStyle: {
+                                  flex: 1,
+                                  backgroundColor: colors.background,
+                                },
+                                animation: "fade",
+                              }}
+                            />
+                            <Stack.Screen name="groups/form" />
+                            <Stack.Screen name="groups/[id]" />
+                            <Stack.Screen name="groups/add-students" />
+                            <Stack.Screen name="groups/round-payments" />
+                            <Stack.Screen name="groups/sessions" />
+                            <Stack.Screen name="attendance/[sessionId]" />
+                            <Stack.Screen name="students/form" />
+                            <Stack.Screen name="students/[id]" />
+                            <Stack.Screen name="payments/form" />
+                            <Stack.Screen name="years/index" />
+                            <Stack.Screen name="years/form" />
+                            <Stack.Screen name="backup" />
+                            <Stack.Screen name="about" />
+                            <Stack.Screen name="license-manage" />
+                            <Stack.Screen name="profile-edit" />
+                            <Stack.Screen name="app-lock" />
+                            <Stack.Screen name="reminders" />
+                            <Stack.Screen name="general-settings" />
+                            <Stack.Screen name="reports" />
+                          </Stack>
+                          <TourSpotlight />
+                        </AppShell>
+                      </Bootstrap>
+                    </DialogProvider>
+                  </TourProvider>
+                </GeneralSettingsProvider>
+              </AppLockProvider>
+            </TutorProfileProvider>
+          </LicenseProvider>
+        </AppDataProvider>
+      </LanguageProvider>
     </SafeAreaProvider>
   );
 }
@@ -342,7 +324,7 @@ const styles = StyleSheet.create({
   errorText: {
     color: colors.danger,
     textAlign: "center",
-    writingDirection: "rtl",
+    writingDirection: I18nManager.isRTL ? "rtl" : "ltr",
     width: "100%",
     fontFamily: fonts.regular,
   },

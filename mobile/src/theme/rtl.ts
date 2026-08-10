@@ -1,8 +1,10 @@
 import { I18nManager, TextStyle, ViewStyle } from "react-native";
 import { fonts } from "./typography";
 
-/** App is Arabic-only. Prefer explicit visual RTL that works with forceRTL. */
-export const APP_RTL = true;
+/** Prefer layout direction from I18nManager (kept in sync with preferred language). */
+export function appIsRtl(): boolean {
+  return I18nManager.isRTL;
+}
 
 /** True when native layout direction is already RTL. */
 export function nativeIsRtl(): boolean {
@@ -10,51 +12,49 @@ export function nativeIsRtl(): boolean {
 }
 
 /**
- * Under I18nManager.forceRTL, Yoga swaps left/right for Text textAlign.
- * We always want glyphs pinned to the physical right edge of Arabic UI.
+ * Align to the reading-start edge.
+ * Under forceRTL, Yoga mirrors textAlign so "left" is the physical right (start).
+ * Under LTR, "left" is the physical left (start).
  */
 export function visualTextAlign(): "left" | "right" {
-  return nativeIsRtl() ? "left" : "right";
+  return "left";
 }
 
 /**
- * TextInput does not flip textAlign the same way as Text under forceRTL.
- * Always use physical right. Prefer wrapping the input in `inputShell`.
+ * TextInput does not mirror textAlign under forceRTL — use physical start.
  */
 export function inputTextAlign(): "left" | "right" {
-  return "right";
+  return nativeIsRtl() ? "right" : "left";
 }
 
-/** Isolate TextInput from Yoga RTL so textAlign:'right' stays on the right. */
+/** Isolate TextInput from Yoga RTL so textAlign stays on the physical start. */
 export const inputShell: ViewStyle = {
   width: "100%",
   alignSelf: "stretch",
 };
 
 /**
- * Horizontal row that lays out children starting from the physical right.
- * When native RTL is on, plain `row` already starts on the right;
- * when off, we use `row-reverse`.
+ * Horizontal row that follows native layout direction (RTL → starts on the right).
  */
 export function rtlRow(): ViewStyle {
   return {
-    flexDirection: nativeIsRtl() ? "row" : "row-reverse",
+    flexDirection: "row",
   };
 }
 
-/** Chip/tag row scrolling / wrapping from the physical right. */
+/** Chip/tag row scrolling / wrapping from the reading-start edge. */
 export function rtlChipRow(): ViewStyle {
   return {
-    flexDirection: nativeIsRtl() ? "row" : "row-reverse",
+    flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "flex-start",
   };
 }
 
-/** Standard Arabic body/label text — always visual right. */
+/** Standard body/label text aligned to reading start. */
 export const rtlText: TextStyle = {
   textAlign: visualTextAlign(),
-  writingDirection: "rtl",
+  writingDirection: nativeIsRtl() ? "rtl" : "ltr",
   fontFamily: fonts.regular,
 };
 
@@ -63,3 +63,6 @@ export const rtlBlock: ViewStyle = {
   width: "100%",
   alignSelf: "stretch",
 };
+
+/** @deprecated Use appIsRtl(); kept for older imports. */
+export const APP_RTL = true;

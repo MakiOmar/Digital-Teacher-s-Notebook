@@ -18,7 +18,7 @@
     },
     "extra": {
       "supportsRTL": true,
-      "forcesRTL": true
+      "forcesRTL": false
     },
     "ios": {
       "supportsTablet": true,
@@ -55,7 +55,7 @@
         "expo-localization",
         {
           "supportsRTL": true,
-          "forcesRTL": true
+          "forcesRTL": false
         }
       ],
       [

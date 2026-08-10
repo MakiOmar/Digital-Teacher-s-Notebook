@@ -1,5 +1,8 @@
 /** Calendar / weekday helpers (local device timezone). */
 
+import { t, type ArKey } from "@/src/i18n/ar";
+import { getLanguage } from "@/src/i18n/language";
+
 const ARABIC_MONTHS = [
   "يناير",
   "فبراير",
@@ -15,15 +18,53 @@ const ARABIC_MONTHS = [
   "ديسمبر",
 ];
 
-export const WEEKDAY_LABELS: Record<number, string> = {
-  0: "الأحد",
-  1: "الإثنين",
-  2: "الثلاثاء",
-  3: "الأربعاء",
-  4: "الخميس",
-  5: "الجمعة",
-  6: "السبت",
-};
+const ENGLISH_MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+const WEEKDAY_KEYS: ArKey[] = [
+  "sun",
+  "mon",
+  "tue",
+  "wed",
+  "thu",
+  "fri",
+  "sat",
+];
+
+function monthName(index: number): string {
+  const months = getLanguage() === "en" ? ENGLISH_MONTHS : ARABIC_MONTHS;
+  return months[index] ?? "";
+}
+
+/** Localized weekday label (0=Sun … 6=Sat). Prefer this over WEEKDAY_LABELS. */
+export function weekdayLabel(day: number): string {
+  const key = WEEKDAY_KEYS[day];
+  return key ? t(key) : String(day);
+}
+
+/** Proxy so existing `WEEKDAY_LABELS[d]` calls follow the preferred language. */
+export const WEEKDAY_LABELS: Record<number, string> = new Proxy(
+  {} as Record<number, string>,
+  {
+    get(_target, prop) {
+      const day = typeof prop === "symbol" ? NaN : Number(prop);
+      if (!Number.isFinite(day)) return undefined;
+      return weekdayLabel(day);
+    },
+  }
+);
 
 /** Sat → Fri sort order for Arabic week listings. */
 export const WEEKDAY_SORT: Record<number, number> = {
@@ -60,7 +101,7 @@ export function parseDateOnly(s: string): Date {
 
 export function yearMonthLabel(yearMonth: string): string {
   const [y, m] = yearMonth.split("-").map(Number);
-  return `${ARABIC_MONTHS[m - 1]} ${y}`;
+  return `${monthName(m - 1)} ${y}`;
 }
 
 export function monthBounds(yearMonth: string): { start: string; end: string } {
@@ -118,7 +159,7 @@ export function monthsOverlappingRange(
 export function formatDateAr(dateOnly: string): string {
   const d = parseDateOnly(dateOnly);
   if (Number.isNaN(d.getTime())) return dateOnly;
-  return `${d.getDate()} ${ARABIC_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+  return `${d.getDate()} ${monthName(d.getMonth())} ${d.getFullYear()}`;
 }
 
 /** Local calendar YYYY-MM-DD. */
@@ -148,15 +189,15 @@ export function weekDatesFromSaturday(saturday: Date): Date[] {
   });
 }
 
-/** Short Arabic range label e.g. "2 — 8 أغسطس" */
+/** Short week range label e.g. "2 — 8 August" / "2 — 8 أغسطس" */
 export function formatWeekRangeAr(saturday: Date): string {
   const fri = new Date(saturday);
   fri.setDate(saturday.getDate() + 6);
   const sameMonth = saturday.getMonth() === fri.getMonth();
   if (sameMonth) {
-    return `${saturday.getDate()} — ${fri.getDate()} ${ARABIC_MONTHS[saturday.getMonth()]}`;
+    return `${saturday.getDate()} — ${fri.getDate()} ${monthName(saturday.getMonth())}`;
   }
-  return `${saturday.getDate()} ${ARABIC_MONTHS[saturday.getMonth()]} — ${fri.getDate()} ${ARABIC_MONTHS[fri.getMonth()]}`;
+  return `${saturday.getDate()} ${monthName(saturday.getMonth())} — ${fri.getDate()} ${monthName(fri.getMonth())}`;
 }
 
 /** Extract YYYY-MM-DD from SQLite datetime / ISO. */
@@ -166,13 +207,13 @@ export function dateOnlyFromDateTime(value?: string | null): string | null {
   return m ? m[1] : null;
 }
 
-/** e.g. "الشهر 3 · 26 يوليو 2026 — مستمرة" */
+/** e.g. "Month 3 · 26 July 2026 — Ongoing" */
 export function formatRoundTitle(
   roundNumber: number,
   startedAt?: string | null,
   closedAt?: string | null,
-  ongoingLabel = "مستمرة",
-  unitLabel = "الشهر"
+  ongoingLabel = t("roundUntilOngoing"),
+  unitLabel = t("monthUnit")
 ): string {
   const start = dateOnlyFromDateTime(startedAt);
   const end = dateOnlyFromDateTime(closedAt);
@@ -189,7 +230,7 @@ export function formatRoundTitle(
 export function formatRoundRange(
   startedAt?: string | null,
   closedAt?: string | null,
-  ongoingLabel = "مستمرة"
+  ongoingLabel = t("roundUntilOngoing")
 ): string {
   const start = dateOnlyFromDateTime(startedAt);
   const end = dateOnlyFromDateTime(closedAt);

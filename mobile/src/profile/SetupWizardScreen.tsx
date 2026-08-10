@@ -10,6 +10,7 @@ import {
   Text,
   View,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   FormField,
   Muted,
@@ -27,25 +28,30 @@ import {
 import { useDialog } from "@/src/components/DialogProvider";
 import { useKeyboardBottomInset } from "@/src/hooks/useKeyboardBottomInset";
 import { t } from "@/src/i18n/ar";
+import { useLanguage } from "@/src/i18n/LanguageContext";
+import type { AppLanguage } from "@/src/i18n/language";
 import { colors, radii, spacing } from "@/src/theme/colors";
 import { rtlChipRow, rtlRow, rtlText } from "@/src/theme/rtl";
 import { userFacingErrorMessage } from "@/src/utils/errors";
 
 const FALLBACK = require("../../assets/images/profile.webp");
 const BRAND_LOGO = require("../../assets/images/logo-full.webp");
-// Cache-bust note: full splash brand with Arabic + English title
+const LANGUAGE_CHOSEN_KEY = "tutor.setup.languageChosen.v1";
 
-type Step = "profile" | "backup";
+type Step = "language" | "profile" | "backup";
 
-/** First-run wizard: tutor profile then auto-backup prefs. */
+/** First-run wizard: preferred language, tutor profile, then auto-backup prefs. */
 export function SetupWizardScreen() {
   const { name: savedName, profileUri: savedUri, saveProfile, pickImage } =
     useTutorProfile();
+  const { language, setLanguage } = useLanguage();
   const dialog = useDialog();
   const scrollRef = useRef<ScrollView>(null);
   const nameAnchorY = useRef(0);
   const keyboardInset = useKeyboardBottomInset();
-  const [step, setStep] = useState<Step>("profile");
+  const [step, setStep] = useState<Step>("language");
+  const [stepReady, setStepReady] = useState(false);
+  const [pickedLang, setPickedLang] = useState<AppLanguage>(language);
   const [name, setName] = useState(savedName);
   const [profileUri, setProfileUri] = useState<string | null>(savedUri);
   const [busy, setBusy] = useState(false);
@@ -66,17 +72,40 @@ export function SetupWizardScreen() {
   }, [savedName, savedUri]);
 
   useEffect(() => {
+    setPickedLang(language);
+  }, [language]);
+
+  useEffect(() => {
     void loadAutoBackupSettings().then(setBackup);
+  }, []);
+
+  // After a language-change reload mid-wizard, resume at profile.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const chosen = await AsyncStorage.getItem(LANGUAGE_CHOSEN_KEY);
+        if (!cancelled) {
+          setStep(chosen === "1" ? "profile" : "language");
+          setStepReady(true);
+        }
+      } catch {
+        if (!cancelled) setStepReady(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // When keyboard opens, scroll the name field into the visible area
   useEffect(() => {
     if (keyboardInset <= 0 || step !== "profile") return;
     const y = Math.max(0, nameAnchorY.current - 24);
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       scrollRef.current?.scrollTo({ y, animated: true });
     }, 50);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [keyboardInset, step]);
 
   async function onPickPhoto() {
@@ -89,6 +118,22 @@ export function SetupWizardScreen() {
           ? t("profilePhotoPermission")
           : userFacingErrorMessage(e);
       await dialog.alert({ title: t("error"), message: msg });
+    }
+  }
+
+  async function onLanguageNext() {
+    setBusy(true);
+    try {
+      await AsyncStorage.setItem(LANGUAGE_CHOSEN_KEY, "1");
+      await setLanguage(pickedLang);
+      setStep("profile");
+    } catch (e) {
+      await dialog.alert({
+        title: t("error"),
+        message: userFacingErrorMessage(e),
+      });
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -150,6 +195,27 @@ export function SetupWizardScreen() {
 
   const avatarSource = profileUri ? { uri: profileUri } : FALLBACK;
 
+  const title =
+    step === "language"
+      ? t("preferredLanguage")
+      : step === "profile"
+        ? t("setupWizardTitle")
+        : t("autoBackup");
+  const hint =
+    step === "language"
+      ? t("preferredLanguageHint")
+      : step === "profile"
+        ? t("setupWizardHint")
+        : t("autoBackupHint");
+
+  if (!stepReady) {
+    return (
+      <Screen safeTop padded={false} style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
+        <View />
+      </Screen>
+    );
+  }
+
   return (
     <Screen safeTop padded={false} style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
       <KeyboardAvoidingView
@@ -172,14 +238,44 @@ export function SetupWizardScreen() {
             resizeMode="contain"
           />
 
-          <Title>
-            {step === "profile" ? t("setupWizardTitle") : t("autoBackup")}
-          </Title>
-          <Muted style={{ marginBottom: spacing.md }}>
-            {step === "profile" ? t("setupWizardHint") : t("autoBackupHint")}
-          </Muted>
+          <Title>{title}</Title>
+          <Muted style={{ marginBottom: spacing.md }}>{hint}</Muted>
 
-          {step === "profile" ? (
+          {step === "language" ? (
+            <>
+              <View style={styles.freqRow}>
+                {([
+                  { id: "ar" as const, label: t("languageArabic") },
+                  { id: "en" as const, label: t("languageEnglish") },
+                ]).map((opt) => {
+                  const selected = pickedLang === opt.id;
+                  return (
+                    <Pressable
+                      key={opt.id}
+                      onPress={() => setPickedLang(opt.id)}
+                      style={[styles.chip, selected && styles.chipOn]}
+                    >
+                      <Text
+                        style={[
+                          styles.chipText,
+                          selected && styles.chipTextOn,
+                        ]}
+                      >
+                        {opt.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <View style={{ marginTop: spacing.lg }}>
+                <PrimaryButton
+                  label={busy ? t("loading") : t("setupNext")}
+                  onPress={() => void onLanguageNext()}
+                  disabled={busy}
+                />
+              </View>
+            </>
+          ) : step === "profile" ? (
             <>
               {/* Name first so it stays above the keyboard */}
               <View
@@ -231,6 +327,14 @@ export function SetupWizardScreen() {
                 onPress={() => void onProfileNext()}
                 disabled={busy}
               />
+              <View style={{ marginTop: 10 }}>
+                <PrimaryButton
+                  label={t("back")}
+                  variant="ghost"
+                  onPress={() => setStep("language")}
+                  disabled={busy}
+                />
+              </View>
             </>
           ) : (
             <>

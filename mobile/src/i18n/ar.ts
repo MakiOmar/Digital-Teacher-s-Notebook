@@ -1,4 +1,7 @@
 /** Arabic UI strings for the tutoring manager app. */
+import { en } from "@/src/i18n/en";
+import { getLanguage } from "@/src/i18n/language";
+
 export const ar = {
   appName: "دفتر المعلم الرقمي",
   home: "الرئيسية",
@@ -93,6 +96,7 @@ export const ar = {
   noOpenRound: "لا يوجد شهر مفتوح لهذا الطالب",
   roundUntilOngoing: "مستمرة",
   roundRange: "فترة الشهر",
+  monthUnit: "الشهر",
   needScheduleFirst: "لا توجد حصص بعد — احفظ المجموعة مع سنة نشطة أولاً",
   activateYear: "تفعيل هذه السنة",
   activeYear: "السنة النشطة",
@@ -351,6 +355,12 @@ export const ar = {
   // Setup / profile
   setupWizardTitle: "إعداد المدرس",
   setupWizardHint: "أدخل اسمك وصورة شخصية (اختيارية) للظهور في الصفحة الرئيسية.",
+  preferredLanguage: "اللغة المفضلة",
+  preferredLanguageHint:
+    "اختر لغة القوائم والشاشات. يمكنك تغييرها لاحقاً من الإعدادات العامة.",
+  languageArabic: "العربية",
+  languageEnglish: "English",
+  languageSaved: "تم حفظ اللغة",
   tutorName: "اسم المدرس",
   tutorNameRequired: "أدخل اسم المدرس",
   pickProfilePhoto: "اختر صورة",
@@ -492,12 +502,13 @@ export const ar = {
 
 export type ArKey = keyof typeof ar;
 
-/** Look up an Arabic string; optional `{name}` placeholders via vars. */
+/** Look up UI string for the preferred language; optional `{name}` placeholders. */
 export function t(
   key: ArKey,
   vars?: Record<string, string | number>
 ): string {
-  let value: string = ar[key];
+  const dict = getLanguage() === "en" ? en : ar;
+  let value: string = (dict as Record<string, string>)[key] ?? ar[key];
   if (vars) {
     for (const [name, raw] of Object.entries(vars)) {
       value = value.split(`{${name}}`).join(String(raw));

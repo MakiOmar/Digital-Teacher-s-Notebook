@@ -331,9 +331,8 @@ const styles = StyleSheet.create({
     height: 72,
     backgroundColor: "transparent",
   },
-  // Keep profile cluster RTL so avatar sits toward the physical right.
+  // Logo stays physical left; profile follows native reading direction.
   profileWelcome: {
-    direction: "rtl" as const,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,

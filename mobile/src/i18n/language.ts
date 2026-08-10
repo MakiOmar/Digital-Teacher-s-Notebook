@@ -5,7 +5,7 @@ import { reloadAppAsync } from "expo";
 export type AppLanguage = "ar" | "en";
 
 const STORAGE_KEY = "tutor.language.v1";
-const LAYOUT_RELOAD_KEY = "tutoring.lang.layout.reload.v1";
+const LAYOUT_RELOAD_KEY = "tutoring.lang.layout.reload.v2";
 
 let currentLanguage: AppLanguage = "ar";
 const listeners = new Set<() => void>();
@@ -49,6 +49,12 @@ export async function loadLanguage(): Promise<AppLanguage> {
   return "ar";
 }
 
+function applyLayoutDirection(wantRtl: boolean): void {
+  // Keep allowRTL true so we can switch Arabic ↔ English later.
+  I18nManager.allowRTL(true);
+  I18nManager.forceRTL(wantRtl);
+}
+
 /**
  * Persist language and align native RTL/LTR.
  * Reloads once when layout direction must change (production).
@@ -62,24 +68,19 @@ export async function saveLanguage(
   setLanguageInMemory(next);
 
   const wantRtl = isRtlLanguage(next);
-  I18nManager.allowRTL(wantRtl);
   const needsFlip = I18nManager.isRTL !== wantRtl;
+  applyLayoutDirection(wantRtl);
+
   if (!needsFlip) {
     return { reloaded: false };
   }
 
-  I18nManager.forceRTL(wantRtl);
-
   if (options?.reloadIfNeeded === false || __DEV__) {
-    // Dev: avoid ANR from full reload; visual RTL helpers still update via t().
+    // Dev: avoid ANR from full reload; strings still update via t().
     return { reloaded: false };
   }
 
   const token = `${next}:${wantRtl ? "rtl" : "ltr"}`;
-  const already = await AsyncStorage.getItem(LAYOUT_RELOAD_KEY);
-  if (already === token) {
-    return { reloaded: false };
-  }
   await AsyncStorage.setItem(LAYOUT_RELOAD_KEY, token);
   await reloadAppAsync();
   return { reloaded: true };
@@ -92,16 +93,20 @@ export async function bootstrapLanguageLayout(): Promise<{
 }> {
   const language = await loadLanguage();
   const wantRtl = isRtlLanguage(language);
-  I18nManager.allowRTL(true);
-  I18nManager.forceRTL(wantRtl);
+  applyLayoutDirection(wantRtl);
 
   if (I18nManager.isRTL === wantRtl) {
     return { language, rtlReady: true };
   }
 
+  if (__DEV__) {
+    return { language, rtlReady: true };
+  }
+
   const token = `${language}:${wantRtl ? "rtl" : "ltr"}`;
   const already = await AsyncStorage.getItem(LAYOUT_RELOAD_KEY);
-  if (already === token || __DEV__) {
+  // Avoid infinite reload if native still forces RTL (misconfigured APK).
+  if (already === token) {
     return { language, rtlReady: true };
   }
   await AsyncStorage.setItem(LAYOUT_RELOAD_KEY, token);

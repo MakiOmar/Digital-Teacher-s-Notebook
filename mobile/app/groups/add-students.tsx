@@ -26,7 +26,7 @@ import {
 import type { Student, StudyGroup } from "@/src/db/types";
 import { todayDateOnly } from "@/src/utils/date";
 import { colors, spacing } from "@/src/theme/colors";
-import { rtlChipRow, rtlText, inputShell, inputTextAlign } from "@/src/theme/rtl";
+import { rtlChipRow, rtlText, inputShell, inputTextAlign, writingDirection } from "@/src/theme/rtl";
 import { useAppData } from "@/src/contexts/AppDataContext";
 import { useDialog } from "@/src/components/DialogProvider";
 import { userFacingErrorMessage } from "@/src/utils/errors";
@@ -242,7 +242,13 @@ export default function AddStudentsToGroupScreen() {
                     }}
                     placeholder={t("studentName")}
                     placeholderTextColor={colors.textMuted}
-                    style={styles.input}
+                    style={[
+                      styles.input,
+                      {
+                        writingDirection: writingDirection(),
+                        textAlign: inputTextAlign(),
+                      },
+                    ]}
                     textAlign={inputTextAlign()}
                   />
                 </View>
@@ -324,8 +330,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 16,
     backgroundColor: colors.background,
-    textAlign: "right",
-    writingDirection: "rtl",
     width: "100%",
   },
   suggestions: {

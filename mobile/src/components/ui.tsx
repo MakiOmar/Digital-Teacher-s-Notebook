@@ -14,7 +14,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, radii, spacing } from "../theme/colors";
 import { fonts, fontBold, fontExtraBold, fontSemiBold } from "../theme/typography";
-import { rtlRow, rtlText, rtlBlock, rtlChipRow, inputShell, inputTextAlign } from "../theme/rtl";
+import { rtlRow, rtlText, rtlBlock, rtlChipRow, inputShell, inputTextAlign, writingDirection } from "../theme/rtl";
 import { TourAnchor } from "@/src/tour/TourAnchor";
 import type { TourTargetId } from "@/src/tour/tourSteps";
 
@@ -211,6 +211,10 @@ export function FormField({
           onFocus={onFocus}
           style={[
             styles.input,
+            {
+              writingDirection: writingDirection(),
+              textAlign: inputTextAlign(),
+            },
             multiline && { minHeight: 80, textAlignVertical: "top" },
           ]}
           textAlign={inputTextAlign()}
@@ -474,7 +478,6 @@ const styles = StyleSheet.create({
     ...fontBold,
     fontSize: 15,
     textAlign: "center",
-    writingDirection: "rtl",
   },
   field: { marginBottom: spacing.md },
   label: {
@@ -494,8 +497,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 16,
     fontFamily: fonts.regular,
-    writingDirection: "rtl",
-    textAlign: "right",
     width: "100%",
   },
   row: {
@@ -523,7 +524,7 @@ const styles = StyleSheet.create({
   rowRight: {
     color: colors.primary,
     ...fontBold,
-    writingDirection: "rtl",
+    ...rtlText,
   },
   card: {
     backgroundColor: colors.surface,

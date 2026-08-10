@@ -11,6 +11,7 @@
 import React from "react";
 import {
   ActivityIndicator,
+  Animated,
   AppState,
   FlatList,
   I18nManager,
@@ -38,6 +39,7 @@ import { resolveCairoStyle } from "./typography";
 
 export {
   ActivityIndicator,
+  Animated,
   AppState,
   FlatList,
   I18nManager,

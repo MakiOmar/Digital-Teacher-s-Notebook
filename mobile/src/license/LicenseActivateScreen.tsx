@@ -24,6 +24,7 @@ import { t } from "@/src/i18n/ar";
 import { colors, spacing } from "@/src/theme/colors";
 import { rtlText } from "@/src/theme/rtl";
 import { whatsappUrl } from "@/src/utils/phone";
+import { userFacingErrorMessage } from "@/src/utils/errors";
 
 const BRAND_LOGO = require("../../assets/images/logo-full.webp");
 
@@ -85,7 +86,7 @@ export function LicenseActivateScreen() {
     } catch (e) {
       await dialog.alert({
         title: t("error"),
-        message: e instanceof Error ? e.message : t("licenseInvalid"),
+        message: userFacingErrorMessage(e),
       });
     } finally {
       setBusy(null);
@@ -100,7 +101,7 @@ export function LicenseActivateScreen() {
     } catch (e) {
       await dialog.alert({
         title: t("error"),
-        message: e instanceof Error ? e.message : t("licenseInvalid"),
+        message: userFacingErrorMessage(e),
       });
     } finally {
       setBusy(null);

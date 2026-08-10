@@ -30,6 +30,7 @@ import { rtlChipRow, rtlText } from "@/src/theme/rtl";
 import { useAppData } from "@/src/contexts/AppDataContext";
 import { useDialog } from "@/src/components/DialogProvider";
 import { generateSessionsForGroup } from "@/src/services/schedule";
+import { userFacingErrorMessage } from "@/src/utils/errors";
 
 const WEEKDAYS: Weekday[] = [6, 0, 1, 2, 3, 4, 5]; // Sat first for Arabic week
 
@@ -172,7 +173,7 @@ export default function GroupFormScreen() {
     } catch (e) {
       await dialog.alert({
         title: t("error"),
-        message: e instanceof Error ? e.message : t("error"),
+        message: userFacingErrorMessage(e),
       });
     } finally {
       setSaving(false);

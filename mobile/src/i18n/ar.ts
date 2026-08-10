@@ -186,7 +186,7 @@ export const ar = {
   rescheduleSession: "تغيير الموعد",
   rescheduleSessionHint: "اختر التاريخ والوقت الجديدين للحصة.",
   rescheduleSessionSaved: "تم تغيير موعد الحصة",
-  startTime: "وقت البداية",
+  sessionStartTime: "وقت البداية",
   noSessions: "لا توجد حصص — ولّد الجدول أولاً",
 
   // Payments
@@ -468,6 +468,8 @@ export const ar = {
   nextWeek: "الأسبوع التالي",
 
   deleteConfirm: "هل تريد الحذف؟",
+  networkOffline:
+    "لا يوجد اتصال بالإنترنت. تأكد من تفعيل الواي فاي أو بيانات الجوال، ثم حاول مرة أخرى.",
   regenerateConfirm:
     "سيتم تحديث الحصص بدون حضور مسجّل. الحصص التي عليها حضور لن تُحذف. المتابعة؟",
 } as const;

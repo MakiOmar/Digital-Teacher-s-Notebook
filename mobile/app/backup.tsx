@@ -41,6 +41,7 @@ import { colors, radii, spacing } from "@/src/theme/colors";
 import { fonts } from "@/src/theme/typography";
 import { rtlChipRow, rtlRow, rtlText } from "@/src/theme/rtl";
 import { formatDateTimeAr } from "@/src/utils/date";
+import { userFacingErrorMessage } from "@/src/utils/errors";
 
 type ProgressState = {
   mode: "import" | "export";
@@ -124,7 +125,7 @@ export default function BackupScreen() {
     } catch (e) {
       await dialog.alert({
         title: t("error"),
-        message: e instanceof Error ? e.message : t("error"),
+        message: userFacingErrorMessage(e),
       });
     } finally {
       setBusy(false);
@@ -146,7 +147,7 @@ export default function BackupScreen() {
     } catch (e) {
       await dialog.alert({
         title: t("error"),
-        message: e instanceof Error ? e.message : t("error"),
+        message: userFacingErrorMessage(e),
       });
     } finally {
       setBusy(false);
@@ -175,7 +176,7 @@ export default function BackupScreen() {
         if (e instanceof Error && e.message === "تم إلغاء الاختيار") return;
         await dialog.alert({
           title: t("error"),
-          message: e instanceof Error ? e.message : t("error"),
+          message: userFacingErrorMessage(e),
         });
       } finally {
         setBusy(false);

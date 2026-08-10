@@ -33,6 +33,7 @@ import { colors, spacing } from "@/src/theme/colors";
 import { rtlChipRow, rtlText } from "@/src/theme/rtl";
 import { useAppData } from "@/src/contexts/AppDataContext";
 import { useDialog } from "@/src/components/DialogProvider";
+import { userFacingErrorMessage } from "@/src/utils/errors";
 
 const METHODS: { key: PaymentMethod; label: string }[] = [
   { key: "cash", label: t("cash") },
@@ -227,7 +228,7 @@ export default function PaymentFormScreen() {
     } catch (e) {
       await dialog.alert({
         title: t("error"),
-        message: e instanceof Error ? e.message : t("error"),
+        message: userFacingErrorMessage(e),
       });
     } finally {
       setSaving(false);

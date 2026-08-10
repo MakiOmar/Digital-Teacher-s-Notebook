@@ -45,6 +45,7 @@ import {
   paymentStatusBorderColor,
   paymentStatusLabel,
 } from "@/src/utils/statusLabels";
+import { userFacingErrorMessage } from "@/src/utils/errors";
 
 type ListRowItem =
   | { kind: "meta" }
@@ -252,7 +253,7 @@ export default function GroupDetailsScreen() {
     } catch (e) {
       await dialog.alert({
         title: t("error"),
-        message: e instanceof Error ? e.message : t("error"),
+        message: userFacingErrorMessage(e),
       });
     }
   }

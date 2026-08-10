@@ -44,6 +44,7 @@ import { MonthStarTitle } from "@/src/components/MonthStarTitle";
 import { useDialog } from "@/src/components/DialogProvider";
 import { useClientPagination } from "@/src/hooks/useClientPagination";
 import { useGeneralSettings } from "@/src/settings/GeneralSettingsContext";
+import { userFacingErrorMessage } from "@/src/utils/errors";
 
 const METHODS: { key: PaymentMethod; label: string }[] = [
   { key: "cash", label: t("cash") },
@@ -209,7 +210,7 @@ export default function GroupRoundPaymentsScreen() {
       }
     } catch (e) {
       if (!silent) {
-        dialog.toast(e instanceof Error ? e.message : t("error"), "error");
+        dialog.toast(userFacingErrorMessage(e), "error");
       } else {
         throw e;
       }
@@ -229,7 +230,7 @@ export default function GroupRoundPaymentsScreen() {
       }
     } catch (e) {
       if (!silent) {
-        dialog.toast(e instanceof Error ? e.message : t("error"), "error");
+        dialog.toast(userFacingErrorMessage(e), "error");
       } else {
         throw e;
       }
@@ -278,7 +279,7 @@ export default function GroupRoundPaymentsScreen() {
       await reloadRows(selectedRound);
       dialog.toast(t("switchedPaid"), "success");
     } catch (e) {
-      dialog.toast(e instanceof Error ? e.message : t("error"), "error");
+      dialog.toast(userFacingErrorMessage(e), "error");
     } finally {
       setBulkBusy(false);
     }
@@ -304,7 +305,7 @@ export default function GroupRoundPaymentsScreen() {
         await reloadRows(selectedRound);
         dialog.toast(t("switchedUnpaid"), "success");
       } catch (e) {
-        dialog.toast(e instanceof Error ? e.message : t("error"), "error");
+        dialog.toast(userFacingErrorMessage(e), "error");
       } finally {
         setBulkBusy(false);
       }

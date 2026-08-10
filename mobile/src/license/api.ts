@@ -7,6 +7,8 @@ import {
 } from "../config/ulsp";
 import { getDeviceDisplayName } from "./deviceId";
 
+export { isNetworkFailure } from "../utils/errors";
+
 export type ActivateResponse = {
   data: {
     id: number;
@@ -248,34 +250,6 @@ export async function startTrialLicense(
     activation_value: deviceId,
     ...buildDeviceMeta(meta),
   });
-}
-
-export function isNetworkFailure(e: unknown): boolean {
-  if (e instanceof TypeError) return true;
-  if (!(e instanceof Error)) return false;
-
-  const msg = e.message.toLowerCase();
-  return (
-    msg.includes("network") ||
-    msg.includes("failed to fetch") ||
-    msg.includes("network request failed") ||
-    msg.includes("unable to resolve host") ||
-    msg.includes("unknownhost") ||
-    msg.includes("enotfound") ||
-    msg.includes("econnrefused") ||
-    msg.includes("econnreset") ||
-    msg.includes("etimedout") ||
-    msg.includes("timed out") ||
-    msg.includes("timeout") ||
-    msg.includes("socket") ||
-    msg.includes("offline") ||
-    msg.includes("unreachable") ||
-    msg.includes("cleartext") ||
-    msg.includes("ssl") ||
-    msg.includes("certificate") ||
-    /https?:\/\//i.test(e.message) ||
-    /ulsp\./i.test(e.message)
-  );
 }
 
 /**

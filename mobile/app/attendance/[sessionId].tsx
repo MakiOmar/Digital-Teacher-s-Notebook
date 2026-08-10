@@ -49,6 +49,7 @@ import { rtlBlock, rtlChipRow, rtlRow, rtlText } from "@/src/theme/rtl";
 import { useAppData } from "@/src/contexts/AppDataContext";
 import { useDialog } from "@/src/components/DialogProvider";
 import { attendanceStatusLabel } from "@/src/utils/statusLabels";
+import { userFacingErrorMessage } from "@/src/utils/errors";
 
 const STATUSES: { key: AttendanceStatus; label: string }[] = [
   { key: "present", label: attendanceStatusLabel("present") },
@@ -251,7 +252,7 @@ export default function AttendanceScreen() {
       } catch (e) {
         await dialog.alert({
           title: t("error"),
-          message: e instanceof Error ? e.message : t("error"),
+          message: userFacingErrorMessage(e),
         });
       }
     })();
@@ -267,7 +268,7 @@ export default function AttendanceScreen() {
       } catch (e) {
         await dialog.alert({
           title: t("error"),
-          message: e instanceof Error ? e.message : t("error"),
+          message: userFacingErrorMessage(e),
         });
       }
     })();
@@ -300,7 +301,7 @@ export default function AttendanceScreen() {
       } catch (e) {
         await dialog.alert({
           title: t("error"),
-          message: e instanceof Error ? e.message : t("error"),
+          message: userFacingErrorMessage(e),
         });
       } finally {
         setRescheduleBusy(false);
@@ -552,7 +553,7 @@ export default function AttendanceScreen() {
                 onChange={setRescheduleDate}
               />
               <TimeField
-                label={t("startTime")}
+                label={t("sessionStartTime")}
                 value={rescheduleTime}
                 onChange={setRescheduleTime}
               />

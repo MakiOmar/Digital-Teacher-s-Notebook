@@ -14,6 +14,7 @@ import {
   resolveCurrentStudyMonth,
 } from "../repositories";
 import { scheduleAutoBackupOnEdit } from "../backup/autoBackup";
+import { userFacingErrorMessage } from "@/src/utils/errors";
 
 type AppDataContextValue = {
   ready: boolean;
@@ -59,7 +60,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       setError(null);
       setReady(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "خطأ في قاعدة البيانات");
+      setError(userFacingErrorMessage(e));
       setReady(true);
     }
   }, []);

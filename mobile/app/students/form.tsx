@@ -29,6 +29,7 @@ import { colors, spacing } from "@/src/theme/colors";
 import { rtlChipRow, rtlText } from "@/src/theme/rtl";
 import { useAppData } from "@/src/contexts/AppDataContext";
 import { useDialog } from "@/src/components/DialogProvider";
+import { userFacingErrorMessage } from "@/src/utils/errors";
 
 export default function StudentFormScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
@@ -115,7 +116,7 @@ export default function StudentFormScreen() {
     } catch (e) {
       await dialog.alert({
         title: t("error"),
-        message: e instanceof Error ? e.message : t("error"),
+        message: userFacingErrorMessage(e),
       });
     } finally {
       setSaving(false);

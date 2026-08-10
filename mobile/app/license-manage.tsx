@@ -26,6 +26,7 @@ import { colors, radii, spacing } from "@/src/theme/colors";
 import { formatDateAr, dateOnlyFromDateTime } from "@/src/utils/date";
 import { rtlBlock, rtlRow, rtlText } from "@/src/theme/rtl";
 import { whatsappUrl } from "@/src/utils/phone";
+import { userFacingErrorMessage } from "@/src/utils/errors";
 
 function formatIsoDate(iso: string | null): string {
   if (!iso) return "—";
@@ -58,7 +59,7 @@ export default function LicenseManageScreen() {
     } catch (e) {
       await dialog.alert({
         title: t("error"),
-        message: e instanceof Error ? e.message : t("error"),
+        message: userFacingErrorMessage(e),
       });
     } finally {
       setBusy(false);
@@ -80,7 +81,7 @@ export default function LicenseManageScreen() {
     } catch (e) {
       await dialog.alert({
         title: t("error"),
-        message: e instanceof Error ? e.message : t("error"),
+        message: userFacingErrorMessage(e),
       });
     } finally {
       setBusy(false);
@@ -110,7 +111,7 @@ export default function LicenseManageScreen() {
     } catch (e) {
       await dialog.alert({
         title: t("error"),
-        message: e instanceof Error ? e.message : t("licenseInvalid"),
+        message: userFacingErrorMessage(e),
       });
     } finally {
       setBusy(false);

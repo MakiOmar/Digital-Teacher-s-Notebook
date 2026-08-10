@@ -11,6 +11,7 @@ import { t } from "@/src/i18n/ar";
 import { colors, radii, spacing } from "@/src/theme/colors";
 import { fonts } from "@/src/theme/typography";
 import { rtlChipRow, rtlText } from "@/src/theme/rtl";
+import { userFacingErrorMessage } from "@/src/utils/errors";
 
 /** General app settings — page size used by all paginated lists. */
 export default function GeneralSettingsScreen() {
@@ -27,7 +28,7 @@ export default function GeneralSettingsScreen() {
     } catch (e) {
       await dialog.alert({
         title: t("error"),
-        message: e instanceof Error ? e.message : t("error"),
+        message: userFacingErrorMessage(e),
       });
     } finally {
       setBusy(false);

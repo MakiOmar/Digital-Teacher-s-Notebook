@@ -22,6 +22,7 @@ import {
   monthsOverlappingRange,
   yearMonthLabel,
 } from "@/src/utils/date";
+import { userFacingErrorMessage } from "@/src/utils/errors";
 
 function initialYearName(): string {
   return defaultAcademicYearName();
@@ -109,7 +110,7 @@ export default function YearFormScreen() {
     } catch (e) {
       await dialog.alert({
         title: t("error"),
-        message: e instanceof Error ? e.message : t("error"),
+        message: userFacingErrorMessage(e),
       });
     } finally {
       setSaving(false);

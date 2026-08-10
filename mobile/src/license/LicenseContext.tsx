@@ -229,7 +229,7 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
         await applyUnlocked(next);
       } catch (e) {
         if (isNetworkFailure(e)) {
-          throw new Error(t("licenseNetworkError"));
+          throw new Error(t("networkOffline"));
         }
         if (e instanceof UlspApiError) {
           throw new Error(e.message || reasonMessage(e.reason));
@@ -274,7 +274,7 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
       await applyUnlocked(next);
     } catch (e) {
       if (isNetworkFailure(e)) {
-        throw new Error(t("licenseNetworkError"));
+        throw new Error(t("networkOffline"));
       }
       if (e instanceof UlspApiError) {
         switch (classifyTrialError(e)) {

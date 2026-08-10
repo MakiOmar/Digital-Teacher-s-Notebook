@@ -23,6 +23,7 @@ import { useTutorProfile } from "@/src/profile/TutorProfileContext";
 import { t } from "@/src/i18n/ar";
 import { colors, spacing } from "@/src/theme/colors";
 import { rtlText } from "@/src/theme/rtl";
+import { userFacingErrorMessage } from "@/src/utils/errors";
 
 const FALLBACK = require("../assets/images/profile.webp");
 
@@ -61,9 +62,7 @@ export default function ProfileEditScreen() {
       const msg =
         e instanceof Error && e.message === "permission_denied"
           ? t("profilePhotoPermission")
-          : e instanceof Error
-            ? e.message
-            : t("error");
+          : userFacingErrorMessage(e);
       await dialog.alert({ title: t("error"), message: msg });
     }
   }
@@ -88,7 +87,7 @@ export default function ProfileEditScreen() {
     } catch (e) {
       await dialog.alert({
         title: t("error"),
-        message: e instanceof Error ? e.message : t("error"),
+        message: userFacingErrorMessage(e),
       });
     } finally {
       setBusy(false);

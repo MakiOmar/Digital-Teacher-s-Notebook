@@ -29,6 +29,7 @@ import { useKeyboardBottomInset } from "@/src/hooks/useKeyboardBottomInset";
 import { t } from "@/src/i18n/ar";
 import { colors, radii, spacing } from "@/src/theme/colors";
 import { rtlChipRow, rtlRow, rtlText } from "@/src/theme/rtl";
+import { userFacingErrorMessage } from "@/src/utils/errors";
 
 const FALLBACK = require("../../assets/images/profile.webp");
 const BRAND_LOGO = require("../../assets/images/logo-full.webp");
@@ -86,9 +87,7 @@ export function SetupWizardScreen() {
       const msg =
         e instanceof Error && e.message === "permission_denied"
           ? t("profilePhotoPermission")
-          : e instanceof Error
-            ? e.message
-            : t("error");
+          : userFacingErrorMessage(e);
       await dialog.alert({ title: t("error"), message: msg });
     }
   }
@@ -112,7 +111,7 @@ export function SetupWizardScreen() {
     } catch (e) {
       await dialog.alert({
         title: t("error"),
-        message: e instanceof Error ? e.message : t("error"),
+        message: userFacingErrorMessage(e),
       });
     } finally {
       setBusy(false);
@@ -142,7 +141,7 @@ export function SetupWizardScreen() {
     } catch (e) {
       await dialog.alert({
         title: t("error"),
-        message: e instanceof Error ? e.message : t("error"),
+        message: userFacingErrorMessage(e),
       });
     } finally {
       setBusy(false);

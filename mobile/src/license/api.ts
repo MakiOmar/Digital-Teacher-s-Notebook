@@ -139,13 +139,8 @@ async function fetchWithTimeout(
   try {
     return await fetch(url, { ...init, signal: controller.signal });
   } catch (e) {
-    if (
-      e instanceof Error &&
-      (e.name === "AbortError" || /aborted/i.test(e.message))
-    ) {
-      throw new TypeError("Network request failed");
-    }
-    throw e;
+    // Never surface the API URL / host to the user — callers map this via isNetworkFailure.
+    throw new TypeError("Network request failed");
   } finally {
     clearTimeout(timer);
   }
@@ -257,15 +252,30 @@ export async function startTrialLicense(
 
 export function isNetworkFailure(e: unknown): boolean {
   if (e instanceof TypeError) return true;
-  if (e instanceof Error) {
-    const msg = e.message.toLowerCase();
-    return (
-      msg.includes("network") ||
-      msg.includes("failed to fetch") ||
-      msg.includes("network request failed")
-    );
-  }
-  return false;
+  if (!(e instanceof Error)) return false;
+
+  const msg = e.message.toLowerCase();
+  return (
+    msg.includes("network") ||
+    msg.includes("failed to fetch") ||
+    msg.includes("network request failed") ||
+    msg.includes("unable to resolve host") ||
+    msg.includes("unknownhost") ||
+    msg.includes("enotfound") ||
+    msg.includes("econnrefused") ||
+    msg.includes("econnreset") ||
+    msg.includes("etimedout") ||
+    msg.includes("timed out") ||
+    msg.includes("timeout") ||
+    msg.includes("socket") ||
+    msg.includes("offline") ||
+    msg.includes("unreachable") ||
+    msg.includes("cleartext") ||
+    msg.includes("ssl") ||
+    msg.includes("certificate") ||
+    /https?:\/\//i.test(e.message) ||
+    /ulsp\./i.test(e.message)
+  );
 }
 
 /**

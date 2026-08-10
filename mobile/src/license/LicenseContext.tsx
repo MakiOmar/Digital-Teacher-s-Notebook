@@ -173,10 +173,7 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
         applyLocked(state, e.message || reasonMessage(e.reason));
         return;
       }
-      applyLocked(
-        state,
-        e instanceof Error ? e.message : t("licenseInvalid")
-      );
+      applyLocked(state, t("licenseInvalid"));
     }
   }, [applyLocked, applyUnlocked]);
 
@@ -231,13 +228,13 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
         const next = await loadLicenseState();
         await applyUnlocked(next);
       } catch (e) {
-        if (e instanceof UlspApiError) {
-          throw new Error(e.message || reasonMessage(e.reason));
-        }
         if (isNetworkFailure(e)) {
           throw new Error(t("licenseNetworkError"));
         }
-        throw e instanceof Error ? e : new Error(t("licenseInvalid"));
+        if (e instanceof UlspApiError) {
+          throw new Error(e.message || reasonMessage(e.reason));
+        }
+        throw new Error(t("licenseInvalid"));
       }
     },
     [applyUnlocked]
@@ -293,7 +290,7 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
             throw new Error(e.message || t("licenseInvalid"));
         }
       }
-      throw e instanceof Error ? e : new Error(t("licenseInvalid"));
+      throw new Error(t("licenseInvalid"));
     }
   }, [applyUnlocked]);
 

@@ -16,6 +16,7 @@ import {
   BorderedCard,
   SkeletonList,
 } from "@/src/components/ui";
+import { LanguageSwitcher } from "@/src/components/LanguageSwitcher";
 import { useAppData } from "@/src/contexts/AppDataContext";
 import { t } from "@/src/i18n/ar";
 import { getOpenRoundsPaymentSummary } from "@/src/services/rounds";
@@ -33,7 +34,8 @@ import { rtlRow, rtlText } from "@/src/theme/rtl";
 import { useTutorProfile } from "@/src/profile/TutorProfileContext";
 import { TourAnchor } from "@/src/tour/TourAnchor";
 
-const LOGO = require("../../assets/images/logo-mark.png");
+/** Soft cap so the home header stays compact next to the language switcher. */
+const HOME_NAME_MAX = 18;
 
 function SnapshotChip({ label, value }: { label: string; value: string }) {
   return (
@@ -47,9 +49,6 @@ function SnapshotChip({ label, value }: { label: string; value: string }) {
     </View>
   );
 }
-
-/** Soft cap so the home header stays compact next to the logo. */
-const HOME_NAME_MAX = 18;
 
 function displayHomeName(raw: string): string {
   const name = raw.trim();
@@ -159,8 +158,8 @@ export default function HomeScreen() {
       <Screen safeTop>
         <TourAnchor id="homeHeader">
           <View style={styles.header}>
-            {/* Logo physical left; profile cluster on the right */}
-            <Image source={LOGO} style={styles.logo} resizeMode="contain" />
+            {/* Flagged language pill — replaces brand mark on home */}
+            <LanguageSwitcher variant="pill" />
             <ProfileWelcome
               name={tutorName}
               profileSource={profileSource}
@@ -196,7 +195,8 @@ export default function HomeScreen() {
       >
         <TourAnchor id="homeHeader">
           <View style={styles.header}>
-            <Image source={LOGO} style={styles.logo} resizeMode="contain" />
+            {/* Flagged language pill — replaces brand mark on home */}
+            <LanguageSwitcher variant="pill" />
             <ProfileWelcome
               name={tutorName}
               yearName={activeYear.name}
@@ -316,8 +316,7 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  // Under I18nManager.forceRTL, plain `row` packs from the right.
-  // Yoga `direction:'ltr'` keeps logo physically left (web may warn; ignore).
+  // Keep language pill physically left; profile cluster on the other side.
   header: {
     direction: "ltr" as const,
     flexDirection: "row",
@@ -326,12 +325,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     marginBottom: spacing.lg,
   },
-  logo: {
-    width: 72,
-    height: 72,
-    backgroundColor: "transparent",
-  },
-  // Logo stays physical left; profile follows native reading direction.
+  // Profile follows native reading direction.
   profileWelcome: {
     flexDirection: "row",
     alignItems: "center",

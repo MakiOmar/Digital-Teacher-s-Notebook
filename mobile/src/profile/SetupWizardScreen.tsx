@@ -26,6 +26,7 @@ import {
   type AutoBackupSettings,
 } from "@/src/backup/autoBackup";
 import { useDialog } from "@/src/components/DialogProvider";
+import { LanguageSwitcher } from "@/src/components/LanguageSwitcher";
 import { useKeyboardBottomInset } from "@/src/hooks/useKeyboardBottomInset";
 import { t } from "@/src/i18n/ar";
 import { useLanguage } from "@/src/i18n/LanguageContext";
@@ -243,30 +244,11 @@ export function SetupWizardScreen() {
 
           {step === "language" ? (
             <>
-              <View style={styles.freqRow}>
-                {([
-                  { id: "ar" as const, label: t("languageArabic") },
-                  { id: "en" as const, label: t("languageEnglish") },
-                ]).map((opt) => {
-                  const selected = pickedLang === opt.id;
-                  return (
-                    <Pressable
-                      key={opt.id}
-                      onPress={() => setPickedLang(opt.id)}
-                      style={[styles.chip, selected && styles.chipOn]}
-                    >
-                      <Text
-                        style={[
-                          styles.chipText,
-                          selected && styles.chipTextOn,
-                        ]}
-                      >
-                        {opt.label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
+              <LanguageSwitcher
+                variant="cards"
+                value={pickedLang}
+                onChange={setPickedLang}
+              />
               <View style={{ marginTop: spacing.lg }}>
                 <PrimaryButton
                   label={busy ? t("loading") : t("setupNext")}

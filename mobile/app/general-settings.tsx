@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { LanguageSwitcher } from "@/src/components/LanguageSwitcher";
 import { Muted, Screen, Title } from "@/src/components/ui";
 import { useDialog } from "@/src/components/DialogProvider";
 import {
@@ -8,8 +9,6 @@ import {
 } from "@/src/settings/generalSettings";
 import { useGeneralSettings } from "@/src/settings/GeneralSettingsContext";
 import { t } from "@/src/i18n/ar";
-import { useLanguage } from "@/src/i18n/LanguageContext";
-import type { AppLanguage } from "@/src/i18n/language";
 import { colors, radii, spacing } from "@/src/theme/colors";
 import { fonts } from "@/src/theme/typography";
 import { rtlChipRow, rtlText } from "@/src/theme/rtl";
@@ -18,7 +17,6 @@ import { userFacingErrorMessage } from "@/src/utils/errors";
 /** General app settings — page size and preferred language. */
 export default function GeneralSettingsScreen() {
   const { pageSize, setPageSize } = useGeneralSettings();
-  const { language, setLanguage } = useLanguage();
   const dialog = useDialog();
   const [busy, setBusy] = useState(false);
 
@@ -38,22 +36,6 @@ export default function GeneralSettingsScreen() {
     }
   }
 
-  async function onSelectLanguage(next: AppLanguage) {
-    if (next === language) return;
-    setBusy(true);
-    try {
-      await setLanguage(next);
-      dialog.toast(t("languageSaved"), "success");
-    } catch (e) {
-      await dialog.alert({
-        title: t("error"),
-        message: userFacingErrorMessage(e),
-      });
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return (
     <Screen>
       <Title>{t("generalSettings")}</Title>
@@ -61,28 +43,8 @@ export default function GeneralSettingsScreen() {
 
       <Text style={styles.label}>{t("preferredLanguage")}</Text>
       <Muted style={{ marginBottom: spacing.md }}>{t("preferredLanguageHint")}</Muted>
-      <View style={styles.row}>
-        {(
-          [
-            { id: "ar" as const, label: t("languageArabic") },
-            { id: "en" as const, label: t("languageEnglish") },
-          ] as const
-        ).map((opt) => {
-          const selected = language === opt.id;
-          return (
-            <Pressable
-              key={opt.id}
-              disabled={busy}
-              onPress={() => void onSelectLanguage(opt.id)}
-              style={[styles.chip, selected && styles.chipOn]}
-            >
-              <Text style={[styles.chipText, selected && styles.chipTextOn]}>
-                {opt.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      {/* Flagged cards — same control as setup wizard */}
+      <LanguageSwitcher variant="cards" disabled={busy} />
 
       <Text style={[styles.label, { marginTop: spacing.xl }]}>{t("pageSize")}</Text>
       <Muted style={{ marginBottom: spacing.md }}>{t("pageSizeHint")}</Muted>

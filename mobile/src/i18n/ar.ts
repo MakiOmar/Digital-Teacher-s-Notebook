@@ -416,6 +416,7 @@ export const ar = {
   licenseTrialActive: "نوع الترخيص: فترة تجريبية",
   licenseDaysRemaining: "متبقي {days} يوماً",
   licenseUpgradeTitle: "تفعيل الترخيص الكامل",
+  licenseUpgradeOpen: "تفعيل النسخة الكاملة",
   licenseUpgradeHint:
     "أدخل مفتاح الترخيص المشترى لتفعيل التطبيق نهائياً أثناء الفترة التجريبية (يتطلب إنترنت).",
   licenseUpgradeActivate: "تفعيل المفتاح",

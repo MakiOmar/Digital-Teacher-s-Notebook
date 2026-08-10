@@ -1,5 +1,14 @@
 import { useState } from "react";
-import { Linking, StyleSheet, Text, View } from "react-native";
+import {
+  KeyboardAvoidingView,
+  Linking,
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import {
   Card,
   FormField,
@@ -13,9 +22,9 @@ import { SUPPORT_WHATSAPP } from "@/src/config/support";
 import { useLicense } from "@/src/license/LicenseContext";
 import { useDialog } from "@/src/components/DialogProvider";
 import { t } from "@/src/i18n/ar";
-import { colors, spacing } from "@/src/theme/colors";
+import { colors, radii, spacing } from "@/src/theme/colors";
 import { formatDateAr, dateOnlyFromDateTime } from "@/src/utils/date";
-import { rtlText } from "@/src/theme/rtl";
+import { rtlBlock, rtlRow, rtlText } from "@/src/theme/rtl";
 import { whatsappUrl } from "@/src/utils/phone";
 
 function formatIsoDate(iso: string | null): string {
@@ -38,6 +47,7 @@ export default function LicenseManageScreen() {
   } = useLicense();
   const dialog = useDialog();
   const [busy, setBusy] = useState(false);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeKey, setUpgradeKey] = useState("");
 
   async function onRefresh() {
@@ -77,6 +87,12 @@ export default function LicenseManageScreen() {
     }
   }
 
+  function closeUpgradeModal() {
+    if (busy) return;
+    setUpgradeOpen(false);
+    setUpgradeKey("");
+  }
+
   async function onActivatePaid() {
     if (!upgradeKey.trim()) {
       await dialog.alert({
@@ -89,6 +105,7 @@ export default function LicenseManageScreen() {
     try {
       await activate(upgradeKey);
       setUpgradeKey("");
+      setUpgradeOpen(false);
       dialog.toast(t("licenseActivated"), "success");
     } catch (e) {
       await dialog.alert({
@@ -161,34 +178,69 @@ export default function LicenseManageScreen() {
         <Muted style={{ marginTop: spacing.sm }}>{t("licenseStatusActive")}</Muted>
       </Card>
 
-      {/* Comment: online paid activation is available during trial without removing the trial license first. */}
+      {/* Comment: trial users open a modal to enter the paid key instead of always showing the form. */}
       {isTrial ? (
-        <Card style={{ marginTop: spacing.md }}>
-          <Text style={styles.line}>{t("licenseUpgradeTitle")}</Text>
-          <Muted style={{ marginBottom: spacing.md }}>
-            {t("licenseUpgradeHint")}
-          </Muted>
-          <FormField
-            label={t("licenseKey")}
-            value={upgradeKey}
-            onChangeText={setUpgradeKey}
-            placeholder="XXXX-XXXX-XXXX-XXXX"
+        <View style={{ marginTop: spacing.md }}>
+          <PrimaryButton
+            label={t("licenseUpgradeOpen")}
+            onPress={() => setUpgradeOpen(true)}
+            disabled={busy}
           />
-          <View style={{ marginTop: spacing.md, gap: 10 }}>
-            <PrimaryButton
-              label={busy ? t("loading") : t("licenseUpgradeActivate")}
-              onPress={() => void onActivatePaid()}
-              disabled={busy}
-            />
-            <PrimaryButton
-              label={t("licenseRequestWhatsApp")}
-              variant="ghost"
-              onPress={() => void onRequestLicense()}
-              disabled={busy}
-            />
-          </View>
-        </Card>
+        </View>
       ) : null}
+
+      <Modal
+        visible={upgradeOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={closeUpgradeModal}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalBackdrop}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={closeUpgradeModal}
+          />
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>{t("licenseUpgradeTitle")}</Text>
+            <Muted style={{ marginBottom: spacing.md }}>
+              {t("licenseUpgradeHint")}
+            </Muted>
+            <View style={rtlBlock}>
+              <FormField
+                label={t("licenseKey")}
+                value={upgradeKey}
+                onChangeText={setUpgradeKey}
+                placeholder="XXXX-XXXX-XXXX-XXXX"
+              />
+            </View>
+            <View style={{ marginTop: spacing.md, gap: 10 }}>
+              <PrimaryButton
+                label={busy ? t("loading") : t("licenseUpgradeActivate")}
+                onPress={() => void onActivatePaid()}
+                disabled={busy}
+              />
+              <PrimaryButton
+                label={t("licenseRequestWhatsApp")}
+                variant="ghost"
+                onPress={() => void onRequestLicense()}
+                disabled={busy}
+              />
+            </View>
+            <View style={[styles.modalActions, rtlRow()]}>
+              <Pressable
+                onPress={closeUpgradeModal}
+                style={styles.modalCancel}
+                disabled={busy}
+              >
+                <Text style={styles.modalCancelText}>{t("cancel")}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </Screen>
   );
 }
@@ -200,5 +252,43 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontWeight: "700",
     marginBottom: 6,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(15, 23, 42, 0.45)",
+    justifyContent: "center",
+    padding: spacing.lg,
+  },
+  modalCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  modalTitle: {
+    ...rtlText,
+    width: "100%",
+    fontSize: 17,
+    fontWeight: "800",
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  modalActions: {
+    marginTop: spacing.md,
+    gap: spacing.sm,
+    justifyContent: "flex-end",
+  },
+  modalCancel: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  modalCancelText: {
+    ...rtlText,
+    color: colors.text,
+    fontWeight: "700",
   },
 });

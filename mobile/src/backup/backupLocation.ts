@@ -176,7 +176,7 @@ function writeToPickedDirectory(
       // ignore
     }
   }
-  const file = dir.createFile(fileName, "application/json");
+  const file = dir.createFile(fileName, "application/octet-stream");
   file.write(json);
   return file.uri;
 }
@@ -204,10 +204,11 @@ export async function writeBackupToLocation(
           fileUri = await findSafFileByName(directoryUri, fileName);
         }
         if (!fileUri) {
+          // octet-stream avoids some SAF/Drive providers mangling "application/json" files.
           fileUri = await LegacyFS.StorageAccessFramework.createFileAsync(
             directoryUri,
             fileName,
-            "application/json"
+            "application/octet-stream"
           );
         }
         await LegacyFS.writeAsStringAsync(fileUri, json, {

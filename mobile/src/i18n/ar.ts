@@ -224,6 +224,13 @@ export const ar = {
   exportDone: "تم تصدير النسخة الاحتياطية",
   importDone: "تم استيراد النسخة الاحتياطية",
   importConfirm: "سيتم استبدال كل البيانات الحالية. هل أنت متأكد؟",
+  importLastAutoBackup: "استيراد آخر نسخ تلقائي",
+  importLastAutoBackupHint:
+    "يستورد مباشرة ملف النسخ التلقائي الأخير المحفوظ على الجهاز دون اختيار يدوي.",
+  backupInvalidJson:
+    "الملف ليس JSON صالحاً لنسخة التطبيق. اختر ملف auto-backup-….json أو tutoring-backup-….json (وليس ملفاً نصياً أو من واتساب).",
+  backupInvalidFormat: "ملف النسخة الاحتياطية غير صالح أو من إصدار قديم.",
+  backupReadFailed: "تعذر قراءة ملف النسخة الاحتياطية. تحقق من صلاحية الوصول للملف.",
   backupProgressImport: "جاري استيراد النسخة الاحتياطية...",
   backupProgressExport: "جاري تجهيز النسخة الاحتياطية...",
   backupProgressRead: "جاري قراءة الملف...",

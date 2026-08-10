@@ -21,6 +21,7 @@ import { t } from "@/src/i18n/ar";
 import {
   exportBackupFile,
   importBackupFromPicker,
+  importBackupFromUri,
   type BackupProgress,
 } from "@/src/services/backup";
 import { useAppData } from "@/src/contexts/AppDataContext";
@@ -185,6 +186,42 @@ export default function BackupScreen() {
     })();
   }
 
+  function onImportLastAuto() {
+    void (async () => {
+      if (!settings.lastPath) {
+        await dialog.alert({
+          title: t("error"),
+          message: t("autoBackupNever"),
+        });
+        return;
+      }
+      const ok = await dialog.confirm({
+        title: t("importLastAutoBackup"),
+        message: t("importConfirm"),
+        confirmLabel: t("confirm"),
+        danger: true,
+      });
+      if (!ok) return;
+      setBusy(true);
+      setProgress({ mode: "import", percent: 0, phase: "read" });
+      try {
+        await importBackupFromUri(settings.lastPath, (p) => {
+          setProgress({ mode: "import", percent: p.percent, phase: p.phase });
+        });
+        bump();
+        dialog.toast(t("importDone"), "success");
+      } catch (e) {
+        await dialog.alert({
+          title: t("error"),
+          message: userFacingErrorMessage(e),
+        });
+      } finally {
+        setBusy(false);
+        setProgress(null);
+      }
+    })();
+  }
+
   const lastRunLabel = settings.lastRunAt
     ? formatDateTimeAr(settings.lastRunAt)
     : t("autoBackupNever");
@@ -227,6 +264,20 @@ export default function BackupScreen() {
         <Muted style={{ marginBottom: spacing.lg }}>
           صدّر نسخة احتياطية كملف JSON واحفظها على جهازك أو Google Drive يدوياً.
         </Muted>
+
+        {settings.lastPath ? (
+          <View style={{ marginBottom: spacing.lg, gap: 8 }}>
+            <PrimaryButton
+              label={t("importLastAutoBackup")}
+              onPress={onImportLastAuto}
+              disabled={busy}
+            />
+            <Muted>{t("importLastAutoBackupHint")}</Muted>
+            <Muted>
+              {t("autoBackupLastRun")}: {lastRunLabel}
+            </Muted>
+          </View>
+        ) : null}
 
         <Text style={styles.section}>{t("autoBackup")}</Text>
         <Muted style={{ marginBottom: spacing.md }}>{t("autoBackupHint")}</Muted>

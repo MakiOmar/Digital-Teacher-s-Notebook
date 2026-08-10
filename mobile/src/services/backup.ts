@@ -3,6 +3,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import { getDb, reopenDb, withTransaction } from "../db/client";
 import { SCHEMA_SQL } from "../db/schema";
+import { t } from "../i18n/ar";
 
 const TABLES = [
   "academic_years",
@@ -73,8 +74,8 @@ export async function buildBackup(
   const tables: Record<string, unknown[]> = {};
   const total = TABLES.length;
   for (let i = 0; i < TABLES.length; i++) {
-    const t = TABLES[i];
-    tables[t] = await db.getAllAsync(`SELECT * FROM ${t}`);
+    const table = TABLES[i];
+    tables[table] = await db.getAllAsync(`SELECT * FROM ${table}`);
     report(onProgress, "export", i + 1, total, 0, 70);
     if ((i + 1) % 2 === 0) await yieldToUi();
   }
@@ -124,35 +125,95 @@ export async function writeBackupToDocuments(
   return writeBackupToLocation(null, prefix);
 }
 
-export async function importBackupFromPicker(
+/** Strip BOM / nulls and reject obvious non-JSON (e.g. Arabic text files). */
+function normalizeBackupRaw(raw: string): string {
+  return raw.replace(/^\uFEFF/, "").replace(/^\u0000+/, "").trim();
+}
+
+function parseBackupPayload(raw: string): BackupPayload {
+  const text = normalizeBackupRaw(raw);
+  if (!text.startsWith("{")) {
+    throw new Error(t("backupInvalidJson"));
+  }
+  let payload: BackupPayload;
+  try {
+    payload = JSON.parse(text) as BackupPayload;
+  } catch {
+    throw new Error(t("backupInvalidJson"));
+  }
+  if (!payload?.tables || payload.version !== 1) {
+    throw new Error(t("backupInvalidFormat"));
+  }
+  return payload;
+}
+
+/**
+ * Read backup text from file:// or content:// URIs.
+ * Some Android SAF providers return non-JSON via readAsStringAsync; fetch is a fallback.
+ */
+async function readBackupText(uri: string): Promise<string> {
+  let fromFs = "";
+  try {
+    fromFs = await FileSystem.readAsStringAsync(uri, {
+      encoding: FileSystem.EncodingType.UTF8,
+    });
+    const trimmed = normalizeBackupRaw(fromFs);
+    if (trimmed.startsWith("{")) return fromFs;
+  } catch {
+    // try fetch below
+  }
+
+  try {
+    const res = await fetch(uri);
+    const text = await res.text();
+    if (text.length > 0) return text;
+  } catch {
+    // ignore
+  }
+
+  if (fromFs.length > 0) return fromFs;
+  throw new Error(t("backupReadFailed"));
+}
+
+export async function importBackupFromUri(
+  uri: string,
   onProgress?: BackupProgressCallback
 ): Promise<void> {
-  const result = await DocumentPicker.getDocumentAsync({
-    type: "application/json",
-    copyToCacheDirectory: true,
-  });
-  if (result.canceled || !result.assets?.[0]) {
-    throw new Error("تم إلغاء الاختيار");
-  }
-  const uri = result.assets[0].uri;
+  if (!uri?.trim()) throw new Error(t("backupReadFailed"));
+
   report(onProgress, "read", 0, 1, 0, 5);
   await yieldToUi();
-  const raw = await FileSystem.readAsStringAsync(uri, {
-    encoding: FileSystem.EncodingType.UTF8,
-  });
+  const raw = await readBackupText(uri);
   report(onProgress, "read", 1, 1, 5, 10);
   await yieldToUi();
 
   report(onProgress, "parse", 0, 1, 10, 18);
   await yieldToUi();
-  const payload = JSON.parse(raw) as BackupPayload;
+  const payload = parseBackupPayload(raw);
   report(onProgress, "parse", 1, 1, 18, 20);
   await yieldToUi();
 
-  if (!payload?.tables || payload.version !== 1) {
-    throw new Error("ملف النسخة الاحتياطية غير صالح");
-  }
   await restoreBackup(payload, onProgress);
+}
+
+export async function importBackupFromPicker(
+  onProgress?: BackupProgressCallback
+): Promise<void> {
+  // Broad types: SAF auto-backups are often stored as octet-stream, not application/json.
+  const result = await DocumentPicker.getDocumentAsync({
+    type: [
+      "application/json",
+      "text/json",
+      "text/plain",
+      "application/octet-stream",
+      "*/*",
+    ],
+    copyToCacheDirectory: true,
+  });
+  if (result.canceled || !result.assets?.[0]) {
+    throw new Error("تم إلغاء الاختيار");
+  }
+  await importBackupFromUri(result.assets[0].uri, onProgress);
 }
 
 /** SQLite default max variables ~999; keep headroom for multi-column rows. */
@@ -165,7 +226,7 @@ async function restoreBackup(
   onProgress?: BackupProgressCallback
 ): Promise<void> {
   const totalRows = TABLES.reduce(
-    (sum, t) => sum + (payload.tables[t]?.length ?? 0),
+    (sum, table) => sum + (payload.tables[table]?.length ?? 0),
     0
   );
   let inserted = 0;
@@ -183,8 +244,8 @@ async function restoreBackup(
 
   // Insert in small committed chunks so the UI can paint and other reads wait
   // via busy_timeout instead of contending on one long open transaction.
-  for (const t of TABLES) {
-    const rows = (payload.tables[t] ?? []) as Record<string, unknown>[];
+  for (const table of TABLES) {
+    const rows = (payload.tables[table] ?? []) as Record<string, unknown>[];
     if (!rows.length) continue;
 
     const keys = Object.keys(rows[0] ?? {});
@@ -201,7 +262,7 @@ async function restoreBackup(
       );
       await withTransaction(async (db) => {
         await db.runAsync(
-          `INSERT INTO ${t} (${cols}) VALUES ${valuesSql}`,
+          `INSERT INTO ${table} (${cols}) VALUES ${valuesSql}`,
           params
         );
       });

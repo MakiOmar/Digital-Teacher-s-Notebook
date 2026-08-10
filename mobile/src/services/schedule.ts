@@ -16,16 +16,19 @@ import {
   todayDateOnly,
 } from "../utils/date";
 import { withTransaction } from "../db/client";
+import { findOverlappingSession } from "./schedulingConflicts";
 
 export type GenerateResult = {
   created: number;
   skippedExisting: number;
+  skippedConflicts: number;
   protectedWithAttendance: number;
 };
 
 /**
  * Generate sessions for a group from its own start/end dates.
  * Start may be any calendar date (before/after semester or year bounds).
+ * Cross-group time overlaps are skipped (generation continues).
  */
 export async function generateSessionsForGroup(
   groupId: number
@@ -58,6 +61,7 @@ async function generateSessionsForGroupInTransaction(
 
   let created = 0;
   let skippedExisting = 0;
+  let skippedConflicts = 0;
   let protectedWithAttendance = 0;
 
   const desiredStarts = new Set<string>();
@@ -88,13 +92,6 @@ async function generateSessionsForGroupInTransaction(
 
     for (const d of desired) desiredStarts.add(d.starts_at);
 
-    const existingInMonth = await listSessionsForGroup(groupId, month.id);
-    for (const s of existingInMonth) {
-      if (s.source !== "auto") continue;
-      if (desiredStarts.has(s.starts_at)) continue;
-      // Will also clean globally below; skip per-month if start still desired
-    }
-
     let index = 1;
     for (const d of desired) {
       const found = await findSessionByStart(groupId, d.starts_at);
@@ -103,6 +100,18 @@ async function generateSessionsForGroupInTransaction(
         index += 1;
         continue;
       }
+
+      // Skip slots that overlap any other tutor session (other groups / prior creates).
+      const conflict = await findOverlappingSession({
+        startsAt: d.starts_at,
+        endsAt: d.ends_at,
+      });
+      if (conflict) {
+        skippedConflicts += 1;
+        index += 1;
+        continue;
+      }
+
       await insertSession({
         group_id: groupId,
         study_month_id: month.id,
@@ -125,5 +134,10 @@ async function generateSessionsForGroupInTransaction(
     if (!deleted) protectedWithAttendance += 1;
   }
 
-  return { created, skippedExisting, protectedWithAttendance };
+  return {
+    created,
+    skippedExisting,
+    skippedConflicts,
+    protectedWithAttendance,
+  };
 }

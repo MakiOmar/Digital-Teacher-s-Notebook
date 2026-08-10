@@ -187,6 +187,10 @@ export const ar = {
   rescheduleSessionHint: "اختر التاريخ والوقت الجديدين للحصة.",
   rescheduleSessionSaved: "تم تغيير موعد الحصة",
   sessionStartTime: "وقت البداية",
+  sessionScheduleConflict:
+    "هذا الموعد يتعارض مع حصة أخرى في «{group}» ({when}). اختر وقتاً مختلفاً.",
+  generateScheduleDone:
+    "تم إنشاء {created} حصة (موجود: {existing}، تعارض: {conflicts})",
   noSessions: "لا توجد حصص — ولّد الجدول أولاً",
 
   // Payments

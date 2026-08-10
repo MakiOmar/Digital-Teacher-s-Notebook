@@ -1,6 +1,5 @@
 import {
   ensureStudyMonthForYearMonth,
-  findSessionByStart,
   getActiveYear,
   getSession,
   listActiveStudentsInGroup,
@@ -14,6 +13,10 @@ import {
   toDateTimeLocal,
 } from "../utils/date";
 import { onAttendanceChangedBatch } from "./rounds";
+import {
+  conflictMessage,
+  findOverlappingSession,
+} from "./schedulingConflicts";
 
 function timeHmFromDateTime(value: string): string {
   const d = new Date(value);
@@ -55,11 +58,20 @@ export async function cancelGroupSession(sessionId: number): Promise<void> {
   }
 }
 
-/** Restore a soft-cancelled session to scheduled. */
+/** Restore a soft-cancelled session to scheduled (blocked if the slot conflicts). */
 export async function restoreGroupSession(sessionId: number): Promise<void> {
   const session = await getSession(sessionId);
   if (!session) throw new Error("الحصة غير موجودة");
   if (session.status !== "cancelled") return;
+
+  const conflict = await findOverlappingSession({
+    startsAt: session.starts_at,
+    endsAt: session.ends_at,
+    excludeSessionId: sessionId,
+  });
+  if (conflict) {
+    throw new Error(conflictMessage(conflict));
+  }
 
   await updateSessionStatus(sessionId, "scheduled");
   const students = await listActiveStudentsInGroup(session.group_id);
@@ -75,6 +87,7 @@ export async function restoreGroupSession(sessionId: number): Promise<void> {
  * Move a session to a new local date + start time.
  * Keeps the previous duration, rebinds study month, marks source manual
  * so schedule regen does not delete the moved slot.
+ * Rejects any overlap with another non-cancelled session (any group).
  */
 export async function rescheduleGroupSession(
   sessionId: number,
@@ -89,12 +102,19 @@ export async function rescheduleGroupSession(
 
   const startsAt = combineDateAndTime(dateOnly, startTimeHm);
   const endsAt = toDateTimeLocal(
-    new Date(new Date(startsAt).getTime() + durationMs(session.starts_at, session.ends_at))
+    new Date(
+      new Date(startsAt).getTime() +
+        durationMs(session.starts_at, session.ends_at)
+    )
   );
 
-  const conflict = await findSessionByStart(session.group_id, startsAt);
-  if (conflict && conflict.id !== sessionId) {
-    throw new Error("يوجد حصة أخرى في نفس الموعد لهذه المجموعة");
+  const conflict = await findOverlappingSession({
+    startsAt,
+    endsAt,
+    excludeSessionId: sessionId,
+  });
+  if (conflict) {
+    throw new Error(conflictMessage(conflict));
   }
 
   const year = await getActiveYear();

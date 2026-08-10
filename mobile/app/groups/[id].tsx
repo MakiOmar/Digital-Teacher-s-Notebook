@@ -245,7 +245,11 @@ export default function GroupDetailsScreen() {
     try {
       const result = await generateSessionsForGroup(groupId);
       dialog.toast(
-        `تم إنشاء ${result.created} حصة (موجود مسبقاً: ${result.skippedExisting})`,
+        t("generateScheduleDone", {
+          created: result.created,
+          existing: result.skippedExisting,
+          conflicts: result.skippedConflicts,
+        }),
         "success"
       );
       bump();

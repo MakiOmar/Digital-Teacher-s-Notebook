@@ -187,6 +187,11 @@ export const ar = {
   rescheduleSessionHint: "اختر التاريخ والوقت الجديدين للحصة.",
   rescheduleSessionSaved: "تم تغيير موعد الحصة",
   sessionStartTime: "وقت البداية",
+  sessionEndTime: "وقت النهاية",
+  sessionEndBeforeStart: "وقت النهاية يجب أن يكون بعد وقت البداية",
+  createCustomSession: "حصة مخصصة",
+  createCustomSessionHint: "أضف حصة لمرة واحدة لهذه المجموعة في تاريخ ووقت تختارهما.",
+  createCustomSessionSaved: "تمت إضافة الحصة",
   sessionScheduleConflict:
     "هذا الموعد يتعارض مع حصة أخرى في «{group}» ({when}). اختر وقتاً مختلفاً.",
   generateScheduleDone:

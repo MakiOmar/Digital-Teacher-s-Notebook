@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useMemo, useState, memo } from "react";
-import { FlatList, StyleSheet, View } from "react-native";
+import {
+  FlatList,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import {
   useFocusEffect,
   useLocalSearchParams,
@@ -13,6 +20,7 @@ import {
 } from "@/src/components/ui";
 import { DetailCard } from "@/src/components/DetailCard";
 import { ScreenWithFixedActions } from "@/src/components/ScreenWithFixedActions";
+import { DateField, TimeField } from "@/src/components/DateFields";
 import { t } from "@/src/i18n/ar";
 import {
   getGroup,
@@ -33,14 +41,17 @@ import {
   formatDateAr,
   formatMoney,
   formatRoundTitle,
+  todayDateOnly,
 } from "@/src/utils/date";
 import { generateSessionsForGroup } from "@/src/services/schedule";
+import { createManualGroupSession } from "@/src/services/sessions";
 import { getRoundDues } from "@/src/services/rounds";
 import { SessionClassButton } from "@/src/components/SessionClassButton";
 import { MonthStarTitle } from "@/src/components/MonthStarTitle";
 import { useDialog } from "@/src/components/DialogProvider";
 import { useAppData } from "@/src/contexts/AppDataContext";
-import { colors, spacing } from "@/src/theme/colors";
+import { colors, radii, spacing } from "@/src/theme/colors";
+import { rtlBlock, rtlRow, rtlText } from "@/src/theme/rtl";
 import {
   paymentStatusBorderColor,
   paymentStatusLabel,
@@ -151,7 +162,11 @@ export default function GroupDetailsScreen() {
   const [roundStars, setRoundStars] = useState<
     Record<number, { student_id: number; student_name: string }>
   >({});
-
+  const [customOpen, setCustomOpen] = useState(false);
+  const [customDate, setCustomDate] = useState(todayDateOnly());
+  const [customStart, setCustomStart] = useState("16:00");
+  const [customEnd, setCustomEnd] = useState("18:00");
+  const [customBusy, setCustomBusy] = useState(false);
   useEffect(() => {
     navigation.setOptions({
       headerTitle: group?.name || t("groups"),
@@ -259,6 +274,37 @@ export default function GroupDetailsScreen() {
         title: t("error"),
         message: userFacingErrorMessage(e),
       });
+    }
+  }
+
+  function openCustomSession() {
+    const first = patterns[0];
+    setCustomDate(todayDateOnly());
+    setCustomStart(first?.start_time ?? "16:00");
+    setCustomEnd(first?.end_time ?? "18:00");
+    setCustomOpen(true);
+  }
+
+  async function onSaveCustomSession() {
+    setCustomBusy(true);
+    try {
+      await createManualGroupSession({
+        groupId,
+        dateOnly: customDate,
+        startTimeHm: customStart,
+        endTimeHm: customEnd,
+      });
+      setCustomOpen(false);
+      dialog.toast(t("createCustomSessionSaved"), "success");
+      bump();
+      await load();
+    } catch (e) {
+      await dialog.alert({
+        title: t("error"),
+        message: userFacingErrorMessage(e),
+      });
+    } finally {
+      setCustomBusy(false);
     }
   }
 
@@ -430,6 +476,13 @@ export default function GroupDetailsScreen() {
           onPress: () => void onGenerate(),
         },
         {
+          key: "custom-session",
+          icon: "plus",
+          label: t("createCustomSession"),
+          tone: "accent",
+          onPress: openCustomSession,
+        },
+        {
           key: "delete",
           icon: "trash",
           label: t("delete"),
@@ -452,6 +505,62 @@ export default function GroupDetailsScreen() {
         windowSize={7}
         removeClippedSubviews
       />
+
+      {/* Comment: one-off class; stored as source=manual so schedule regen keeps it. */}
+      <Modal
+        visible={customOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCustomOpen(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setCustomOpen(false)}
+          />
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>{t("createCustomSession")}</Text>
+            <Muted style={{ marginBottom: spacing.md }}>
+              {t("createCustomSessionHint")}
+            </Muted>
+            <View style={rtlBlock}>
+              <DateField
+                label={t("date")}
+                value={customDate}
+                onChange={setCustomDate}
+              />
+              <TimeField
+                label={t("sessionStartTime")}
+                value={customStart}
+                onChange={setCustomStart}
+              />
+              <TimeField
+                label={t("sessionEndTime")}
+                value={customEnd}
+                onChange={setCustomEnd}
+              />
+            </View>
+            <View style={[styles.modalActions, rtlRow()]}>
+              <Pressable
+                onPress={() => setCustomOpen(false)}
+                style={styles.modalCancel}
+                disabled={customBusy}
+              >
+                <Text style={styles.modalCancelText}>{t("cancel")}</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => void onSaveCustomSession()}
+                style={styles.modalApply}
+                disabled={customBusy}
+              >
+                <Text style={styles.modalApplyText}>
+                  {customBusy ? t("loading") : t("save")}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScreenWithFixedActions>
   );
 }
@@ -465,5 +574,54 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border,
     width: "100%",
     marginVertical: 4,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(15, 23, 42, 0.45)",
+    justifyContent: "center",
+    padding: spacing.lg,
+  },
+  modalCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  modalTitle: {
+    ...rtlText,
+    width: "100%",
+    fontSize: 17,
+    fontWeight: "800",
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  modalActions: {
+    marginTop: spacing.md,
+    gap: spacing.sm,
+    justifyContent: "flex-end",
+  },
+  modalCancel: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  modalCancelText: {
+    ...rtlText,
+    color: colors.text,
+    fontWeight: "700",
+  },
+  modalApply: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: radii.md,
+    backgroundColor: colors.primary,
+  },
+  modalApplyText: {
+    ...rtlText,
+    color: "#fff",
+    fontWeight: "800",
   },
 });

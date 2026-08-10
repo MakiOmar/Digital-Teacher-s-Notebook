@@ -2,7 +2,9 @@ import {
   ensureStudyMonthForYearMonth,
   getActiveYear,
   getSession,
+  insertSession,
   listActiveStudentsInGroup,
+  nextSessionIndexForGroup,
   updateSessionSchedule,
   updateSessionStatus,
 } from "../repositories";
@@ -12,6 +14,7 @@ import {
   todayDateOnly,
   toDateTimeLocal,
 } from "../utils/date";
+import { t } from "../i18n/ar";
 import { onAttendanceChangedBatch } from "./rounds";
 import {
   conflictMessage,
@@ -140,6 +143,54 @@ export async function rescheduleGroupSession(
       session.group_id
     );
   }
+}
+
+/**
+ * Create a custom (manual) class for a group.
+ * Treated like auto sessions in lists/rounds/today; regen won't delete it.
+ */
+export async function createManualGroupSession(input: {
+  groupId: number;
+  dateOnly: string;
+  startTimeHm: string;
+  endTimeHm: string;
+}): Promise<number> {
+  const startsAt = combineDateAndTime(input.dateOnly, input.startTimeHm);
+  const endsAt = combineDateAndTime(input.dateOnly, input.endTimeHm);
+  if (endsAt <= startsAt) {
+    throw new Error(t("sessionEndBeforeStart"));
+  }
+
+  const conflict = await findOverlappingSession({ startsAt, endsAt });
+  if (conflict) {
+    throw new Error(conflictMessage(conflict));
+  }
+
+  const year = await getActiveYear();
+  if (!year) throw new Error("لا توجد سنة دراسية نشطة");
+
+  const day = dateOnlyFromDateTime(startsAt) ?? input.dateOnly;
+  const yearMonth = day.slice(0, 7);
+  const month = await ensureStudyMonthForYearMonth(year.id, yearMonth);
+  const sessionIndex = await nextSessionIndexForGroup(input.groupId);
+
+  const id = await insertSession({
+    group_id: input.groupId,
+    study_month_id: month.id,
+    starts_at: startsAt,
+    ends_at: endsAt,
+    session_index: sessionIndex,
+    source: "manual",
+  });
+
+  const students = await listActiveStudentsInGroup(input.groupId);
+  if (students.length) {
+    await onAttendanceChangedBatch(
+      students.map((s) => s.id),
+      input.groupId
+    );
+  }
+  return id;
 }
 
 export function sessionDateAndTime(session: {

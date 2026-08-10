@@ -1331,6 +1331,18 @@ export async function insertSession(input: {
   return Number(r.lastInsertRowId);
 }
 
+/** Next session_index for a group (max existing + 1). */
+export async function nextSessionIndexForGroup(
+  groupId: number
+): Promise<number> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ m: number | null }>(
+    "SELECT MAX(session_index) AS m FROM group_sessions WHERE group_id = ?",
+    [groupId]
+  );
+  return Number(row?.m ?? 0) + 1;
+}
+
 export async function deleteSessionIfNoAttendance(
   sessionId: number
 ): Promise<boolean> {

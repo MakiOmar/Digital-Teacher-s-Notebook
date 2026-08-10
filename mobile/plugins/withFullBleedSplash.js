@@ -7,29 +7,65 @@ const {
 const fs = require("fs");
 const path = require("path");
 
+/** Full wordmark centered on white — not the circular Android 12+ splash icon. */
 const SPLASH_FULL_XML = `<?xml version="1.0" encoding="utf-8"?>
 <!--
-  White splash with the home wordmark so first frames match JS SplashBackground.
+  Full-bleed splash wordmark (no circular Android 12 icon mask).
+  Wider than tall so Arabic + English brand text stay visible.
 -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
   <item android:drawable="@color/splashscreen_background" />
   <item
-    android:width="260dp"
-    android:height="260dp"
+    android:width="320dp"
+    android:height="200dp"
     android:gravity="center">
     <bitmap
-      android:gravity="fill"
+      android:gravity="center"
       android:src="@drawable/splashscreen_logo" />
   </item>
 </layer-list>
 `;
 
+/** Invisible animated-icon placeholder if any Theme.SplashScreen remnant remains. */
+const SPLASH_EMPTY_ICON_XML = `<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+  android:shape="rectangle">
+  <size android:width="1dp" android:height="1dp" />
+  <solid android:color="@android:color/transparent" />
+</shape>
+`;
+
+const STYLES_XML = `<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+  <!--
+    App + launch themes deliberately avoid Theme.SplashScreen so Android 12+
+    does not clip the brand into a circle. Brand shows via windowBackground.
+  -->
+  <style name="AppTheme" parent="Theme.AppCompat.Light.NoActionBar">
+    <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
+    <item name="colorPrimary">@color/colorPrimary</item>
+    <item name="android:statusBarColor">@android:color/transparent</item>
+    <item name="android:navigationBarColor">@android:color/transparent</item>
+    <item name="android:windowBackground">@drawable/splashscreen_full</item>
+    <item name="android:colorBackground">@color/splashscreen_background</item>
+    <item name="android:windowDisablePreview">true</item>
+  </style>
+  <style name="Theme.App.SplashScreen" parent="Theme.AppCompat.Light.NoActionBar">
+    <item name="android:windowBackground">@drawable/splashscreen_full</item>
+    <item name="android:colorBackground">@color/splashscreen_background</item>
+    <item name="android:statusBarColor">@android:color/transparent</item>
+    <item name="android:navigationBarColor">@android:color/transparent</item>
+    <item name="android:windowNoTitle">true</item>
+    <item name="android:windowDisablePreview">true</item>
+  </style>
+</resources>
+`;
+
 /**
  * Android splash / theme:
- * - Skip Android 12+ SplashScreenManager ownership (when Metro is slow it
- *   times out / leaves a black covering surface forever)
+ * - Skip Android 12+ circular SplashScreen icon API
  * - windowDisablePreview skips the stuck system splash window
- * - AppTheme windowBackground shows the wordmark until JS paints
+ * - AppTheme windowBackground shows the full wordmark until JS paints
  */
 function withFullBleedSplash(config) {
   config = withAndroidStyles(config, (cfg) => {
@@ -58,7 +94,6 @@ function withFullBleedSplash(config) {
         $: { name: "android:colorBackground" },
         _: "@color/splashscreen_background",
       },
-      // Avoid black "preview" frames while the activity warms up
       { $: { name: "android:windowDisablePreview" }, _: "true" },
     ];
 
@@ -125,40 +160,35 @@ function withFullBleedSplash(config) {
     "android",
     async (cfg) => {
       const projectRoot = cfg.modRequest.platformProjectRoot;
-      const drawableDir = path.join(
-        projectRoot,
-        "app",
-        "src",
-        "main",
-        "res",
-        "drawable"
-      );
+      const resRoot = path.join(projectRoot, "app", "src", "main", "res");
+      const drawableDir = path.join(resRoot, "drawable");
+      const valuesDir = path.join(resRoot, "values");
       fs.mkdirSync(drawableDir, { recursive: true });
+      fs.mkdirSync(valuesDir, { recursive: true });
+
       fs.writeFileSync(
         path.join(drawableDir, "splashscreen_full.xml"),
         SPLASH_FULL_XML,
         "utf8"
       );
-
-      const appName = (
-        cfg.name ||
-        cfg.expo?.name ||
-        "دفتر المعلم الرقمي"
-      ).toString();
-      const valuesDir = path.join(
-        projectRoot,
-        "app",
-        "src",
-        "main",
-        "res",
-        "values"
-      );
-      fs.mkdirSync(valuesDir, { recursive: true });
       fs.writeFileSync(
-        path.join(valuesDir, "strings.xml"),
-        `<resources>\n  <string name="app_name">${appName}</string>\n  <string name="expo_splash_screen_resize_mode" translatable="false">contain</string>\n</resources>\n`,
+        path.join(drawableDir, "splashscreen_empty_icon.xml"),
+        SPLASH_EMPTY_ICON_XML,
         "utf8"
       );
+      // Last-write wins over expo-splash-screen Theme.SplashScreen circular icon.
+      fs.writeFileSync(path.join(valuesDir, "styles.xml"), STYLES_XML, "utf8");
+
+      // Remove Android 12+ override that may reintroduce circular splash icons.
+      const v31 = path.join(resRoot, "values-v31", "styles.xml");
+      if (fs.existsSync(v31)) {
+        fs.unlinkSync(v31);
+      }
+      const v31Dir = path.join(resRoot, "values-v31");
+      if (fs.existsSync(v31Dir) && fs.readdirSync(v31Dir).length === 0) {
+        fs.rmdirSync(v31Dir);
+      }
+
       return cfg;
     },
   ]);
@@ -166,18 +196,17 @@ function withFullBleedSplash(config) {
   config = withMainActivity(config, (cfg) => {
     let src = cfg.modResults.contents;
 
-    // Do NOT call SplashScreenManager.registerOnActivity — installSplashScreen
-    // + OnPreDraw while Metro is cold leaves a timed-out black covering layer.
     src = src.replace(
       /import\s+expo\.modules\.splashscreen\.SplashScreenManager\s*\n?/g,
       ""
     );
+    // Strip Expo-generated splash registration block (reappears after prebuild).
     src = src.replace(
-      /SplashScreenManager\.registerOnActivity\(this\)\s*/g,
+      /\/\/\s*@generated begin expo-splashscreen[\s\S]*?\/\/\s*@generated end expo-splashscreen\s*/g,
       ""
     );
     src = src.replace(
-      /\/\/\s*SplashScreenManager\.registerOnActivity\(this\)\s*/g,
+      /SplashScreenManager\.registerOnActivity\(this\)\s*/g,
       ""
     );
 
@@ -185,11 +214,17 @@ function withFullBleedSplash(config) {
       src = src.replace(
         /override fun onCreate\(savedInstanceState: Bundle\?\) \{\s*/,
         `override fun onCreate(savedInstanceState: Bundle?) {
-    // Wordmark windowBackground; JS SplashBackground covers until bootReady.
+    // Full wordmark via windowBackground; avoid Android 12 circular splash icon.
     setTheme(R.style.AppTheme)
     `
       );
     }
+
+    // Prefer keeping instance state (null wiped config changes on rotation).
+    src = src.replace(
+      /super\.onCreate\(null\)/,
+      "super.onCreate(savedInstanceState)"
+    );
 
     cfg.modResults.contents = src;
     return cfg;

@@ -27,8 +27,9 @@ type ContactGroup = {
 
 /**
  * Call + WhatsApp for student and parent, straddling the top card edge
- * vertically (half in / half out). Kept inset from the screen side; RTL-aware.
- * Each person is a labeled pair so student vs guardian stay distinct.
+ * vertically (half in / half out). Kept inset from the screen side.
+ * Physical side: Arabic → left, English → right (direction:ltr so forceRTL
+ * does not mirror left/right again).
  */
 export function StudentCardEdgeContacts({
   studentPhone,
@@ -64,7 +65,11 @@ export function StudentCardEdgeContacts({
   return (
     <View
       pointerEvents="box-none"
-      style={[styles.rail, rtl ? styles.railRtl : styles.railLtr]}
+      style={[
+        styles.rail,
+        // Physical edges — isolate from Yoga RTL mirroring.
+        rtl ? styles.railPhysicalLeft : styles.railPhysicalRight,
+      ]}
     >
       {groups.map((group) => (
         <View key={group.key} style={styles.group}>
@@ -115,16 +120,18 @@ const styles = StyleSheet.create({
   rail: {
     position: "absolute",
     top: -(SIZE / 2),
+    // Physical LTR packing so left/right insets are not mirrored by forceRTL.
+    direction: "ltr",
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 10,
     zIndex: 4,
   },
-  railLtr: {
-    right: EDGE_INSET,
-  },
-  railRtl: {
+  railPhysicalLeft: {
     left: EDGE_INSET,
+  },
+  railPhysicalRight: {
+    right: EDGE_INSET,
   },
   group: {
     alignItems: "center",

@@ -7,14 +7,27 @@ const {
 const fs = require("fs");
 const path = require("path");
 
-/** Full wordmark centered on white — not the circular Android 12+ splash icon. */
+/** Soft mint → sky brand wash behind the full wordmark (matches JS SplashBackground). */
+const SPLASH_GRADIENT_XML = `<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+  android:shape="rectangle">
+  <gradient
+    android:type="linear"
+    android:angle="135"
+    android:startColor="#DFF7F2"
+    android:centerColor="#B5E2F0"
+    android:endColor="#7ECAE6" />
+</shape>
+`;
+
+/** Full wordmark centered on brand gradient — not the circular Android 12+ splash icon. */
 const SPLASH_FULL_XML = `<?xml version="1.0" encoding="utf-8"?>
 <!--
   Full-bleed splash wordmark (no circular Android 12 icon mask).
   Wider than tall so Arabic + English brand text stay visible.
 -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-  <item android:drawable="@color/splashscreen_background" />
+  <item android:drawable="@drawable/splashscreen_gradient" />
   <item
     android:width="320dp"
     android:height="200dp"
@@ -167,6 +180,11 @@ function withFullBleedSplash(config) {
       fs.mkdirSync(valuesDir, { recursive: true });
 
       fs.writeFileSync(
+        path.join(drawableDir, "splashscreen_gradient.xml"),
+        SPLASH_GRADIENT_XML,
+        "utf8"
+      );
+      fs.writeFileSync(
         path.join(drawableDir, "splashscreen_full.xml"),
         SPLASH_FULL_XML,
         "utf8"
@@ -176,6 +194,16 @@ function withFullBleedSplash(config) {
         SPLASH_EMPTY_ICON_XML,
         "utf8"
       );
+      // Keep solid fallback color aligned with mid-gradient (Expo / solid themes).
+      const colorsPath = path.join(valuesDir, "colors.xml");
+      if (fs.existsSync(colorsPath)) {
+        let colorsXml = fs.readFileSync(colorsPath, "utf8");
+        colorsXml = colorsXml.replace(
+          /(<color name="splashscreen_background">)#[0-9A-Fa-f]{6,8}(<\/color>)/,
+          "$1#B5E2F0$2"
+        );
+        fs.writeFileSync(colorsPath, colorsXml, "utf8");
+      }
       // Last-write wins over expo-splash-screen Theme.SplashScreen circular icon.
       fs.writeFileSync(path.join(valuesDir, "styles.xml"), STYLES_XML, "utf8");
 

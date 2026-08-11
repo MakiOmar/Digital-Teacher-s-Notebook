@@ -11,7 +11,7 @@
     "splash": {
       "image": "./assets/images/splash-logo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#FFFFFF"
+      "backgroundColor": "#B5E2F0"
     },
     "locales": {
       "ar": "./locales/ar.json"
@@ -63,7 +63,7 @@
         {
           "image": "./assets/images/splash-logo.png",
           "resizeMode": "contain",
-          "backgroundColor": "#FFFFFF",
+          "backgroundColor": "#B5E2F0",
           "imageWidth": 280
         }
       ],

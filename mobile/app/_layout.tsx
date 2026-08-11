@@ -94,19 +94,28 @@ function Bootstrap({
     };
   }, []);
 
+  const [minSplashDone, setMinSplashDone] = useState(false);
+
+  useEffect(() => {
+    // Keep branded splash visible briefly so gradient + progress are readable.
+    const id = setTimeout(() => setMinSplashDone(true), 2800);
+    return () => clearTimeout(id);
+  }, []);
+
   const bootReady = ready && rtlReady && licenseReady && profileReady && appLockReady;
 
   useEffect(() => {
-    if (bootReady) {
+    if (bootReady && minSplashDone) {
       onAppReady();
     }
-  }, [bootReady, onAppReady]);
+  }, [bootReady, minSplashDone, onAppReady]);
 
   // Fail-safe: never stay on splash if init hangs (license/db/rtl).
   useEffect(() => {
     const id = setTimeout(() => {
       setRtlReady(true);
       setForceShow(true);
+      setMinSplashDone(true);
       onAppReady();
     }, 10_000);
     return () => clearTimeout(id);
@@ -146,7 +155,8 @@ function Bootstrap({
     };
   }, [licenseStatus, setupComplete]);
 
-  if (!bootReady && !forceShow) {
+  // Show splash until boot + minimum branding time, unless fail-safe fired.
+  if ((!bootReady || !minSplashDone) && !forceShow) {
     return (
       <View style={styles.bootPlaceholder}>
         <SplashBackground />
@@ -315,7 +325,7 @@ export default function RootLayout() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#FFFFFF" },
+  root: { flex: 1, backgroundColor: "#DCEEF7" },
   bootPlaceholder: { flex: 1 },
   errorWrap: {
     flex: 1,

@@ -1,5 +1,6 @@
 import {
   createContext,
+  Fragment,
   useCallback,
   useContext,
   useEffect,
@@ -51,7 +52,10 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   );
 
   return (
-    <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>
+    <LanguageContext.Provider value={value}>
+      {/* Remount on language change so every screen re-runs t() and Cairo text dir */}
+      <Fragment key={language}>{children}</Fragment>
+    </LanguageContext.Provider>
   );
 }
 

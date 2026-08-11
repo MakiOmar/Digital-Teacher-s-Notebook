@@ -4,31 +4,49 @@ export type AppLanguage = "ar" | "en";
 
 const STORAGE_KEY = "tutor.language.v1";
 
-let currentLanguage: AppLanguage = "ar";
-const listeners = new Set<() => void>();
+/**
+ * Keep preference on globalThis so Metro / Fast Refresh never create a second
+ * in-memory store (that bug showed English selected while t() still returned Arabic).
+ */
+type LangGlobal = {
+  current: AppLanguage;
+  listeners: Set<() => void>;
+};
 
-export function getLanguage(): AppLanguage {
-  return currentLanguage;
+const g = globalThis as typeof globalThis & { __tutorLangStore?: LangGlobal };
+
+function store(): LangGlobal {
+  if (!g.__tutorLangStore) {
+    g.__tutorLangStore = {
+      current: "ar",
+      listeners: new Set(),
+    };
+  }
+  return g.__tutorLangStore;
 }
 
-export function isRtlLanguage(lang: AppLanguage = currentLanguage): boolean {
+export function getLanguage(): AppLanguage {
+  return store().current;
+}
+
+export function isRtlLanguage(lang: AppLanguage = getLanguage()): boolean {
   return lang === "ar";
 }
 
 function notify() {
-  for (const l of listeners) l();
+  for (const l of store().listeners) l();
 }
 
 export function subscribeLanguage(listener: () => void): () => void {
-  listeners.add(listener);
+  store().listeners.add(listener);
   return () => {
-    listeners.delete(listener);
+    store().listeners.delete(listener);
   };
 }
 
 /** Apply in-memory language without persisting (used after load). */
 export function setLanguageInMemory(lang: AppLanguage): void {
-  currentLanguage = lang === "en" ? "en" : "ar";
+  store().current = lang === "en" ? "en" : "ar";
   notify();
 }
 

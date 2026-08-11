@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "@/src/theme/colors";
 import { fonts } from "@/src/theme/typography";
 import { t } from "@/src/i18n/ar";
+import { useLanguage } from "@/src/i18n/LanguageContext";
 
 /** Default tab content height (icons + labels), excluding system inset. */
 const TAB_BAR_CONTENT_HEIGHT = 56;
@@ -40,8 +41,17 @@ function TabLabel({
   );
 }
 
+type TabName = "index" | "today" | "groups" | "payments" | "more";
+
+const LTR_TABS: TabName[] = ["index", "today", "groups", "payments", "more"];
+/** Visual RTL: Home (index) on the physical right. */
+const RTL_TABS: TabName[] = ["more", "payments", "groups", "today", "index"];
+
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
+  const { language } = useLanguage();
+  const rtlTabs = language === "ar";
+  const order = rtlTabs ? RTL_TABS : LTR_TABS;
   // Transparent system nav (edge-to-edge) draws under the tab bar —
   // pad so labels clear the native back/home/recents controls.
   const bottomInset =
@@ -49,8 +59,23 @@ export default function TabLayout() {
       ? Math.max(insets.bottom, 16)
       : insets.bottom;
 
+  const tabOptions: Record<
+    TabName,
+    {
+      title: string;
+      icon: React.ComponentProps<typeof FontAwesome>["name"];
+    }
+  > = {
+    index: { title: t("home"), icon: "home" },
+    today: { title: t("todaySchedule"), icon: "clock-o" },
+    groups: { title: t("groups"), icon: "users" },
+    payments: { title: t("payments"), icon: "money" },
+    more: { title: t("more"), icon: "bars" },
+  };
+
   return (
     <Tabs
+      key={language}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
@@ -69,51 +94,18 @@ export default function TabLayout() {
         ),
       }}
     >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: t("home"),
-          tabBarIcon: ({ color }) => (
-            <TabIcon name="home" color={String(color)} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="today"
-        options={{
-          title: t("todaySchedule"),
-          tabBarIcon: ({ color }) => (
-            <TabIcon name="clock-o" color={String(color)} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="groups"
-        options={{
-          title: t("groups"),
-          tabBarIcon: ({ color }) => (
-            <TabIcon name="users" color={String(color)} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="payments"
-        options={{
-          title: t("payments"),
-          tabBarIcon: ({ color }) => (
-            <TabIcon name="money" color={String(color)} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="more"
-        options={{
-          title: t("more"),
-          tabBarIcon: ({ color }) => (
-            <TabIcon name="bars" color={String(color)} />
-          ),
-        }}
-      />
+      {order.map((name) => (
+        <Tabs.Screen
+          key={name}
+          name={name}
+          options={{
+            title: tabOptions[name].title,
+            tabBarIcon: ({ color }) => (
+              <TabIcon name={tabOptions[name].icon} color={String(color)} />
+            ),
+          }}
+        />
+      ))}
       {/* Hidden from tab bar — reachable via Home / More */}
       <Tabs.Screen
         name="students"

@@ -26,7 +26,7 @@ import {
   listTodaysSessions,
   listUpcomingSessions,
 } from "@/src/repositories";
-import { formatDateTimeAr, formatMoney } from "@/src/utils/date";
+import { formatDateTimeAr, formatMoney, formatInteger } from "@/src/utils/date";
 import type { GroupSession } from "@/src/db/types";
 import { colors, groupAccentColor, radii, spacing } from "@/src/theme/colors";
 import { fonts } from "@/src/theme/typography";
@@ -281,11 +281,11 @@ export default function HomeScreen() {
             <View style={styles.snapRow}>
               <SnapshotChip
                 label={t("snapshotUnpaid")}
-                value={String(unpaidCount)}
+                value={formatInteger(unpaidCount)}
               />
               <SnapshotChip
                 label={t("snapshotToday")}
-                value={String(todayCount)}
+                value={formatInteger(todayCount)}
               />
               <SnapshotChip
                 label={t("remaining")}
@@ -338,7 +338,7 @@ export default function HomeScreen() {
                     icon: ICONS.payments,
                     border: colors.danger,
                     subtitle: unpaidCount
-                      ? `${unpaidCount} · ${formatMoney(totalRemaining)}`
+                      ? `${formatInteger(unpaidCount)} · ${formatMoney(totalRemaining)}`
                       : undefined,
                     onPress: () => router.push("/payments" as never),
                   },

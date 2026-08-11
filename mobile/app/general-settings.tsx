@@ -1,24 +1,39 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { LanguageSwitcher } from "@/src/components/LanguageSwitcher";
-import { Muted, Screen, Title } from "@/src/components/ui";
+import { FormField, Muted, Screen, Title } from "@/src/components/ui";
 import { useDialog } from "@/src/components/DialogProvider";
 import {
   PAGE_SIZE_OPTIONS,
   type PageSizeOption,
 } from "@/src/settings/generalSettings";
 import { useGeneralSettings } from "@/src/settings/GeneralSettingsContext";
+import { useCurrency } from "@/src/settings/CurrencyContext";
+import {
+  CURRENCY_PRESETS,
+  type CurrencyId,
+} from "@/src/settings/currency";
 import { t } from "@/src/i18n/ar";
+import { useLanguage } from "@/src/i18n/LanguageContext";
 import { colors, radii, spacing } from "@/src/theme/colors";
 import { fonts } from "@/src/theme/typography";
 import { rtlChipRow, rtlText } from "@/src/theme/rtl";
 import { userFacingErrorMessage } from "@/src/utils/errors";
+import { formatInteger } from "@/src/utils/numbers";
 
-/** General app settings — page size and preferred language. */
+/** General app settings — language, currency, and page size. */
 export default function GeneralSettingsScreen() {
   const { pageSize, setPageSize } = useGeneralSettings();
+  const { currencyId, customSymbol, setCurrency } = useCurrency();
+  const { language } = useLanguage();
   const dialog = useDialog();
   const [busy, setBusy] = useState(false);
+  // Local draft for custom symbol so typing does not save on every keystroke.
+  const [customDraft, setCustomDraft] = useState(customSymbol);
+
+  useEffect(() => {
+    setCustomDraft(customSymbol);
+  }, [customSymbol]);
 
   async function onSelectPageSize(next: PageSizeOption) {
     if (next === pageSize) return;
@@ -36,8 +51,40 @@ export default function GeneralSettingsScreen() {
     }
   }
 
+  async function onSelectCurrency(id: CurrencyId) {
+    if (id === currencyId && id !== "custom") return;
+    setBusy(true);
+    try {
+      await setCurrency(id, id === "custom" ? customDraft : customSymbol);
+      dialog.toast(t("currencySaved"), "success");
+    } catch (e) {
+      await dialog.alert({
+        title: t("error"),
+        message: userFacingErrorMessage(e),
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onSaveCustomSymbol() {
+    setBusy(true);
+    try {
+      await setCurrency("custom", customDraft);
+      dialog.toast(t("currencySaved"), "success");
+    } catch (e) {
+      await dialog.alert({
+        title: t("error"),
+        message: userFacingErrorMessage(e),
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <Screen>
+      {/* Section: preferred UI language */}
       <Title>{t("generalSettings")}</Title>
       <Muted style={{ marginBottom: spacing.lg }}>{t("generalSettingsHint")}</Muted>
 
@@ -46,6 +93,67 @@ export default function GeneralSettingsScreen() {
       {/* Flagged cards — same control as setup wizard */}
       <LanguageSwitcher variant="cards" disabled={busy} />
 
+      {/* Section: app currency presets + optional custom symbol */}
+      <Text style={[styles.label, { marginTop: spacing.xl }]}>{t("appCurrency")}</Text>
+      <Muted style={{ marginBottom: spacing.md }}>{t("appCurrencyHint")}</Muted>
+
+      <View style={styles.row}>
+        {CURRENCY_PRESETS.map((preset) => {
+          const selected = currencyId === preset.id;
+          const label = language === "en" ? preset.en : preset.ar;
+          return (
+            <Pressable
+              key={preset.id}
+              disabled={busy}
+              onPress={() => void onSelectCurrency(preset.id)}
+              style={[styles.chip, selected && styles.chipOn]}
+            >
+              <Text style={[styles.chipText, selected && styles.chipTextOn]}>
+                {label}
+              </Text>
+            </Pressable>
+          );
+        })}
+        {/* Plus chip opens the custom currency path */}
+        <Pressable
+          disabled={busy}
+          onPress={() => void onSelectCurrency("custom")}
+          style={[styles.chip, currencyId === "custom" && styles.chipOn]}
+          accessibilityLabel={t("currencyCustom")}
+        >
+          <Text
+            style={[
+              styles.chipText,
+              currencyId === "custom" && styles.chipTextOn,
+            ]}
+          >
+            +
+          </Text>
+        </Pressable>
+      </View>
+
+      {currencyId === "custom" ? (
+        <View style={{ marginTop: spacing.md, width: "100%" }}>
+          <FormField
+            label={t("currencyCustomSymbol")}
+            value={customDraft}
+            onChangeText={setCustomDraft}
+            placeholder={t("currencyCustomPlaceholder")}
+          />
+          <Pressable
+            disabled={busy || !customDraft.trim()}
+            onPress={() => void onSaveCustomSymbol()}
+            style={[
+              styles.saveBtn,
+              (!customDraft.trim() || busy) && styles.saveBtnDisabled,
+            ]}
+          >
+            <Text style={styles.saveBtnText}>{t("save")}</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {/* Section: list page size */}
       <Text style={[styles.label, { marginTop: spacing.xl }]}>{t("pageSize")}</Text>
       <Muted style={{ marginBottom: spacing.md }}>{t("pageSizeHint")}</Muted>
 
@@ -59,8 +167,9 @@ export default function GeneralSettingsScreen() {
               onPress={() => void onSelectPageSize(n)}
               style={[styles.chip, selected && styles.chipOn]}
             >
+              {/* Page size chips use localized digits for Arabic UI */}
               <Text style={[styles.chipText, selected && styles.chipTextOn]}>
-                {n}
+                {formatInteger(n)}
               </Text>
             </Pressable>
           );
@@ -81,6 +190,7 @@ const styles = StyleSheet.create({
   },
   row: {
     ...rtlChipRow(),
+    flexWrap: "wrap",
     gap: 8,
   },
   chip: {
@@ -104,4 +214,18 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   chipTextOn: { color: "#fff" },
+  saveBtn: {
+    marginTop: spacing.sm,
+    alignSelf: "stretch",
+    backgroundColor: colors.primary,
+    borderRadius: radii.md,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  saveBtnDisabled: { opacity: 0.5 },
+  saveBtnText: {
+    fontFamily: fonts.bold,
+    fontWeight: "700",
+    color: "#fff",
+  },
 });

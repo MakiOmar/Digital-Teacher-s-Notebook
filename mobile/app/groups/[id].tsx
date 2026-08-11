@@ -39,6 +39,7 @@ import type {
 import {
   WEEKDAY_LABELS,
   formatDateAr,
+  formatInteger,
   formatMoney,
   formatRoundTitle,
   todayDateOnly,
@@ -354,7 +355,7 @@ export default function GroupDetailsScreen() {
               {
                 icon: "clock-o",
                 label: t("classesPerRound"),
-                value: String(group.classes_per_round ?? 4),
+                value: formatInteger(group.classes_per_round ?? 4),
               },
               {
                 icon: "calendar-check-o",

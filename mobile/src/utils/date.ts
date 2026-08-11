@@ -2,6 +2,14 @@
 
 import { t, type ArKey } from "@/src/i18n/ar";
 import { getLanguage } from "@/src/i18n/languageStore";
+import {
+  formatMoney as formatMoneyImpl,
+  formatInteger,
+  formatNumber,
+  localizeDigits,
+} from "@/src/utils/numbers";
+
+export { formatInteger, formatNumber, localizeDigits };
 
 const ARABIC_MONTHS = [
   "يناير",
@@ -159,7 +167,9 @@ export function monthsOverlappingRange(
 export function formatDateAr(dateOnly: string): string {
   const d = parseDateOnly(dateOnly);
   if (Number.isNaN(d.getTime())) return dateOnly;
-  return `${d.getDate()} ${monthName(d.getMonth())} ${d.getFullYear()}`;
+  return localizeDigits(
+    `${d.getDate()} ${monthName(d.getMonth())} ${d.getFullYear()}`
+  );
 }
 
 /** Local calendar YYYY-MM-DD. */
@@ -195,9 +205,13 @@ export function formatWeekRangeAr(saturday: Date): string {
   fri.setDate(saturday.getDate() + 6);
   const sameMonth = saturday.getMonth() === fri.getMonth();
   if (sameMonth) {
-    return `${saturday.getDate()} — ${fri.getDate()} ${monthName(saturday.getMonth())}`;
+    return localizeDigits(
+      `${saturday.getDate()} — ${fri.getDate()} ${monthName(saturday.getMonth())}`
+    );
   }
-  return `${saturday.getDate()} ${monthName(saturday.getMonth())} — ${fri.getDate()} ${monthName(fri.getMonth())}`;
+  return localizeDigits(
+    `${saturday.getDate()} ${monthName(saturday.getMonth())} — ${fri.getDate()} ${monthName(fri.getMonth())}`
+  );
 }
 
 /** Extract YYYY-MM-DD from SQLite datetime / ISO. */
@@ -217,7 +231,7 @@ export function formatRoundTitle(
 ): string {
   const start = dateOnlyFromDateTime(startedAt);
   const end = dateOnlyFromDateTime(closedAt);
-  const head = `${unitLabel} ${roundNumber}`;
+  const head = `${unitLabel} ${formatInteger(roundNumber)}`;
   if (start && end) {
     return `${head} · ${formatDateAr(start)} — ${formatDateAr(end)}`;
   }
@@ -290,7 +304,9 @@ export function formatDateTimeAr(isoLocal: string): string {
   const d = new Date(isoLocal);
   if (Number.isNaN(d.getTime())) return isoLocal;
   const day = WEEKDAY_LABELS[d.getDay()];
-  return `${day} ${toDateOnly(d)} — ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  return localizeDigits(
+    `${day} ${toDateOnly(d)} — ${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+  );
 }
 
 export function todayDateOnly(): string {
@@ -310,8 +326,8 @@ export function academicYearOptions(
   const options: { value: string; label: string }[] = [];
   for (let i = 0; i <= forwardYears; i++) {
     const a = start + i;
-    const label = `${a}/${a + 1}`;
-    options.push({ value: label, label });
+    const label = localizeDigits(`${a}/${a + 1}`);
+    options.push({ value: `${a}/${a + 1}`, label });
   }
   return options;
 }
@@ -376,5 +392,6 @@ export function resolveGroupScheduleEnd(
 }
 
 export function formatMoney(amount: number): string {
-  return `${amount.toLocaleString("ar-EG", { maximumFractionDigits: 2 })} ج.م`;
+  // Currency + locale digits (Hindi for Arabic UI, Western for English).
+  return formatMoneyImpl(amount);
 }

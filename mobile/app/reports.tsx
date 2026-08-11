@@ -17,7 +17,7 @@ import { useDialog } from "@/src/components/DialogProvider";
 import { t } from "@/src/i18n/ar";
 import { getAttendanceRatesByStudent } from "@/src/repositories";
 import { getOpenRoundsPaymentSummary } from "@/src/services/rounds";
-import { formatMoney } from "@/src/utils/date";
+import { formatInteger, formatMoney } from "@/src/utils/date";
 import { colors, spacing } from "@/src/theme/colors";
 import { fonts } from "@/src/theme/typography";
 import { rtlText } from "@/src/theme/rtl";
@@ -81,13 +81,13 @@ export default function ReportsScreen() {
       t("reportAttendance"),
       ...attendance.map((a) => {
         const pct = a.total ? Math.round((a.present / a.total) * 100) : 0;
-        return `${a.student_name}: ${pct}% (${a.present}/${a.total})`;
+        return `${a.student_name}: ${formatInteger(pct)}% (${formatInteger(a.present)}/${formatInteger(a.total)})`;
       }),
       "",
       t("reportRevenue"),
       ...byGroup.map(
         (g) =>
-          `${g.group_name}: ${formatMoney(g.collected)} / متبقي ${formatMoney(g.remaining)}`
+          `${g.group_name}: ${formatMoney(g.collected)} / ${t("remainingShort")} ${formatMoney(g.remaining)}`
       ),
     ];
     const text = lines.join("\n");
@@ -132,7 +132,8 @@ export default function ReportsScreen() {
                 <Card key={a.student_id}>
                   <Text style={styles.line}>{a.student_name}</Text>
                   <Muted>
-                    {t("presentRate")}: {pct}% ({a.present}/{a.total})
+                    {t("presentRate")}: {formatInteger(pct)}% (
+                    {formatInteger(a.present)}/{formatInteger(a.total)})
                   </Muted>
                 </Card>
               );

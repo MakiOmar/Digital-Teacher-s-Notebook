@@ -21,6 +21,7 @@ import type { StudyGroup, Weekday } from "@/src/db/types";
 import {
   WEEKDAY_LABELS,
   WEEKDAY_SORT,
+  formatInteger,
   formatMoney,
 } from "@/src/utils/date";
 import { colors, groupAccentColor, spacing } from "@/src/theme/colors";
@@ -164,7 +165,7 @@ export default function GroupsTab() {
                 {
                   icon: "users",
                   label: t("studentsCount"),
-                  value: String(item.student_count),
+                  value: formatInteger(item.student_count),
                 },
                 {
                   icon: "money",
@@ -174,7 +175,7 @@ export default function GroupsTab() {
                 {
                   icon: "clock-o",
                   label: t("classesPerRound"),
-                  value: String(item.classes_per_round ?? 4),
+                  value: formatInteger(item.classes_per_round ?? 4),
                 },
               ]}
               borderColor={groupAccentColor(item.id, item.accent_color)}

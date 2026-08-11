@@ -1,6 +1,7 @@
 /** Arabic UI strings for the tutoring manager app. */
 import { en } from "@/src/i18n/en";
 import { getLanguage } from "@/src/i18n/languageStore";
+import { formatInteger, localizeDigits } from "@/src/utils/numbers";
 
 export const ar = {
   appName: "دفتر المعلم الرقمي",
@@ -281,10 +282,17 @@ export const ar = {
   reminderUnpaidEnable: "تذكير أسبوعي بالمستحقات",
   remindersSaved: "تم حفظ التذكيرات",
   generalSettings: "إعدادات عامة",
-  generalSettingsHint: "تتحكم هذه الإعدادات في سلوك القوائم عبر التطبيق.",
+  generalSettingsHint: "تتحكم هذه الإعدادات في سلوك القوائم والعملة عبر التطبيق.",
   pageSize: "عدد العناصر في الصفحة",
   pageSizeHint: "يُستخدم في قوائم الطلاب والمجموعات والمدفوعات والتقارير وغيرها.",
   generalSettingsSaved: "تم حفظ الإعدادات العامة",
+  appCurrency: "عملة التطبيق",
+  appCurrencyHint: "تظهر في جميع المبالغ. يمكنك اختيار عملة جاهزة أو إدخال رمز مخصص.",
+  currencyCustom: "مخصص",
+  currencyCustomSymbol: "رمز العملة المخصص",
+  currencyCustomPlaceholder: "مثال: د.ك",
+  currencySaved: "تم حفظ العملة",
+  remainingShort: "متبقي",
   paginationPrev: "السابق",
   paginationNext: "التالي",
   paginationPageOf: "صفحة {page} من {totalPages}",
@@ -510,8 +518,14 @@ export function t(
   const dict = getLanguage() === "en" ? en : ar;
   let value: string = (dict as Record<string, string>)[key] ?? ar[key];
   if (vars) {
+    // Numbers in placeholders follow the UI language digit style
+    // (Hindi for Arabic, Western for English).
     for (const [name, raw] of Object.entries(vars)) {
-      value = value.split(`{${name}}`).join(String(raw));
+      const printed =
+        typeof raw === "number"
+          ? formatInteger(raw)
+          : localizeDigits(String(raw));
+      value = value.split(`{${name}}`).join(printed);
     }
   }
   return value;

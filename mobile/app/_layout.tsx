@@ -35,6 +35,7 @@ import {
 } from "@/src/security/AppLockContext";
 import { AppLockScreen } from "@/src/security/AppLockScreen";
 import { GeneralSettingsProvider } from "@/src/settings/GeneralSettingsContext";
+import { CurrencyProvider } from "@/src/settings/CurrencyContext";
 import { TourProvider } from "@/src/tour/TourContext";
 import { TourSpotlight } from "@/src/tour/TourSpotlight";
 import { LanguageProvider } from "@/src/i18n/LanguageContext";
@@ -243,6 +244,7 @@ export default function RootLayout() {
             <TutorProfileProvider>
               <AppLockProvider>
                 <GeneralSettingsProvider>
+                  <CurrencyProvider>
                   <TourProvider>
                     <DialogProvider>
                       <Bootstrap onAppReady={onAppReady}>
@@ -301,6 +303,7 @@ export default function RootLayout() {
                       </Bootstrap>
                     </DialogProvider>
                   </TourProvider>
+                  </CurrencyProvider>
                 </GeneralSettingsProvider>
               </AppLockProvider>
             </TutorProfileProvider>

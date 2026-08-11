@@ -19,6 +19,7 @@ import {
 import { LanguageSwitcher } from "@/src/components/LanguageSwitcher";
 import { useAppData } from "@/src/contexts/AppDataContext";
 import { t } from "@/src/i18n/ar";
+import { useLanguage } from "@/src/i18n/LanguageContext";
 import { getOpenRoundsPaymentSummary } from "@/src/services/rounds";
 import {
   listGroups,
@@ -62,49 +63,120 @@ function ProfileWelcome({
   yearName,
   profileSource,
   onPressProfile,
+  arabic,
+}: {
+  name: string;
+  yearName?: string | null;
+  profileSource: ReturnType<typeof useTutorProfile>["profileSource"];
+  onPressProfile: () => void;
+  /** Arabic → avatar on the trailing / physical right of the cluster. */
+  arabic: boolean;
+}) {
+  const shownName = displayHomeName(name);
+
+  const avatar = (
+    <Pressable
+      onPress={onPressProfile}
+      accessibilityRole="button"
+      accessibilityLabel={t("tutorProfile")}
+      style={({ pressed }) => [
+        styles.profileRing,
+        pressed ? { opacity: 0.85 } : null,
+      ]}
+    >
+      <Image source={profileSource} style={styles.profile} />
+    </Pressable>
+  );
+
+  const welcome = (
+    <View
+      style={[
+        styles.welcomeCol,
+        arabic ? styles.welcomeColAr : styles.welcomeColEn,
+      ]}
+    >
+      {shownName ? (
+        // One text run so 👋 always sits immediately before the name
+        <Text
+          style={styles.welcomeText}
+          numberOfLines={2}
+          ellipsizeMode="tail"
+        >
+          {t("homeWelcome")} 👋 {shownName}
+        </Text>
+      ) : null}
+      {yearName ? (
+        <View style={styles.yearChip}>
+          <Text style={styles.yearChipText} numberOfLines={1}>
+            {yearName}
+          </Text>
+        </View>
+      ) : null}
+    </View>
+  );
+
+  return (
+    <View
+      style={[
+        styles.profileWelcome,
+        arabic ? styles.profileWelcomeAr : styles.profileWelcomeEn,
+      ]}
+    >
+      {/* Arabic: text then avatar → avatar at rear right. English: avatar then text. */}
+      {arabic ? (
+        <>
+          {welcome}
+          {avatar}
+        </>
+      ) : (
+        <>
+          {avatar}
+          {welcome}
+        </>
+      )}
+    </View>
+  );
+}
+
+/** Language pill + profile; sides flip by preferred language. */
+function HomeHeader({
+  name,
+  yearName,
+  profileSource,
+  onPressProfile,
 }: {
   name: string;
   yearName?: string | null;
   profileSource: ReturnType<typeof useTutorProfile>["profileSource"];
   onPressProfile: () => void;
 }) {
-  const shownName = displayHomeName(name);
+  const { language } = useLanguage();
+  const arabic = language === "ar";
+  const switcher = <LanguageSwitcher variant="pill" />;
+  const profile = (
+    <ProfileWelcome
+      name={name}
+      yearName={yearName}
+      profileSource={profileSource}
+      onPressProfile={onPressProfile}
+      arabic={arabic}
+    />
+  );
 
   return (
-    <View style={styles.profileWelcome}>
-      {/* Tap avatar → profile settings */}
-      <Pressable
-        onPress={onPressProfile}
-        accessibilityRole="button"
-        accessibilityLabel={t("tutorProfile")}
-        style={({ pressed }) => [
-          styles.profileRing,
-          pressed ? { opacity: 0.85 } : null,
-        ]}
-      >
-        <Image source={profileSource} style={styles.profile} />
-      </Pressable>
-      <View style={styles.welcomeCol}>
-        {shownName ? (
-          <View style={styles.welcomeRow}>
-            <Text style={styles.welcomeWave}>👋</Text>
-            <Text
-              style={styles.welcomeText}
-              numberOfLines={2}
-              ellipsizeMode="tail"
-            >
-              {t("homeWelcome")} {shownName}
-            </Text>
-          </View>
-        ) : null}
-        {yearName ? (
-          <View style={styles.yearChip}>
-            <Text style={styles.yearChipText} numberOfLines={1}>
-              {yearName}
-            </Text>
-          </View>
-        ) : null}
-      </View>
+    <View style={styles.header}>
+      {/* Arabic: switcher left, profile rear-right. English: profile left, switcher right. */}
+      {arabic ? (
+        <>
+          {switcher}
+          {profile}
+        </>
+      ) : (
+        <>
+          {profile}
+          {switcher}
+        </>
+      )}
     </View>
   );
 }
@@ -157,15 +229,11 @@ export default function HomeScreen() {
     return (
       <Screen safeTop>
         <TourAnchor id="homeHeader">
-          <View style={styles.header}>
-            {/* Flagged language pill — replaces brand mark on home */}
-            <LanguageSwitcher variant="pill" />
-            <ProfileWelcome
-              name={tutorName}
-              profileSource={profileSource}
-              onPressProfile={() => router.push("/profile-edit" as never)}
-            />
-          </View>
+          <HomeHeader
+            name={tutorName}
+            profileSource={profileSource}
+            onPressProfile={() => router.push("/profile-edit" as never)}
+          />
         </TourAnchor>
         <EmptyState
           message={t("noActiveYear")}
@@ -194,16 +262,12 @@ export default function HomeScreen() {
         }
       >
         <TourAnchor id="homeHeader">
-          <View style={styles.header}>
-            {/* Flagged language pill — replaces brand mark on home */}
-            <LanguageSwitcher variant="pill" />
-            <ProfileWelcome
-              name={tutorName}
-              yearName={activeYear.name}
-              profileSource={profileSource}
-              onPressProfile={() => router.push("/profile-edit" as never)}
-            />
-          </View>
+          <HomeHeader
+            name={tutorName}
+            yearName={activeYear.name}
+            profileSource={profileSource}
+            onPressProfile={() => router.push("/profile-edit" as never)}
+          />
         </TourAnchor>
 
         {groupCount === 0 ? (
@@ -316,23 +380,25 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  // Keep language pill physically left; profile cluster on the other side.
   header: {
-    direction: "ltr" as const,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: spacing.md,
     marginBottom: spacing.lg,
   },
-  // Profile follows native reading direction.
   profileWelcome: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
     flex: 1,
     minWidth: 0,
+  },
+  profileWelcomeEn: {
     justifyContent: "flex-start",
+  },
+  profileWelcomeAr: {
+    justifyContent: "flex-end",
   },
   profileRing: {
     width: 64,
@@ -354,23 +420,19 @@ const styles = StyleSheet.create({
     resizeMode: "cover",
   },
   welcomeCol: {
-    flex: 1,
+    flexShrink: 1,
     minWidth: 0,
     maxWidth: "100%",
-    alignItems: "flex-start",
     gap: 6,
   },
-  welcomeRow: {
-    ...rtlRow(),
+  welcomeColEn: {
     alignItems: "flex-start",
-    gap: 6,
-    width: "100%",
-    minWidth: 0,
   },
-  welcomeWave: { fontSize: 18, marginTop: 2 },
+  welcomeColAr: {
+    alignItems: "flex-end",
+  },
   welcomeText: {
     ...rtlText,
-    flex: 1,
     flexShrink: 1,
     minWidth: 0,
     fontSize: 16,
@@ -380,7 +442,6 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   yearChip: {
-    alignSelf: "flex-start",
     backgroundColor: colors.primary,
     borderRadius: radii.md,
     paddingVertical: 5,

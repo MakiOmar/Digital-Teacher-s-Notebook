@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
   Animated,
   AppState,
+  DevSettings,
   FlatList,
   I18nManager,
   Image,
@@ -34,13 +35,17 @@ import {
   useWindowDimensions,
   type TextInputProps,
   type TextProps,
+  type StyleProp,
+  type TextStyle,
 } from "react-native";
+import { getLanguage } from "@/src/i18n/languageStore";
 import { resolveCairoStyle } from "./typography";
 
 export {
   ActivityIndicator,
   Animated,
   AppState,
+  DevSettings,
   FlatList,
   I18nManager,
   Image,
@@ -71,18 +76,78 @@ export type {
   ViewStyle,
 } from "react-native";
 
+function preferredRtl(): boolean {
+  return getLanguage() === "ar";
+}
+
+/**
+ * Physical start for preferred language, compensating for Yoga mirroring
+ * when I18nManager.isRTL has not flipped yet.
+ */
+function preferredTextAlign(): "left" | "right" {
+  const wantRtl = preferredRtl();
+  if (wantRtl) {
+    return I18nManager.isRTL ? "left" : "right";
+  }
+  return I18nManager.isRTL ? "right" : "left";
+}
+
+function preferredWritingDirection(): "rtl" | "ltr" {
+  return preferredRtl() ? "rtl" : "ltr";
+}
+
+function withReadingDirection(
+  style: StyleProp<TextStyle> | undefined
+): StyleProp<TextStyle> {
+  const flat = StyleSheet.flatten(style) as TextStyle | undefined;
+  const align = flat?.textAlign;
+  // Keep intentional center / justify; replace edge-aligned text with language start.
+  if (align === "center" || align === "justify") {
+    return [
+      style,
+      { writingDirection: preferredWritingDirection() },
+    ];
+  }
+  return [
+    style,
+    {
+      writingDirection: preferredWritingDirection(),
+      textAlign: preferredTextAlign(),
+    },
+  ];
+}
+
 export const Text = React.forwardRef<
   React.ComponentRef<typeof RNText>,
   TextProps
 >(function CairoText({ style, ...rest }, ref) {
-  return <RNText ref={ref} {...rest} style={resolveCairoStyle(style)} />;
+  return (
+    <RNText
+      ref={ref}
+      {...rest}
+      style={resolveCairoStyle(withReadingDirection(style))}
+    />
+  );
 });
 
 export const TextInput = React.forwardRef<
   React.ComponentRef<typeof RNTextInput>,
   TextInputProps
->(function CairoTextInput({ style, ...rest }, ref) {
+>(function CairoTextInput({ style, textAlign, ...rest }, ref) {
+  const wantRtl = preferredRtl();
+  const physical = wantRtl ? "right" : "left";
   return (
-    <RNTextInput ref={ref} {...rest} style={resolveCairoStyle(style)} />
+    <RNTextInput
+      ref={ref}
+      {...rest}
+      textAlign={textAlign ?? physical}
+      style={resolveCairoStyle([
+        style,
+        {
+          writingDirection: preferredWritingDirection(),
+          textAlign: textAlign ?? physical,
+        },
+      ])}
+    />
   );
 });

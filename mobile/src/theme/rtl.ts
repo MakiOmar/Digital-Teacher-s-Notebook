@@ -1,34 +1,38 @@
 import { I18nManager, TextStyle, ViewStyle } from "react-native";
+import { getLanguage } from "@/src/i18n/languageStore";
 import { fonts } from "./typography";
 
-/** True when native layout direction is RTL (persisted via I18nManager.forceRTL). */
+/** Preferred UI direction from saved language (source of truth for text). */
+export function appIsRtl(): boolean {
+  return getLanguage() === "ar";
+}
+
+/** Native Yoga / chrome direction (may lag until forceRTL + reload). */
 export function nativeIsRtl(): boolean {
   return I18nManager.isRTL;
 }
 
-/** App content should follow native direction (kept in sync with preferred language). */
-export function appIsRtl(): boolean {
-  return I18nManager.isRTL;
-}
-
 /**
- * Align to the reading-start edge.
- * Under forceRTL, Yoga mirrors textAlign so "left" is physical right (start).
- * Under LTR, "left" is physical left (start).
+ * Physical reading-start edge for the preferred language.
+ * Compensates when I18nManager.isRTL has not caught up yet.
  */
 export function visualTextAlign(): "left" | "right" {
-  return "left";
-}
-
-/**
- * TextInput does not mirror textAlign under forceRTL — use physical start.
- */
-export function inputTextAlign(): "left" | "right" {
+  const wantRtl = appIsRtl();
+  if (wantRtl) {
+    // Arabic → physical right
+    return nativeIsRtl() ? "left" : "right";
+  }
+  // English → physical left
   return nativeIsRtl() ? "right" : "left";
 }
 
+/** TextInput ignores Yoga mirroring — always use physical start. */
+export function inputTextAlign(): "left" | "right" {
+  return appIsRtl() ? "right" : "left";
+}
+
 export function writingDirection(): "rtl" | "ltr" {
-  return nativeIsRtl() ? "rtl" : "ltr";
+  return appIsRtl() ? "rtl" : "ltr";
 }
 
 /** Isolate TextInput from Yoga RTL so textAlign stays on the physical start. */
@@ -37,26 +41,28 @@ export const inputShell: ViewStyle = {
   alignSelf: "stretch",
 };
 
-/** Horizontal row following native layout direction. */
+/**
+ * Horizontal row in reading order.
+ * If native RTL lags the preferred language, reverse so items still start correctly.
+ */
 export function rtlRow(): ViewStyle {
   return {
-    flexDirection: "row",
+    flexDirection: appIsRtl() === nativeIsRtl() ? "row" : "row-reverse",
   };
 }
 
-/** Chip/tag row wrapping from the reading-start edge. */
+/** Chip/tag wrap from the reading-start edge. */
 export function rtlChipRow(): ViewStyle {
   return {
-    flexDirection: "row",
+    flexDirection: appIsRtl() === nativeIsRtl() ? "row" : "row-reverse",
     flexWrap: "wrap",
     justifyContent: "flex-start",
   };
 }
 
 /**
- * Body/label text aligned to reading start.
- * Resolved at access time so spreads pick up the current I18nManager direction
- * after a language-change reload (StyleSheet.create still freezes values).
+ * Body/label reading direction. Prefer applying via Cairo Text at render,
+ * but keep getters for StyleSheet spreads that resolve at access time.
  */
 export const rtlText: TextStyle = {
   get textAlign() {

@@ -1,6 +1,6 @@
 /** Arabic UI strings for the tutoring manager app. */
 import { en } from "@/src/i18n/en";
-import { getLanguage } from "@/src/i18n/language";
+import { getLanguage } from "@/src/i18n/languageStore";
 
 export const ar = {
   appName: "دفتر المعلم الرقمي",

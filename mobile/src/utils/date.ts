@@ -1,7 +1,7 @@
 /** Calendar / weekday helpers (local device timezone). */
 
 import { t, type ArKey } from "@/src/i18n/ar";
-import { getLanguage } from "@/src/i18n/language";
+import { getLanguage } from "@/src/i18n/languageStore";
 
 const ARABIC_MONTHS = [
   "يناير",

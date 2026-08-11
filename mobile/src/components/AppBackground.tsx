@@ -24,11 +24,8 @@ const SPLASH_GRADIENT = ["#DFF7F2", "#B5E2F0", "#7ECAE6"] as const;
 
 const BAR_WIDTH = 200;
 
-/** Always-visible splash loader (spinner + solid bar). */
+/** Always-visible splash loader (spinner + solid bar). RTL-safe. */
 function SplashProgressBar() {
-  React.useEffect(() => {
-    console.log("SPLASH_PROGRESS_MOUNTED");
-  }, []);
   return (
     <View collapsable={false} style={styles.progressWrap}>
       <ActivityIndicator size="large" color={colors.primaryDark} />
@@ -68,12 +65,6 @@ export function SplashBackground({
         />
         {/* Indeterminate boot progress under the logo */}
         <SplashProgressBar />
-        {/* High-contrast fallback marker so a missing loader is obvious in QA. */}
-        <View
-          collapsable={false}
-          style={styles.progressFallback}
-          accessibilityLabel="Loading"
-        />
       </View>
     </View>
   );
@@ -131,14 +122,6 @@ const styles = StyleSheet.create({
   progressFill: {
     width: "100%",
     height: 16,
-    borderRadius: 999,
-    backgroundColor: colors.primaryDark,
-  },
-  // Solid bar always painted (no spinner dependency).
-  progressFallback: {
-    marginTop: 10,
-    width: BAR_WIDTH,
-    height: 10,
     borderRadius: 999,
     backgroundColor: colors.primaryDark,
   },

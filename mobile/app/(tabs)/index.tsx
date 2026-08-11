@@ -485,7 +485,7 @@ const styles = StyleSheet.create({
     ...rtlText,
     fontFamily: fonts.extraBold,
     fontWeight: "800",
-    fontSize: 16,
+    fontSize: 22,
     color: colors.text,
   },
   snapLabel: {

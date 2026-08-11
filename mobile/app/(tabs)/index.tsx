@@ -122,7 +122,11 @@ function ProfileWelcome({
         arabic ? styles.profileWelcomeAr : styles.profileWelcomeEn,
       ]}
     >
-      {/* Arabic: text then avatar → avatar at rear right. English: avatar then text. */}
+      {/*
+        Header cluster is direction:ltr (physical left→right).
+        Arabic: text then avatar → avatar on the trailing right.
+        English: avatar then text.
+      */}
       {arabic ? (
         <>
           {welcome}
@@ -165,7 +169,11 @@ function HomeHeader({
 
   return (
     <View style={styles.header}>
-      {/* Arabic: switcher left, profile rear-right. English: profile left, switcher right. */}
+      {/*
+        Header uses direction:ltr so child order maps to physical sides
+        even when I18nManager.forceRTL is on (Yoga would otherwise pack row from the right).
+        Arabic: switcher left, profile right. English: profile left, switcher right.
+      */}
       {arabic ? (
         <>
           {switcher}
@@ -380,7 +388,9 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  // Physical LTR: under forceRTL, plain `row` still packs from the right.
   header: {
+    direction: "ltr",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -388,6 +398,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   profileWelcome: {
+    direction: "ltr",
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,

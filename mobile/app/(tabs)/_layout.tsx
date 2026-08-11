@@ -1,4 +1,4 @@
-import { Platform, Text } from "react-native";
+import { I18nManager, Platform, Text } from "react-native";
 import { Tabs } from "expo-router";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -43,15 +43,19 @@ function TabLabel({
 
 type TabName = "index" | "today" | "groups" | "payments" | "more";
 
+/** Logical LTR declaration order (Home … More). */
 const LTR_TABS: TabName[] = ["index", "today", "groups", "payments", "more"];
-/** Visual RTL: Home (index) on the physical right. */
-const RTL_TABS: TabName[] = ["more", "payments", "groups", "today", "index"];
+/** Compensates when preferred language RTL and native Yoga RTL disagree. */
+const REVERSED_TABS: TabName[] = ["more", "payments", "groups", "today", "index"];
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const { language } = useLanguage();
-  const rtlTabs = language === "ar";
-  const order = rtlTabs ? RTL_TABS : LTR_TABS;
+  // Under forceRTL, the tab bar packs from the reading-start edge (right in Arabic).
+  // First Screen lands on that edge — so declare LTR_TABS when native RTL matches.
+  // If language and I18nManager.isRTL lag apart, reverse to keep Home on the start edge.
+  const wantRtl = language === "ar";
+  const order = wantRtl === I18nManager.isRTL ? LTR_TABS : REVERSED_TABS;
   // Transparent system nav (edge-to-edge) draws under the tab bar —
   // pad so labels clear the native back/home/recents controls.
   const bottomInset =

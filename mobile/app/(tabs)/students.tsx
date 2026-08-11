@@ -21,6 +21,7 @@ import { useRefreshableList } from "@/src/hooks/useRefreshableList";
 import { useServerPagination } from "@/src/hooks/useServerPagination";
 import { useGeneralSettings } from "@/src/settings/GeneralSettingsContext";
 import { spacing, colors } from "@/src/theme/colors";
+import { appIsRtl, physicalPadEdge } from "@/src/theme/rtl";
 import { enrollmentStatusLabel } from "@/src/utils/statusLabels";
 
 export default function StudentsTab() {
@@ -137,8 +138,22 @@ export default function StudentsTab() {
         ListFooterComponent={
           <PaginationBar {...pagingBarProps(paging)} />
         }
-        renderItem={({ item }) => (
-          <View style={styles.cardWrap}>
+        renderItem={({ item }) => {
+          const hasContacts = Boolean(
+            item.student_phone?.trim() || item.guardian_phone?.trim()
+          );
+          return (
+          <View
+            style={[
+              styles.cardWrap,
+              // Reserve horizontal room so name/badge clear the edge icons.
+              hasContacts ? styles.cardWrapWithContacts : null,
+              // Pad the same PHYSICAL side as the contact chips (Yoga-safe).
+              hasContacts
+                ? physicalPadEdge(appIsRtl() ? "left" : "right", 84)
+                : null,
+            ]}
+          >
             <StudentCardEdgeContacts
               studentPhone={item.student_phone}
               guardianPhone={item.guardian_phone}
@@ -165,7 +180,8 @@ export default function StudentsTab() {
               onPress={() => router.push(`/students/${item.id}`)}
             />
           </View>
-        )}
+          );
+        }}
         refreshing={paging.refreshing}
         onRefresh={() => {
           void paging.reload();
@@ -177,10 +193,15 @@ export default function StudentsTab() {
 }
 
 const styles = StyleSheet.create({
-  // Extra top padding so half-out edge icons are not clipped by neighbors.
+  // Extra top padding so half-out edge icons + labels are not clipped.
+  // Contact chips use physicalAbsEdge (Yoga RTL compensation) — no direction:ltr.
   cardWrap: {
     position: "relative",
-    marginTop: 18,
+    marginTop: 28,
     overflow: "visible",
+  },
+  cardWrapWithContacts: {
+    // Keep card content away from left/right edge chips.
+    paddingHorizontal: 4,
   },
 });

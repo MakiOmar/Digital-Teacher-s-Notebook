@@ -13,6 +13,34 @@ export function nativeIsRtl(): boolean {
 }
 
 /**
+ * Pin an absolutely positioned view to a PHYSICAL screen edge.
+ * Yoga swaps `left`/`right` under I18nManager.isRTL — compensate so
+ * "left" always means the device's left edge (do NOT also wrap in direction:ltr).
+ */
+export function physicalAbsEdge(
+  side: "left" | "right",
+  inset: number
+): { left: number } | { right: number } {
+  const mirrored = I18nManager.isRTL;
+  if (side === "left") {
+    return mirrored ? { right: inset } : { left: inset };
+  }
+  return mirrored ? { left: inset } : { right: inset };
+}
+
+/** Padding on a PHYSICAL edge (Yoga swaps paddingLeft/Right under forceRTL). */
+export function physicalPadEdge(
+  side: "left" | "right",
+  amount: number
+): ViewStyle {
+  const mirrored = I18nManager.isRTL;
+  if (side === "left") {
+    return mirrored ? { paddingRight: amount } : { paddingLeft: amount };
+  }
+  return mirrored ? { paddingLeft: amount } : { paddingRight: amount };
+}
+
+/**
  * Physical reading-start edge for the preferred language.
  * Compensates when I18nManager.isRTL has not caught up yet.
  */

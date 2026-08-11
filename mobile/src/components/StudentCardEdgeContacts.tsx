@@ -2,14 +2,14 @@ import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { colors, radii, spacing } from "@/src/theme/colors";
 import { fonts } from "@/src/theme/typography";
-import { appIsRtl, rtlText } from "@/src/theme/rtl";
+import { appIsRtl, physicalAbsEdge, rtlText } from "@/src/theme/rtl";
 import { telUrl, whatsappUrl } from "@/src/utils/phone";
 import { t } from "@/src/i18n/ar";
 
 const WHATSAPP_GREEN = "#25D366";
 const SIZE = 32;
 /** Keep icons clear of the screen edge (no negative side overhang). */
-const EDGE_INSET = spacing.sm;
+const EDGE_INSET = spacing.md;
 
 type Props = {
   studentPhone?: string | null;
@@ -27,15 +27,15 @@ type ContactGroup = {
 
 /**
  * Call + WhatsApp for student and parent, straddling the top card edge
- * vertically (half in / half out). Kept inset from the screen side.
- * Physical side: Arabic → left, English → right (direction:ltr so forceRTL
- * does not mirror left/right again).
+ * vertically (half in / half out).
+ *
+ * Arabic → physical left; English → physical right (Yoga RTL-compensated).
  */
 export function StudentCardEdgeContacts({
   studentPhone,
   guardianPhone,
 }: Props) {
-  const rtl = appIsRtl();
+  const wantRtl = appIsRtl();
   const student = studentPhone?.trim() || null;
   const guardian = guardianPhone?.trim() || null;
   if (!student && !guardian) return null;
@@ -62,14 +62,13 @@ export function StudentCardEdgeContacts({
     });
   }
 
+  // Physical edge: Arabic left, English right — no direction:ltr parent needed.
+  const edgeStyle = physicalAbsEdge(wantRtl ? "left" : "right", EDGE_INSET);
+
   return (
     <View
       pointerEvents="box-none"
-      style={[
-        styles.rail,
-        // Physical edges — isolate from Yoga RTL mirroring.
-        rtl ? styles.railPhysicalLeft : styles.railPhysicalRight,
-      ]}
+      style={[styles.rail, edgeStyle]}
     >
       {groups.map((group) => (
         <View key={group.key} style={styles.group}>
@@ -107,6 +106,7 @@ export function StudentCardEdgeContacts({
               <FontAwesome name="whatsapp" size={15} color="#fff" />
             </Pressable>
           </View>
+          {/* Label under icons — short role name */}
           <Text style={styles.groupLabel} numberOfLines={1}>
             {group.title}
           </Text>
@@ -120,18 +120,10 @@ const styles = StyleSheet.create({
   rail: {
     position: "absolute",
     top: -(SIZE / 2),
-    // Physical LTR packing so left/right insets are not mirrored by forceRTL.
-    direction: "ltr",
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 10,
     zIndex: 4,
-  },
-  railPhysicalLeft: {
-    left: EDGE_INSET,
-  },
-  railPhysicalRight: {
-    right: EDGE_INSET,
   },
   group: {
     alignItems: "center",

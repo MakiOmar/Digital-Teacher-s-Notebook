@@ -22,41 +22,35 @@ export const SPLASH_LETTERBOX = "#BFE4F0";
 /** Soft brand wash — mint into sky blue (clearly visible around the logo). */
 const SPLASH_GRADIENT = ["#DFF7F2", "#B5E2F0", "#7ECAE6"] as const;
 
-const BAR_WIDTH = 160;
-const THUMB_WIDTH = 58;
+const BAR_WIDTH = 180;
 
-/** Indeterminate sliding thumb under the splash logo. */
+/** Indeterminate progress under the splash logo (pulse fill — RTL-safe). */
 function SplashProgressBar() {
-  const travel = useRef(new Animated.Value(0)).current;
+  const opacity = useRef(new Animated.Value(0.4)).current;
 
   useEffect(() => {
-    // Default easing only — avoids Easing.* shim gaps that crash boot.
+    opacity.setValue(0.4);
+    // Opacity uses the native driver; no left/right so forceRTL cannot break it.
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(travel, {
+        Animated.timing(opacity, {
           toValue: 1,
-          duration: 1050,
+          duration: 750,
           useNativeDriver: true,
         }),
-        Animated.timing(travel, {
-          toValue: 0,
-          duration: 1050,
+        Animated.timing(opacity, {
+          toValue: 0.35,
+          duration: 750,
           useNativeDriver: true,
         }),
       ])
     );
     loop.start();
     return () => loop.stop();
-  }, [travel]);
-
-  const translateX = travel.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, BAR_WIDTH - THUMB_WIDTH],
-  });
+  }, [opacity]);
 
   return (
     <View
-      // Android can collapse views that only host Animated children.
       collapsable={false}
       style={styles.progressTrack}
       accessibilityRole="progressbar"
@@ -64,7 +58,7 @@ function SplashProgressBar() {
     >
       <Animated.View
         collapsable={false}
-        style={[styles.progressThumb, { transform: [{ translateX }] }]}
+        style={[styles.progressFill, { opacity }]}
       />
     </View>
   );
@@ -120,6 +114,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 const styles = StyleSheet.create({
   splashRoot: {
     flex: 1,
+    // Isolate from I18nManager.forceRTL so the progress thumb slides left→right.
+    direction: "ltr",
     // Fallback under the gradient while LinearGradient mounts
     backgroundColor: SPLASH_LETTERBOX,
     alignItems: "center",
@@ -136,18 +132,21 @@ const styles = StyleSheet.create({
     height: 220,
   },
   progressTrack: {
+    // Isolate from I18nManager.forceRTL (harmless with full-width fill).
+    direction: "ltr",
     marginTop: 28,
     width: BAR_WIDTH,
-    height: 10,
+    height: 14,
     borderRadius: 999,
-    backgroundColor: "rgba(15, 118, 110, 0.28)",
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(15, 118, 110, 0.45)",
+    backgroundColor: "rgba(15, 118, 110, 0.22)",
+    borderWidth: 1.5,
+    borderColor: "rgba(13, 92, 86, 0.7)",
     overflow: "hidden",
+    alignSelf: "center",
   },
-  progressThumb: {
-    width: THUMB_WIDTH,
-    height: 10,
+  progressFill: {
+    width: "100%",
+    height: 14,
     borderRadius: 999,
     backgroundColor: colors.primaryDark,
   },

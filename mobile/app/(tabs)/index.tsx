@@ -373,7 +373,12 @@ export default function HomeScreen() {
                     {a.title}
                   </Text>
                   {"subtitle" in a && a.subtitle ? (
-                    <Text style={styles.qaSub} numberOfLines={1}>
+                    <Text
+                      style={styles.qaSub}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit={false}
+                      allowFontScaling={false}
+                    >
                       {a.subtitle}
                     </Text>
                   ) : null}
@@ -486,6 +491,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.extraBold,
     fontWeight: "800",
     fontSize: 22,
+    lineHeight: 28,
     color: colors.text,
   },
   snapLabel: {
@@ -548,7 +554,13 @@ const styles = StyleSheet.create({
   qaSub: {
     ...rtlText,
     textAlign: "center",
-    fontSize: 10,
-    color: colors.textMuted,
+    fontFamily: fonts.extraBold,
+    fontWeight: "800",
+    // Keep well above qaLabel (12) — was ~10 and illegible on the dues tile.
+    fontSize: 20,
+    lineHeight: 26,
+    color: colors.text,
+    marginTop: 6,
+    width: "100%",
   },
 });

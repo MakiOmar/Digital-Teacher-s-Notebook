@@ -98,7 +98,7 @@ function Bootstrap({
 
   useEffect(() => {
     // Keep branded splash visible briefly so gradient + progress are readable.
-    const id = setTimeout(() => setMinSplashDone(true), 5000);
+    const id = setTimeout(() => setMinSplashDone(true), 3200);
     return () => clearTimeout(id);
   }, []);
 

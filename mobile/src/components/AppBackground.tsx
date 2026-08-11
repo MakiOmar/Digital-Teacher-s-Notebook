@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
+  I18nManager,
   Image,
   ImageBackground,
   StyleSheet,
@@ -22,16 +22,64 @@ export const SPLASH_LETTERBOX = "#BFE4F0";
 /** Soft brand wash — mint into sky blue (clearly visible around the logo). */
 const SPLASH_GRADIENT = ["#DFF7F2", "#B5E2F0", "#7ECAE6"] as const;
 
-const BAR_WIDTH = 200;
+const BAR_WIDTH = 180;
+const THUMB_WIDTH = 64;
+const BAR_HEIGHT = 14;
+const MAX_TRAVEL = BAR_WIDTH - THUMB_WIDTH;
 
-/** Always-visible splash loader (spinner + solid bar). RTL-safe. */
+/**
+ * Indeterminate sliding thumb under the splash logo (original look).
+ * Spacer row with RTL flex compensation — Yoga flips `row` under forceRTL,
+ * so we use row-reverse when isRTL so [spacer][thumb] still runs left→right.
+ */
 function SplashProgressBar() {
+  const [offset, setOffset] = useState(0);
+  const dirRef = useRef(1);
+  const posRef = useRef(0);
+
+  useEffect(() => {
+    let raf = 0;
+    let last = Date.now();
+    const speed = MAX_TRAVEL / 1050;
+
+    const tick = () => {
+      const now = Date.now();
+      const dt = Math.min(32, now - last);
+      last = now;
+      let next = posRef.current + dirRef.current * speed * dt;
+      if (next >= MAX_TRAVEL) {
+        next = MAX_TRAVEL;
+        dirRef.current = -1;
+      } else if (next <= 0) {
+        next = 0;
+        dirRef.current = 1;
+      }
+      posRef.current = next;
+      setOffset(next);
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
   return (
-    <View collapsable={false} style={styles.progressWrap}>
-      <ActivityIndicator size="large" color={colors.primaryDark} />
-      <View collapsable={false} style={styles.progressTrack}>
-        <View collapsable={false} style={styles.progressFill} />
-      </View>
+    <View
+      collapsable={false}
+      style={[
+        styles.progressTrack,
+        // Undo Yoga's RTL flex flip so the thumb slides left→right physically.
+        { flexDirection: I18nManager.isRTL ? "row-reverse" : "row" },
+      ]}
+      accessibilityRole="progressbar"
+      accessibilityLabel="Loading"
+    >
+      {/* Leading spacer drives the thumb across the track */}
+      <View
+        collapsable={false}
+        style={{ width: offset, height: BAR_HEIGHT, flexShrink: 0 }}
+      />
+      {/* Sliding thumb — original indeterminate bar (not a spinner). */}
+      <View collapsable={false} style={styles.progressThumb} />
     </View>
   );
 }
@@ -63,7 +111,7 @@ export function SplashBackground({
           resizeMode="contain"
           onLoadEnd={onLoadEnd}
         />
-        {/* Indeterminate boot progress under the logo */}
+        {/* Indeterminate sliding boot progress under the logo */}
         <SplashProgressBar />
       </View>
     </View>
@@ -89,7 +137,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 const styles = StyleSheet.create({
   splashRoot: {
     flex: 1,
-    direction: "ltr",
     backgroundColor: SPLASH_LETTERBOX,
     alignItems: "center",
     justifyContent: "center",
@@ -100,30 +147,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   splashImage: {
-    width: "68%",
-    maxWidth: 260,
-    height: 190,
-  },
-  progressWrap: {
-    marginTop: 24,
-    width: "100%",
-    alignItems: "center",
+    width: "72%",
+    maxWidth: 280,
+    // Slightly shorter so the sliding bar sits tightly under the wordmark.
+    height: 200,
   },
   progressTrack: {
-    marginTop: 14,
+    marginTop: 18,
     width: BAR_WIDTH,
-    height: 16,
+    height: BAR_HEIGHT,
     borderRadius: 999,
-    backgroundColor: "rgba(15, 118, 110, 0.28)",
-    borderWidth: 2,
-    borderColor: colors.primaryDark,
+    backgroundColor: "rgba(15, 118, 110, 0.4)",
     overflow: "hidden",
+    alignSelf: "center",
   },
-  progressFill: {
-    width: "100%",
-    height: 16,
+  progressThumb: {
+    width: THUMB_WIDTH,
+    height: BAR_HEIGHT,
     borderRadius: 999,
     backgroundColor: colors.primaryDark,
+    flexShrink: 0,
   },
   shell: {
     flex: 1,

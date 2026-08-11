@@ -21,7 +21,7 @@ import { useRefreshableList } from "@/src/hooks/useRefreshableList";
 import { useServerPagination } from "@/src/hooks/useServerPagination";
 import { useGeneralSettings } from "@/src/settings/GeneralSettingsContext";
 import { spacing, colors } from "@/src/theme/colors";
-import { appIsRtl, physicalPadEdge } from "@/src/theme/rtl";
+import { appIsRtl } from "@/src/theme/rtl";
 import { enrollmentStatusLabel } from "@/src/utils/statusLabels";
 
 export default function StudentsTab() {
@@ -143,23 +143,15 @@ export default function StudentsTab() {
             item.student_phone?.trim() || item.guardian_phone?.trim()
           );
           return (
-          <View
-            style={[
-              styles.cardWrap,
-              // Reserve horizontal room so name/badge clear the edge icons.
-              hasContacts ? styles.cardWrapWithContacts : null,
-              // Pad the same PHYSICAL side as the contact chips (Yoga-safe).
-              hasContacts
-                ? physicalPadEdge(appIsRtl() ? "left" : "right", 84)
-                : null,
-            ]}
-          >
+          <View style={styles.cardWrap}>
             <StudentCardEdgeContacts
               studentPhone={item.student_phone}
               guardianPhone={item.guardian_phone}
             />
             <DetailCard
               title={item.name}
+              // Card stays full-width; only header text clears the edge chips.
+              contactEdge={hasContacts ? (appIsRtl() ? "left" : "right") : undefined}
               badge={{
                 label: enrollmentStatusLabel(item.status),
                 color:
@@ -194,14 +186,10 @@ export default function StudentsTab() {
 
 const styles = StyleSheet.create({
   // Extra top padding so half-out edge icons + labels are not clipped.
-  // Contact chips use physicalAbsEdge (Yoga RTL compensation) — no direction:ltr.
+  // Card itself stays full content width (Screen side margins only).
   cardWrap: {
     position: "relative",
     marginTop: 28,
     overflow: "visible",
-  },
-  cardWrapWithContacts: {
-    // Keep card content away from left/right edge chips.
-    paddingHorizontal: 4,
   },
 });

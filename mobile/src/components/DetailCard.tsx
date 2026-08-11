@@ -1,9 +1,9 @@
 import type { ComponentProps, ReactNode } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { colors, radii, spacing } from "@/src/theme/colors";
 import { fonts } from "@/src/theme/typography";
-import { rtlRow, rtlText } from "@/src/theme/rtl";
+import { physicalPadEdge, rtlRow, rtlText } from "@/src/theme/rtl";
 
 export type IconName = ComponentProps<typeof FontAwesome>["name"];
 
@@ -42,6 +42,11 @@ type DetailCardProps = {
   footer?: ReactNode;
   onPress?: () => void;
   children?: ReactNode;
+  /**
+   * Keep the card full-width; only pad the title/header content away from
+   * overlapping edge chips (physical left/right).
+   */
+  contactEdge?: "left" | "right";
 };
 
 /** Shared surface card for compact, scannable record details. */
@@ -55,10 +60,15 @@ export function DetailCard({
   footer,
   onPress,
   children,
+  contactEdge,
 }: DetailCardProps) {
+  const headerPad: ViewStyle | null = contactEdge
+    ? physicalPadEdge(contactEdge, 76)
+    : null;
+
   const content = (
     <>
-      <View style={styles.header}>
+      <View style={[styles.header, headerPad]}>
         <View style={styles.headerText}>
           <Text style={styles.title} numberOfLines={2}>
             {title}

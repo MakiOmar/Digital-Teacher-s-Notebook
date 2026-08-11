@@ -165,6 +165,8 @@ export const ar = {
   whatsappStudent: "واتساب الطالب",
   callGuardian: "اتصال بولي الأمر",
   whatsappGuardian: "واتساب ولي الأمر",
+  contactStudentShort: "طالب",
+  contactGuardianShort: "ولي الأمر",
   notes: "ملاحظات",
   group: "المجموعة",
   customFee: "سعر خاص (اختياري)",

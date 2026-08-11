@@ -1,21 +1,34 @@
-import { Linking, Pressable, StyleSheet, View } from "react-native";
+import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { colors } from "@/src/theme/colors";
-import { appIsRtl } from "@/src/theme/rtl";
+import { colors, radii, spacing } from "@/src/theme/colors";
+import { fonts } from "@/src/theme/typography";
+import { appIsRtl, rtlText } from "@/src/theme/rtl";
 import { telUrl, whatsappUrl } from "@/src/utils/phone";
 import { t } from "@/src/i18n/ar";
 
 const WHATSAPP_GREEN = "#25D366";
-const SIZE = 34;
+const SIZE = 32;
+/** Keep icons clear of the screen edge (no negative side overhang). */
+const EDGE_INSET = spacing.sm;
 
 type Props = {
   studentPhone?: string | null;
   guardianPhone?: string | null;
 };
 
+type ContactGroup = {
+  key: "student" | "guardian";
+  title: string;
+  phone: string;
+  callLabel: string;
+  waLabel: string;
+  callColor: string;
+};
+
 /**
  * Call + WhatsApp for student and parent, straddling the top card edge
- * (half in / half out) on the reading-end side (LTR right / RTL left).
+ * vertically (half in / half out). Kept inset from the screen side; RTL-aware.
+ * Each person is a labeled pair so student vs guardian stay distinct.
  */
 export function StudentCardEdgeContacts({
   studentPhone,
@@ -26,86 +39,73 @@ export function StudentCardEdgeContacts({
   const guardian = guardianPhone?.trim() || null;
   if (!student && !guardian) return null;
 
-  const icons: {
-    key: string;
-    phone: string;
-    kind: "call" | "wa";
-    label: string;
-    color: string;
-  }[] = [];
-
+  const groups: ContactGroup[] = [];
   if (student) {
-    icons.push(
-      {
-        key: "s-call",
-        phone: student,
-        kind: "call",
-        label: t("callStudent"),
-        color: colors.success,
-      },
-      {
-        key: "s-wa",
-        phone: student,
-        kind: "wa",
-        label: t("whatsappStudent"),
-        color: WHATSAPP_GREEN,
-      }
-    );
+    groups.push({
+      key: "student",
+      title: t("contactStudentShort"),
+      phone: student,
+      callLabel: t("callStudent"),
+      waLabel: t("whatsappStudent"),
+      callColor: colors.success,
+    });
   }
   if (guardian) {
-    icons.push(
-      {
-        key: "g-call",
-        phone: guardian,
-        kind: "call",
-        label: t("callGuardian"),
-        color: colors.accent,
-      },
-      {
-        key: "g-wa",
-        phone: guardian,
-        kind: "wa",
-        label: t("whatsappGuardian"),
-        color: WHATSAPP_GREEN,
-      }
-    );
+    groups.push({
+      key: "guardian",
+      title: t("contactGuardianShort"),
+      phone: guardian,
+      callLabel: t("callGuardian"),
+      waLabel: t("whatsappGuardian"),
+      callColor: colors.accent,
+    });
   }
 
   return (
     <View
       pointerEvents="box-none"
-      style={[
-        styles.rail,
-        rtl ? styles.railRtl : styles.railLtr,
-      ]}
+      style={[styles.rail, rtl ? styles.railRtl : styles.railLtr]}
     >
-      {icons.map((item) => (
-        <Pressable
-          key={item.key}
-          accessibilityRole="button"
-          accessibilityLabel={item.label}
-          hitSlop={6}
-          onPress={(e) => {
-            // Prevent parent card Pressable from navigating away.
-            e?.stopPropagation?.();
-            void Linking.openURL(
-              item.kind === "call"
-                ? telUrl(item.phone)
-                : whatsappUrl(item.phone)
-            );
-          }}
-          style={({ pressed }) => [
-            styles.fab,
-            { backgroundColor: item.color },
-            pressed && { opacity: 0.85 },
-          ]}
-        >
-          <FontAwesome
-            name={item.kind === "call" ? "phone" : "whatsapp"}
-            size={item.kind === "call" ? 14 : 16}
-            color="#fff"
-          />
-        </Pressable>
+      {groups.map((group) => (
+        <View key={group.key} style={styles.group}>
+          <View style={styles.pair}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={group.callLabel}
+              hitSlop={6}
+              onPress={(e) => {
+                e?.stopPropagation?.();
+                void Linking.openURL(telUrl(group.phone));
+              }}
+              style={({ pressed }) => [
+                styles.fab,
+                { backgroundColor: group.callColor },
+                pressed && { opacity: 0.85 },
+              ]}
+            >
+              <FontAwesome name="phone" size={13} color="#fff" />
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={group.waLabel}
+              hitSlop={6}
+              onPress={(e) => {
+                e?.stopPropagation?.();
+                void Linking.openURL(whatsappUrl(group.phone));
+              }}
+              style={({ pressed }) => [
+                styles.fab,
+                { backgroundColor: WHATSAPP_GREEN },
+                pressed && { opacity: 0.85 },
+              ]}
+            >
+              <FontAwesome name="whatsapp" size={15} color="#fff" />
+            </Pressable>
+          </View>
+          <Text style={styles.groupLabel} numberOfLines={1}>
+            {group.title}
+          </Text>
+        </View>
       ))}
     </View>
   );
@@ -116,14 +116,37 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: -(SIZE / 2),
     flexDirection: "row",
-    gap: 6,
+    alignItems: "flex-start",
+    gap: 10,
     zIndex: 4,
   },
   railLtr: {
-    right: -(SIZE / 2),
+    right: EDGE_INSET,
   },
   railRtl: {
-    left: -(SIZE / 2),
+    left: EDGE_INSET,
+  },
+  group: {
+    alignItems: "center",
+    gap: 2,
+  },
+  pair: {
+    flexDirection: "row",
+    gap: 5,
+  },
+  groupLabel: {
+    ...rtlText,
+    fontSize: 9,
+    lineHeight: 11,
+    fontFamily: fonts.bold,
+    color: colors.textMuted,
+    backgroundColor: "rgba(255,255,255,0.95)",
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: radii.sm,
+    overflow: "hidden",
+    maxWidth: SIZE * 2 + 8,
+    textAlign: "center",
   },
   fab: {
     width: SIZE,

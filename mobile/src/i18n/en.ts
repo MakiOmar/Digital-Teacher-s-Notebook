@@ -149,6 +149,8 @@ export const en = {
   whatsappStudent: "WhatsApp student",
   callGuardian: "Call guardian",
   whatsappGuardian: "WhatsApp guardian",
+  contactStudentShort: "Student",
+  contactGuardianShort: "Guardian",
   notes: "Notes",
   group: "Group",
   customFee: "Custom fee (optional)",

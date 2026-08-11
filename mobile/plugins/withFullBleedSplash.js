@@ -25,6 +25,8 @@ const SPLASH_FULL_XML = `<?xml version="1.0" encoding="utf-8"?>
 <!--
   Full-bleed splash wordmark (no circular Android 12 icon mask).
   Wider than tall so Arabic + English brand text stay visible.
+  Includes a static progress track under the logo so Arabic cold-start
+  still shows a loader before JS SplashBackground mounts.
 -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
   <item android:drawable="@drawable/splashscreen_gradient" />
@@ -35,6 +37,32 @@ const SPLASH_FULL_XML = `<?xml version="1.0" encoding="utf-8"?>
     <bitmap
       android:gravity="center"
       android:src="@drawable/splashscreen_logo" />
+  </item>
+  <!-- Track -->
+  <item
+    android:width="160dp"
+    android:height="12dp"
+    android:gravity="center"
+    android:top="128dp">
+    <shape android:shape="rectangle">
+      <solid android:color="#4D0F766E" />
+      <corners android:radius="999dp" />
+      <stroke
+        android:width="1dp"
+        android:color="#99115E59" />
+    </shape>
+  </item>
+  <!-- Thumb (left-biased; static stand-in until JS mounts the animated bar) -->
+  <item
+    android:width="58dp"
+    android:height="12dp"
+    android:gravity="center"
+    android:top="128dp"
+    android:left="-48dp">
+    <shape android:shape="rectangle">
+      <solid android:color="#115E59" />
+      <corners android:radius="999dp" />
+    </shape>
   </item>
 </layer-list>
 `;

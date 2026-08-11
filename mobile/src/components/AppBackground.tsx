@@ -1,6 +1,6 @@
-import React, { useEffect, useRef } from "react";
+import React from "react";
 import {
-  Animated,
+  ActivityIndicator,
   Image,
   ImageBackground,
   StyleSheet,
@@ -22,44 +22,19 @@ export const SPLASH_LETTERBOX = "#BFE4F0";
 /** Soft brand wash — mint into sky blue (clearly visible around the logo). */
 const SPLASH_GRADIENT = ["#DFF7F2", "#B5E2F0", "#7ECAE6"] as const;
 
-const BAR_WIDTH = 180;
+const BAR_WIDTH = 200;
 
-/** Indeterminate progress under the splash logo (pulse fill — RTL-safe). */
+/** Always-visible splash loader (spinner + solid bar). */
 function SplashProgressBar() {
-  const opacity = useRef(new Animated.Value(0.4)).current;
-
-  useEffect(() => {
-    opacity.setValue(0.4);
-    // Opacity uses the native driver; no left/right so forceRTL cannot break it.
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(opacity, {
-          toValue: 1,
-          duration: 750,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacity, {
-          toValue: 0.35,
-          duration: 750,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [opacity]);
-
+  React.useEffect(() => {
+    console.log("SPLASH_PROGRESS_MOUNTED");
+  }, []);
   return (
-    <View
-      collapsable={false}
-      style={styles.progressTrack}
-      accessibilityRole="progressbar"
-      accessibilityLabel="Loading"
-    >
-      <Animated.View
-        collapsable={false}
-        style={[styles.progressFill, { opacity }]}
-      />
+    <View collapsable={false} style={styles.progressWrap}>
+      <ActivityIndicator size="large" color={colors.primaryDark} />
+      <View collapsable={false} style={styles.progressTrack}>
+        <View collapsable={false} style={styles.progressFill} />
+      </View>
     </View>
   );
 }
@@ -73,15 +48,18 @@ export function SplashBackground({
   style?: StyleProp<ViewStyle>;
 }) {
   return (
-    <LinearGradient
-      colors={[...SPLASH_GRADIENT]}
-      locations={[0, 0.5, 1]}
-      start={{ x: 0.2, y: 0 }}
-      end={{ x: 0.8, y: 1 }}
-      style={[styles.splashRoot, style]}
-    >
+    // Outer View owns layout — LinearGradient is background-only so loaders
+    // are not clipped by the native gradient surface under RTL/Fabric.
+    <View style={[styles.splashRoot, style]}>
+      <LinearGradient
+        colors={[...SPLASH_GRADIENT]}
+        locations={[0, 0.5, 1]}
+        start={{ x: 0.2, y: 0 }}
+        end={{ x: 0.8, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
+      />
       <View style={styles.brandBlock}>
-        {/* Brand mark + bilingual title (asset may include its own padding) */}
+        {/* Brand mark + bilingual title */}
         <Image
           source={SPLASH_BRAND}
           style={styles.splashImage}
@@ -90,8 +68,14 @@ export function SplashBackground({
         />
         {/* Indeterminate boot progress under the logo */}
         <SplashProgressBar />
+        {/* High-contrast fallback marker so a missing loader is obvious in QA. */}
+        <View
+          collapsable={false}
+          style={styles.progressFallback}
+          accessibilityLabel="Loading"
+        />
       </View>
-    </LinearGradient>
+    </View>
   );
 }
 
@@ -114,9 +98,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 const styles = StyleSheet.create({
   splashRoot: {
     flex: 1,
-    // Isolate from I18nManager.forceRTL so the progress thumb slides left→right.
     direction: "ltr",
-    // Fallback under the gradient while LinearGradient mounts
     backgroundColor: SPLASH_LETTERBOX,
     alignItems: "center",
     justifyContent: "center",
@@ -127,26 +109,36 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   splashImage: {
-    width: "72%",
-    maxWidth: 280,
-    height: 220,
+    width: "68%",
+    maxWidth: 260,
+    height: 190,
+  },
+  progressWrap: {
+    marginTop: 24,
+    width: "100%",
+    alignItems: "center",
   },
   progressTrack: {
-    // Isolate from I18nManager.forceRTL (harmless with full-width fill).
-    direction: "ltr",
-    marginTop: 28,
+    marginTop: 14,
     width: BAR_WIDTH,
-    height: 14,
+    height: 16,
     borderRadius: 999,
-    backgroundColor: "rgba(15, 118, 110, 0.22)",
-    borderWidth: 1.5,
-    borderColor: "rgba(13, 92, 86, 0.7)",
+    backgroundColor: "rgba(15, 118, 110, 0.28)",
+    borderWidth: 2,
+    borderColor: colors.primaryDark,
     overflow: "hidden",
-    alignSelf: "center",
   },
   progressFill: {
     width: "100%",
-    height: 14,
+    height: 16,
+    borderRadius: 999,
+    backgroundColor: colors.primaryDark,
+  },
+  // Solid bar always painted (no spinner dependency).
+  progressFallback: {
+    marginTop: 10,
+    width: BAR_WIDTH,
+    height: 10,
     borderRadius: 999,
     backgroundColor: colors.primaryDark,
   },

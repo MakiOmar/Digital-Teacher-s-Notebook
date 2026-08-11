@@ -15,6 +15,7 @@ import {
   toDateTimeLocal,
 } from "../utils/date";
 import { t } from "../i18n/ar";
+import { softRescheduleReminders } from "../reminders/reminders";
 import { onAttendanceChangedBatch } from "./rounds";
 import {
   conflictMessage,
@@ -59,6 +60,7 @@ export async function cancelGroupSession(sessionId: number): Promise<void> {
       session.group_id
     );
   }
+  softRescheduleReminders();
 }
 
 /** Restore a soft-cancelled session to scheduled (blocked if the slot conflicts). */
@@ -84,6 +86,7 @@ export async function restoreGroupSession(sessionId: number): Promise<void> {
       session.group_id
     );
   }
+  softRescheduleReminders();
 }
 
 /**
@@ -143,6 +146,7 @@ export async function rescheduleGroupSession(
       session.group_id
     );
   }
+  softRescheduleReminders();
 }
 
 /**
@@ -190,6 +194,7 @@ export async function createManualGroupSession(input: {
       input.groupId
     );
   }
+  softRescheduleReminders();
   return id;
 }
 

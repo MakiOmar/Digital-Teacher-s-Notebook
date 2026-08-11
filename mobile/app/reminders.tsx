@@ -4,6 +4,7 @@ import { useFocusEffect } from "expo-router";
 import { Muted, Screen, Title } from "@/src/components/ui";
 import { useDialog } from "@/src/components/DialogProvider";
 import {
+  DEFAULT_CLASS_LEAD_MINUTES,
   loadReminderSettings,
   remindersAvailableInThisRuntime,
   saveReminderSettings,
@@ -19,8 +20,9 @@ export default function RemindersScreen() {
   const schedulingOk = remindersAvailableInThisRuntime();
   const [busy, setBusy] = useState(false);
   const [settings, setSettings] = useState<ReminderSettings>({
-    todayEnabled: false,
+    classEnabled: true,
     unpaidEnabled: false,
+    classLeadMinutes: DEFAULT_CLASS_LEAD_MINUTES,
   });
 
   useFocusEffect(
@@ -47,6 +49,7 @@ export default function RemindersScreen() {
 
   return (
     <Screen>
+      {/* Page title */}
       <Title>{t("reminders")}</Title>
       <Muted style={{ marginBottom: spacing.lg }}>{t("remindersHint")}</Muted>
       {!schedulingOk ? (
@@ -55,19 +58,21 @@ export default function RemindersScreen() {
         </Muted>
       ) : null}
 
+      {/* Class alerts: one local notification per upcoming session */}
       <View style={styles.switchRow}>
         <Text style={styles.label}>{t("reminderTodayEnable")}</Text>
         <Switch
-          value={settings.todayEnabled}
+          value={settings.classEnabled}
           disabled={busy || !schedulingOk}
-          onValueChange={(todayEnabled) => void persist({ todayEnabled })}
+          onValueChange={(classEnabled) => void persist({ classEnabled })}
           trackColor={{ false: colors.border, true: colors.primarySoft }}
           thumbColor={
-            settings.todayEnabled ? colors.primary : colors.textMuted
+            settings.classEnabled ? colors.primary : colors.textMuted
           }
         />
       </View>
 
+      {/* Weekly unpaid dues nudge */}
       <View style={styles.switchRow}>
         <Text style={styles.label}>{t("reminderUnpaidEnable")}</Text>
         <Switch

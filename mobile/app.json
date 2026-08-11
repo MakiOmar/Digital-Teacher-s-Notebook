@@ -32,6 +32,12 @@
       "versionCode": 1,
       "supportsRtl": true,
       "softwareKeyboardLayoutMode": "resize",
+      "permissions": [
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#12537C",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

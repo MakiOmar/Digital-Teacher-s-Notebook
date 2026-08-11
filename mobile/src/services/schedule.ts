@@ -16,6 +16,7 @@ import {
   todayDateOnly,
 } from "../utils/date";
 import { withTransaction } from "../db/client";
+import { softRescheduleReminders } from "../reminders/reminders";
 import { findOverlappingSession } from "./schedulingConflicts";
 
 export type GenerateResult = {
@@ -24,17 +25,6 @@ export type GenerateResult = {
   skippedConflicts: number;
   protectedWithAttendance: number;
 };
-
-/**
- * Generate sessions for a group from its own start/end dates.
- * Start may be any calendar date (before/after semester or year bounds).
- * Cross-group time overlaps are skipped (generation continues).
- */
-export async function generateSessionsForGroup(
-  groupId: number
-): Promise<GenerateResult> {
-  return withTransaction(() => generateSessionsForGroupInTransaction(groupId));
-}
 
 async function generateSessionsForGroupInTransaction(
   groupId: number
@@ -140,4 +130,18 @@ async function generateSessionsForGroupInTransaction(
     skippedConflicts,
     protectedWithAttendance,
   };
+}
+
+/** Public entry: generate then refresh class reminder alarms. */
+export async function generateSessionsForGroup(
+  groupId: number
+): Promise<GenerateResult> {
+  // Generate sessions for a group from its own start/end dates.
+  // Start may be any calendar date (before/after semester or year bounds).
+  // Cross-group time overlaps are skipped (generation continues).
+  const result = await withTransaction(() =>
+    generateSessionsForGroupInTransaction(groupId)
+  );
+  softRescheduleReminders();
+  return result;
 }

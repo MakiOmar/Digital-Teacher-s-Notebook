@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { LanguageSwitcher } from "@/src/components/LanguageSwitcher";
 import { FormField, Muted, Screen, Title } from "@/src/components/ui";
 import { useDialog } from "@/src/components/DialogProvider";
@@ -83,98 +83,116 @@ export default function GeneralSettingsScreen() {
   }
 
   return (
-    <Screen>
-      {/* Section: preferred UI language */}
-      <Title>{t("generalSettings")}</Title>
-      <Muted style={{ marginBottom: spacing.lg }}>{t("generalSettingsHint")}</Muted>
+    <Screen style={{ flex: 1, paddingHorizontal: 0 }}>
+      {/* Scroll so currency custom field + page size stay reachable on small phones */}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{
+          paddingHorizontal: spacing.lg,
+          paddingBottom: spacing.xl * 2,
+        }}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Section: preferred UI language */}
+        <Title>{t("generalSettings")}</Title>
+        <Muted style={{ marginBottom: spacing.lg }}>
+          {t("generalSettingsHint")}
+        </Muted>
 
-      <Text style={styles.label}>{t("preferredLanguage")}</Text>
-      <Muted style={{ marginBottom: spacing.md }}>{t("preferredLanguageHint")}</Muted>
-      {/* Flagged cards — same control as setup wizard */}
-      <LanguageSwitcher variant="cards" disabled={busy} />
+        <Text style={styles.label}>{t("preferredLanguage")}</Text>
+        <Muted style={{ marginBottom: spacing.md }}>
+          {t("preferredLanguageHint")}
+        </Muted>
+        {/* Flagged cards — same control as setup wizard */}
+        <LanguageSwitcher variant="cards" disabled={busy} />
 
-      {/* Section: app currency presets + optional custom symbol */}
-      <Text style={[styles.label, { marginTop: spacing.xl }]}>{t("appCurrency")}</Text>
-      <Muted style={{ marginBottom: spacing.md }}>{t("appCurrencyHint")}</Muted>
+        {/* Section: app currency presets + optional custom symbol */}
+        <Text style={[styles.label, { marginTop: spacing.xl }]}>
+          {t("appCurrency")}
+        </Text>
+        <Muted style={{ marginBottom: spacing.md }}>{t("appCurrencyHint")}</Muted>
 
-      <View style={styles.row}>
-        {CURRENCY_PRESETS.map((preset) => {
-          const selected = currencyId === preset.id;
-          const label = language === "en" ? preset.en : preset.ar;
-          return (
-            <Pressable
-              key={preset.id}
-              disabled={busy}
-              onPress={() => void onSelectCurrency(preset.id)}
-              style={[styles.chip, selected && styles.chipOn]}
-            >
-              <Text style={[styles.chipText, selected && styles.chipTextOn]}>
-                {label}
-              </Text>
-            </Pressable>
-          );
-        })}
-        {/* Plus chip opens the custom currency path */}
-        <Pressable
-          disabled={busy}
-          onPress={() => void onSelectCurrency("custom")}
-          style={[styles.chip, currencyId === "custom" && styles.chipOn]}
-          accessibilityLabel={t("currencyCustom")}
-        >
-          <Text
-            style={[
-              styles.chipText,
-              currencyId === "custom" && styles.chipTextOn,
-            ]}
-          >
-            +
-          </Text>
-        </Pressable>
-      </View>
-
-      {currencyId === "custom" ? (
-        <View style={{ marginTop: spacing.md, width: "100%" }}>
-          <FormField
-            label={t("currencyCustomSymbol")}
-            value={customDraft}
-            onChangeText={setCustomDraft}
-            placeholder={t("currencyCustomPlaceholder")}
-          />
+        <View style={styles.row}>
+          {CURRENCY_PRESETS.map((preset) => {
+            const selected = currencyId === preset.id;
+            const label = language === "en" ? preset.en : preset.ar;
+            return (
+              <Pressable
+                key={preset.id}
+                disabled={busy}
+                onPress={() => void onSelectCurrency(preset.id)}
+                style={[styles.chip, selected && styles.chipOn]}
+              >
+                <Text style={[styles.chipText, selected && styles.chipTextOn]}>
+                  {label}
+                </Text>
+              </Pressable>
+            );
+          })}
+          {/* Plus chip opens the custom currency path */}
           <Pressable
-            disabled={busy || !customDraft.trim()}
-            onPress={() => void onSaveCustomSymbol()}
-            style={[
-              styles.saveBtn,
-              (!customDraft.trim() || busy) && styles.saveBtnDisabled,
-            ]}
+            disabled={busy}
+            onPress={() => void onSelectCurrency("custom")}
+            style={[styles.chip, currencyId === "custom" && styles.chipOn]}
+            accessibilityLabel={t("currencyCustom")}
           >
-            <Text style={styles.saveBtnText}>{t("save")}</Text>
+            <Text
+              style={[
+                styles.chipText,
+                currencyId === "custom" && styles.chipTextOn,
+              ]}
+            >
+              +
+            </Text>
           </Pressable>
         </View>
-      ) : null}
 
-      {/* Section: list page size */}
-      <Text style={[styles.label, { marginTop: spacing.xl }]}>{t("pageSize")}</Text>
-      <Muted style={{ marginBottom: spacing.md }}>{t("pageSizeHint")}</Muted>
-
-      <View style={styles.row}>
-        {PAGE_SIZE_OPTIONS.map((n) => {
-          const selected = pageSize === n;
-          return (
+        {currencyId === "custom" ? (
+          <View style={{ marginTop: spacing.md, width: "100%" }}>
+            <FormField
+              label={t("currencyCustomSymbol")}
+              value={customDraft}
+              onChangeText={setCustomDraft}
+              placeholder={t("currencyCustomPlaceholder")}
+            />
             <Pressable
-              key={n}
-              disabled={busy}
-              onPress={() => void onSelectPageSize(n)}
-              style={[styles.chip, selected && styles.chipOn]}
+              disabled={busy || !customDraft.trim()}
+              onPress={() => void onSaveCustomSymbol()}
+              style={[
+                styles.saveBtn,
+                (!customDraft.trim() || busy) && styles.saveBtnDisabled,
+              ]}
             >
-              {/* Page size chips use localized digits for Arabic UI */}
-              <Text style={[styles.chipText, selected && styles.chipTextOn]}>
-                {formatInteger(n)}
-              </Text>
+              <Text style={styles.saveBtnText}>{t("save")}</Text>
             </Pressable>
-          );
-        })}
-      </View>
+          </View>
+        ) : null}
+
+        {/* Section: list page size */}
+        <Text style={[styles.label, { marginTop: spacing.xl }]}>
+          {t("pageSize")}
+        </Text>
+        <Muted style={{ marginBottom: spacing.md }}>{t("pageSizeHint")}</Muted>
+
+        <View style={styles.row}>
+          {PAGE_SIZE_OPTIONS.map((n) => {
+            const selected = pageSize === n;
+            return (
+              <Pressable
+                key={n}
+                disabled={busy}
+                onPress={() => void onSelectPageSize(n)}
+                style={[styles.chip, selected && styles.chipOn]}
+              >
+                {/* Page size chips use localized digits for Arabic UI */}
+                <Text style={[styles.chipText, selected && styles.chipTextOn]}>
+                  {formatInteger(n)}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </ScrollView>
     </Screen>
   );
 }

@@ -40,7 +40,8 @@ export default function StudentFormScreen() {
   const dialog = useDialog();
 
   const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
+  const [studentPhone, setStudentPhone] = useState("");
+  const [guardianPhone, setGuardianPhone] = useState("");
   const [notes, setNotes] = useState("");
   const [status, setStatus] = useState("active");
   const [customFee, setCustomFee] = useState("");
@@ -64,7 +65,8 @@ export default function StudentFormScreen() {
       const s = await getStudent(editId);
       if (!s) return;
       setName(s.name);
-      setPhone(s.guardian_phone ?? "");
+      setStudentPhone(s.student_phone ?? "");
+      setGuardianPhone(s.guardian_phone ?? "");
       setNotes(s.notes ?? "");
       setStatus(s.status);
       const en = await getActiveEnrollment(editId);
@@ -94,7 +96,8 @@ export default function StudentFormScreen() {
       if (editId) {
         await updateStudent(editId, {
           name: name.trim(),
-          guardian_phone: phone.trim() || null,
+          student_phone: studentPhone.trim() || null,
+          guardian_phone: guardianPhone.trim() || null,
           notes: notes.trim() || null,
           status,
           group_id: groupId,
@@ -103,7 +106,8 @@ export default function StudentFormScreen() {
       } else {
         await createStudent({
           name: name.trim(),
-          guardian_phone: phone.trim() || null,
+          student_phone: studentPhone.trim() || null,
+          guardian_phone: guardianPhone.trim() || null,
           notes: notes.trim() || null,
           status,
           group_id: groupId,
@@ -147,9 +151,15 @@ export default function StudentFormScreen() {
           />
           <FormField label={t("studentName")} value={name} onChangeText={setName} />
           <FormField
+            label={t("studentPhone")}
+            value={studentPhone}
+            onChangeText={setStudentPhone}
+            keyboardType="phone-pad"
+          />
+          <FormField
             label={t("guardianPhone")}
-            value={phone}
-            onChangeText={setPhone}
+            value={guardianPhone}
+            onChangeText={setGuardianPhone}
             keyboardType="phone-pad"
           />
           <FormField

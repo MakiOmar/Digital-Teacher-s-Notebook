@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { FlatList, Linking, Pressable, View } from "react-native";
-import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { FlatList, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import {
   EmptyState,
@@ -9,6 +8,7 @@ import {
   SkeletonList,
 } from "@/src/components/ui";
 import { DetailCard } from "@/src/components/DetailCard";
+import { StudentCardEdgeContacts } from "@/src/components/StudentCardEdgeContacts";
 import { FiltersSheet } from "@/src/components/FilterSelect";
 import { IconActionBar } from "@/src/components/IconActionBar";
 import { PaginationBar, pagingBarProps } from "@/src/components/PaginationBar";
@@ -20,7 +20,6 @@ import {
 import { useRefreshableList } from "@/src/hooks/useRefreshableList";
 import { useServerPagination } from "@/src/hooks/useServerPagination";
 import { useGeneralSettings } from "@/src/settings/GeneralSettingsContext";
-import { telUrl } from "@/src/utils/phone";
 import { spacing, colors } from "@/src/theme/colors";
 import { enrollmentStatusLabel } from "@/src/utils/statusLabels";
 
@@ -122,9 +121,12 @@ export default function StudentsTab() {
         contentContainerStyle={{
           paddingHorizontal: spacing.lg,
           paddingBottom: 40,
+          // Room for half-out edge contact icons.
+          paddingTop: 8,
         }}
         data={paging.pageItems}
         keyExtractor={(item) => String(item.id)}
+        removeClippedSubviews={false}
         ListEmptyComponent={
           <EmptyState
             message={t("noStudents")}
@@ -136,50 +138,33 @@ export default function StudentsTab() {
           <PaginationBar {...pagingBarProps(paging)} />
         }
         renderItem={({ item }) => (
-          <DetailCard
-            title={item.name}
-            badge={{
-              label: enrollmentStatusLabel(item.status),
-              color:
-                item.status === "active"
-                  ? colors.success
-                  : item.status === "paused"
-                    ? colors.warning
-                    : colors.danger,
-            }}
-            details={[
-              {
-                icon: "users",
-                label: t("group"),
-                value: item.group_name ?? "—",
-              },
-              ...(item.guardian_phone
-                ? [
-                    {
-                      icon: "phone" as const,
-                      label: t("guardianPhone"),
-                      value: item.guardian_phone,
-                    },
-                  ]
-                : []),
-            ]}
-            borderColor={colors.primary}
-            onPress={() => router.push(`/students/${item.id}`)}
-            trailing={
-              item.guardian_phone ? (
-                <Pressable
-                  onPress={() => {
-                    void Linking.openURL(telUrl(item.guardian_phone!));
-                  }}
-                  hitSlop={10}
-                  accessibilityLabel={t("callGuardian")}
-                  style={{ padding: 6 }}
-                >
-                  <FontAwesome name="phone" size={18} color={colors.success} />
-                </Pressable>
-              ) : null
-            }
-          />
+          <View style={styles.cardWrap}>
+            <StudentCardEdgeContacts
+              studentPhone={item.student_phone}
+              guardianPhone={item.guardian_phone}
+            />
+            <DetailCard
+              title={item.name}
+              badge={{
+                label: enrollmentStatusLabel(item.status),
+                color:
+                  item.status === "active"
+                    ? colors.success
+                    : item.status === "paused"
+                      ? colors.warning
+                      : colors.danger,
+              }}
+              details={[
+                {
+                  icon: "users",
+                  label: t("group"),
+                  value: item.group_name ?? "—",
+                },
+              ]}
+              borderColor={colors.primary}
+              onPress={() => router.push(`/students/${item.id}`)}
+            />
+          </View>
         )}
         refreshing={paging.refreshing}
         onRefresh={() => {
@@ -190,3 +175,12 @@ export default function StudentsTab() {
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  // Extra top padding so half-out edge icons are not clipped by neighbors.
+  cardWrap: {
+    position: "relative",
+    marginTop: 18,
+    overflow: "visible",
+  },
+});

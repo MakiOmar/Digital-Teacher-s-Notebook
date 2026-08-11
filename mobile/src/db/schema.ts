@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS group_schedule_patterns (
 CREATE TABLE IF NOT EXISTS students (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
+  student_phone TEXT,
   guardian_phone TEXT,
   notes TEXT,
   status TEXT NOT NULL DEFAULT 'active',
@@ -92,6 +93,7 @@ CREATE TABLE IF NOT EXISTS attendances (
   student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
   status TEXT NOT NULL,
   notes TEXT,
+  homework_done INTEGER NOT NULL DEFAULT 0,
   UNIQUE(session_id, student_id)
 );
 

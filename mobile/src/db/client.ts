@@ -86,6 +86,18 @@ async function migrate(db: SQLite.SQLiteDatabase): Promise<void> {
     );
   }
 
+  const studentCols = await tableColumns(db, "students");
+  if (!studentCols.has("student_phone")) {
+    await db.execAsync("ALTER TABLE students ADD COLUMN student_phone TEXT");
+  }
+
+  const attendanceCols = await tableColumns(db, "attendances");
+  if (!attendanceCols.has("homework_done")) {
+    await db.execAsync(
+      "ALTER TABLE attendances ADD COLUMN homework_done INTEGER NOT NULL DEFAULT 0"
+    );
+  }
+
   await db.execAsync(`
     CREATE INDEX IF NOT EXISTS idx_payments_round ON payments(billing_round_id);
     CREATE INDEX IF NOT EXISTS idx_semesters_academic_year ON semesters(academic_year_id);

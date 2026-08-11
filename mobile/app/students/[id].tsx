@@ -34,12 +34,14 @@ import {
 import type { Student } from "@/src/db/types";
 import { useAppData } from "@/src/contexts/AppDataContext";
 import { useDialog } from "@/src/components/DialogProvider";
-import { rtlText } from "@/src/theme/rtl";
+import { appIsRtl, rtlText } from "@/src/theme/rtl";
 import { colors, spacing } from "@/src/theme/colors";
 import { fonts } from "@/src/theme/typography";
 import { formatDateTimeAr, formatMoney, formatRoundTitle } from "@/src/utils/date";
 import { telUrl, whatsappUrl } from "@/src/utils/phone";
 import { attendanceStatusLabel } from "@/src/utils/statusLabels";
+import { shareMonthlyPerformanceWhatsApp } from "@/src/services/performanceShare";
+import { userFacingErrorMessage } from "@/src/utils/errors";
 
 const WHATSAPP_GREEN = "#25D366";
 
@@ -62,6 +64,7 @@ export default function StudentDetailsScreen() {
       starts_at: string;
       group_name: string;
       status: string;
+      homework_done: number;
     }[]
   >([]);
   const [payments, setPayments] = useState<
@@ -73,6 +76,7 @@ export default function StudentDetailsScreen() {
       round_number: number | null;
     }[]
   >([]);
+  const [enrolledGroupId, setEnrolledGroupId] = useState<number | undefined>();
 
   useEffect(() => {
     navigation.setOptions({
@@ -87,6 +91,7 @@ export default function StudentDetailsScreen() {
       setStudent(s);
       const en = await getActiveEnrollment(studentId);
       setGroupName(en?.group_name ?? "—");
+      setEnrolledGroupId(en?.group_id);
       setFeeLabel(
         en?.custom_monthly_fee != null
           ? String(en.custom_monthly_fee)
@@ -140,11 +145,46 @@ export default function StudentDetailsScreen() {
     );
   }
 
-  const phone = student.guardian_phone?.trim() || null;
+  const guardianPhone = student.guardian_phone?.trim() || null;
+  const studentPhone = student.student_phone?.trim() || null;
+  const hasAnyPhone = Boolean(guardianPhone || studentPhone);
+  const rtl = appIsRtl();
+
+  async function onShareMonthly() {
+    try {
+      const result = await shareMonthlyPerformanceWhatsApp(
+        student!,
+        enrolledGroupId
+      );
+      if (!result.ok) {
+        await dialog.alert({
+          title: t("error"),
+          message:
+            result.reason === "no_data"
+              ? t("shareNoMonthlyData")
+              : t("shareNoPhone"),
+        });
+        return;
+      }
+      dialog.toast(t("success"), "success");
+    } catch (e) {
+      await dialog.alert({
+        title: t("error"),
+        message: userFacingErrorMessage(e),
+      });
+    }
+  }
 
   return (
     <ScreenWithFixedActions
       actions={[
+        {
+          key: "share-month",
+          icon: "whatsapp",
+          label: t("shareMonthly"),
+          tone: "accent",
+          onPress: () => void onShareMonthly(),
+        },
         {
           key: "edit",
           icon: "pencil",
@@ -161,38 +201,73 @@ export default function StudentDetailsScreen() {
         },
       ]}
       floating={
-        phone ? (
+        hasAnyPhone ? (
           <View
             pointerEvents="box-none"
             style={[
               styles.fabColumn,
+              rtl ? styles.fabStartRtl : styles.fabStartLtr,
               { bottom: Math.max(insets.bottom, spacing.md) + spacing.sm },
             ]}
           >
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t("callGuardian")}
-              onPress={() => void Linking.openURL(telUrl(phone))}
-              style={({ pressed }) => [
-                styles.fab,
-                styles.fabCall,
-                pressed && { opacity: 0.85 },
-              ]}
-            >
-              <FontAwesome name="phone" size={20} color="#fff" />
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t("whatsappGuardian")}
-              onPress={() => void Linking.openURL(whatsappUrl(phone))}
-              style={({ pressed }) => [
-                styles.fab,
-                styles.fabWhatsApp,
-                pressed && { opacity: 0.85 },
-              ]}
-            >
-              <FontAwesome name="whatsapp" size={22} color="#fff" />
-            </Pressable>
+            {studentPhone ? (
+              <>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t("callStudent")}
+                  onPress={() => void Linking.openURL(telUrl(studentPhone))}
+                  style={({ pressed }) => [
+                    styles.fab,
+                    styles.fabCall,
+                    pressed && { opacity: 0.85 },
+                  ]}
+                >
+                  <FontAwesome name="phone" size={20} color="#fff" />
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t("whatsappStudent")}
+                  onPress={() => void Linking.openURL(whatsappUrl(studentPhone))}
+                  style={({ pressed }) => [
+                    styles.fab,
+                    styles.fabWhatsApp,
+                    pressed && { opacity: 0.85 },
+                  ]}
+                >
+                  <FontAwesome name="whatsapp" size={22} color="#fff" />
+                </Pressable>
+              </>
+            ) : null}
+            {guardianPhone ? (
+              <>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t("callGuardian")}
+                  onPress={() => void Linking.openURL(telUrl(guardianPhone))}
+                  style={({ pressed }) => [
+                    styles.fab,
+                    styles.fabGuardianCall,
+                    pressed && { opacity: 0.85 },
+                  ]}
+                >
+                  <FontAwesome name="phone" size={20} color="#fff" />
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t("whatsappGuardian")}
+                  onPress={() =>
+                    void Linking.openURL(whatsappUrl(guardianPhone))
+                  }
+                  style={({ pressed }) => [
+                    styles.fab,
+                    styles.fabWhatsApp,
+                    pressed && { opacity: 0.85 },
+                  ]}
+                >
+                  <FontAwesome name="whatsapp" size={22} color="#fff" />
+                </Pressable>
+              </>
+            ) : null}
           </View>
         ) : null
       }
@@ -202,7 +277,7 @@ export default function StudentDetailsScreen() {
         contentContainerStyle={{
           paddingHorizontal: spacing.lg,
           paddingTop: spacing.md,
-          paddingBottom: phone ? 120 : 40,
+          paddingBottom: hasAnyPhone ? 160 : 40,
         }}
       >
         <Card>
@@ -212,9 +287,14 @@ export default function StudentDetailsScreen() {
           <Text style={styles.line}>
             {t("defaultFee")}: {feeLabel}
           </Text>
-          {phone ? (
+          {studentPhone ? (
             <Text style={styles.line}>
-              {t("guardianPhone")}: {phone}
+              {t("studentPhone")}: {studentPhone}
+            </Text>
+          ) : null}
+          {guardianPhone ? (
+            <Text style={styles.line}>
+              {t("guardianPhone")}: {guardianPhone}
             </Text>
           ) : null}
           <Text style={styles.line}>
@@ -240,6 +320,13 @@ export default function StudentDetailsScreen() {
                   icon: "info-circle",
                   label: t("filterByStatus"),
                   value: attendanceStatusLabel(a.status),
+                },
+                {
+                  icon: "book",
+                  label: t("homework"),
+                  value: a.homework_done
+                    ? t("homeworkDone")
+                    : t("homeworkNotDone"),
                 },
               ]}
             />
@@ -301,9 +388,14 @@ export default function StudentDetailsScreen() {
 const styles = StyleSheet.create({
   fabColumn: {
     position: "absolute",
-    left: spacing.lg,
     gap: 12,
     zIndex: 5,
+  },
+  fabStartLtr: {
+    left: spacing.lg,
+  },
+  fabStartRtl: {
+    right: spacing.lg,
   },
   fab: {
     width: 52,
@@ -319,6 +411,9 @@ const styles = StyleSheet.create({
   },
   fabCall: {
     backgroundColor: colors.primary,
+  },
+  fabGuardianCall: {
+    backgroundColor: colors.accent,
   },
   fabWhatsApp: {
     backgroundColor: WHATSAPP_GREEN,

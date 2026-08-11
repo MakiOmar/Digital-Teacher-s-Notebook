@@ -674,6 +674,7 @@ export async function getStudent(id: number): Promise<Student | null> {
 
 export async function createStudent(input: {
   name: string;
+  student_phone?: string | null;
   guardian_phone?: string | null;
   notes?: string | null;
   status?: string;
@@ -683,10 +684,11 @@ export async function createStudent(input: {
 }): Promise<number> {
   return withTransaction(async (db) => {
     const r = await db.runAsync(
-      `INSERT INTO students (name, guardian_phone, notes, status)
-       VALUES (?, ?, ?, ?)`,
+      `INSERT INTO students (name, student_phone, guardian_phone, notes, status)
+       VALUES (?, ?, ?, ?, ?)`,
       [
         input.name,
+        input.student_phone ?? null,
         input.guardian_phone ?? null,
         input.notes ?? null,
         input.status ?? "active",
@@ -716,6 +718,7 @@ export async function updateStudent(
   id: number,
   input: {
     name: string;
+    student_phone?: string | null;
     guardian_phone?: string | null;
     notes?: string | null;
     status: string;
@@ -725,9 +728,10 @@ export async function updateStudent(
 ): Promise<void> {
   await withTransaction(async (db) => {
     await db.runAsync(
-      `UPDATE students SET name = ?, guardian_phone = ?, notes = ?, status = ? WHERE id = ?`,
+      `UPDATE students SET name = ?, student_phone = ?, guardian_phone = ?, notes = ?, status = ? WHERE id = ?`,
       [
         input.name,
+        input.student_phone ?? null,
         input.guardian_phone ?? null,
         input.notes ?? null,
         input.status,
@@ -918,11 +922,13 @@ export async function listStudentAttendanceHistory(
     starts_at: string;
     group_name: string;
     status: string;
+    homework_done: number;
   }[]
 > {
   const db = await getDb();
   return db.getAllAsync(
-    `SELECT a.session_id, gs.starts_at, g.name as group_name, a.status
+    `SELECT a.session_id, gs.starts_at, g.name as group_name, a.status,
+            COALESCE(a.homework_done, 0) as homework_done
      FROM attendances a
      JOIN group_sessions gs ON gs.id = a.session_id
      JOIN groups g ON g.id = gs.group_id
@@ -1382,20 +1388,51 @@ export async function upsertAttendance(input: {
   student_id: number;
   status: AttendanceStatus;
   notes?: string | null;
+  homework_done?: boolean;
 }): Promise<void> {
   const db = await getDb();
+  const homework =
+    input.homework_done == null ? null : input.homework_done ? 1 : 0;
   await db.runAsync(
-    `INSERT INTO attendances (session_id, student_id, status, notes)
-     VALUES (?, ?, ?, ?)
+    `INSERT INTO attendances (session_id, student_id, status, notes, homework_done)
+     VALUES (?, ?, ?, ?, COALESCE(?, 0))
      ON CONFLICT(session_id, student_id) DO UPDATE SET
        status = excluded.status,
-       notes = excluded.notes`,
+       notes = COALESCE(excluded.notes, attendances.notes),
+       homework_done = COALESCE(?, attendances.homework_done)`,
     [
       input.session_id,
       input.student_id,
       input.status,
       input.notes ?? null,
+      homework,
+      homework,
     ]
+  );
+  const session = await db.getFirstAsync<{ group_id: number }>(
+    "SELECT group_id FROM group_sessions WHERE id = ?",
+    [input.session_id]
+  );
+  if (session) {
+    const { onAttendanceChanged } = await import("../services/rounds");
+    await onAttendanceChanged(input.student_id, session.group_id);
+  }
+}
+
+/** Set or clear homework for one student in a session (keeps attendance status). */
+export async function upsertHomeworkDone(input: {
+  session_id: number;
+  student_id: number;
+  homework_done: boolean;
+}): Promise<void> {
+  const db = await getDb();
+  const done = input.homework_done ? 1 : 0;
+  await db.runAsync(
+    `INSERT INTO attendances (session_id, student_id, status, notes, homework_done)
+     VALUES (?, ?, 'present', NULL, ?)
+     ON CONFLICT(session_id, student_id) DO UPDATE SET
+       homework_done = excluded.homework_done`,
+    [input.session_id, input.student_id, done]
   );
   const session = await db.getFirstAsync<{ group_id: number }>(
     "SELECT group_id FROM group_sessions WHERE id = ?",
@@ -1421,11 +1458,40 @@ export async function upsertAttendanceBatch(
   await withTransaction(async (db) => {
     for (const studentId of studentIds) {
       await db.runAsync(
-        `INSERT INTO attendances (session_id, student_id, status, notes)
-         VALUES (?, ?, ?, NULL)
+        `INSERT INTO attendances (session_id, student_id, status, notes, homework_done)
+         VALUES (?, ?, ?, NULL, 0)
          ON CONFLICT(session_id, student_id) DO UPDATE SET
            status = excluded.status`,
         [sessionId, studentId, status]
+      );
+    }
+  });
+  if (session) {
+    const { onAttendanceChangedBatch } = await import("../services/rounds");
+    await onAttendanceChangedBatch(studentIds, session.group_id);
+  }
+}
+
+/** Bulk set homework done/not for every listed student in a session. */
+export async function upsertHomeworkBatch(
+  sessionId: number,
+  studentIds: number[],
+  homeworkDone: boolean
+): Promise<void> {
+  if (!studentIds.length) return;
+  const done = homeworkDone ? 1 : 0;
+  const session = await (await getDb()).getFirstAsync<{ group_id: number }>(
+    "SELECT group_id FROM group_sessions WHERE id = ?",
+    [sessionId]
+  );
+  await withTransaction(async (db) => {
+    for (const studentId of studentIds) {
+      await db.runAsync(
+        `INSERT INTO attendances (session_id, student_id, status, notes, homework_done)
+         VALUES (?, ?, 'present', NULL, ?)
+         ON CONFLICT(session_id, student_id) DO UPDATE SET
+           homework_done = excluded.homework_done`,
+        [sessionId, studentId, done]
       );
     }
   });

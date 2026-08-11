@@ -16,6 +16,7 @@ export async function getStudentDuesForMonth(
   const rows = await db.getAllAsync<{
     student_id: number;
     student_name: string;
+    student_phone: string | null;
     guardian_phone: string | null;
     group_id: number;
     group_name: string;
@@ -26,6 +27,7 @@ export async function getStudentDuesForMonth(
     `SELECT
        s.id as student_id,
        s.name as student_name,
+       s.student_phone,
        s.guardian_phone,
        g.id as group_id,
        g.name as group_name,
@@ -54,6 +56,7 @@ export async function getStudentDuesForMonth(
     return {
       student_id: r.student_id,
       student_name: r.student_name,
+      student_phone: r.student_phone,
       guardian_phone: r.guardian_phone,
       group_id: r.group_id,
       group_name: r.group_name,

@@ -27,6 +27,8 @@ import {
   listAttendanceForSession,
   upsertAttendance,
   upsertAttendanceBatch,
+  upsertHomeworkDone,
+  upsertHomeworkBatch,
   updateSessionStatus,
   updateSessionNotes,
   setSessionStarStudent,
@@ -37,6 +39,7 @@ import {
   restoreGroupSession,
   sessionDateAndTime,
 } from "@/src/services/sessions";
+import { shareLessonPerformanceWhatsApp } from "@/src/services/performanceShare";
 import type {
   AttendanceStatus,
   GroupSession,
@@ -63,6 +66,8 @@ const STATUSES: { key: AttendanceStatus; label: string }[] = [
   },
 ];
 
+type SessionTab = "attendance" | "homework";
+
 export default function AttendanceScreen() {
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
   const id = Number(sessionId);
@@ -74,6 +79,8 @@ export default function AttendanceScreen() {
   const [groupName, setGroupName] = useState("");
   const [students, setStudents] = useState<Student[]>([]);
   const [map, setMap] = useState<Record<number, AttendanceStatus>>({});
+  const [homeworkMap, setHomeworkMap] = useState<Record<number, boolean>>({});
+  const [tab, setTab] = useState<SessionTab>("attendance");
   const [starId, setStarId] = useState<number | null>(null);
   const [notes, setNotes] = useState("");
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
@@ -101,8 +108,13 @@ export default function AttendanceScreen() {
       setStudents(list);
       const att = await listAttendanceForSession(id);
       const next: Record<number, AttendanceStatus> = {};
-      for (const a of att) next[a.student_id] = a.status;
+      const hw: Record<number, boolean> = {};
+      for (const a of att) {
+        next[a.student_id] = a.status;
+        hw[a.student_id] = Boolean(a.homework_done);
+      }
       setMap(next);
+      setHomeworkMap(hw);
     } finally {
       setLoading(false);
     }
@@ -157,6 +169,66 @@ export default function AttendanceScreen() {
     [bump, id, map, students]
   );
 
+  const setHomework = useCallback(
+    async (studentId: number, done: boolean) => {
+      setHomeworkMap((prev) => ({ ...prev, [studentId]: done }));
+      await upsertHomeworkDone({
+        session_id: id,
+        student_id: studentId,
+        homework_done: done,
+      });
+      bump();
+    },
+    [bump, id]
+  );
+
+  const setAllHomework = useCallback(
+    async (done: boolean) => {
+      const next: Record<number, boolean> = { ...homeworkMap };
+      for (const student of students) next[student.id] = done;
+      setHomeworkMap(next);
+      await upsertHomeworkBatch(
+        id,
+        students.map((s) => s.id),
+        done
+      );
+      bump();
+    },
+    [bump, homeworkMap, id, students]
+  );
+
+  const shareLessonForStudent = useCallback(
+    async (student: Student) => {
+      if (!session) return;
+      try {
+        const result = await shareLessonPerformanceWhatsApp({
+          student,
+          groupName,
+          startsAt: session.starts_at,
+          attendance: map[student.id] ?? null,
+          homeworkDone:
+            homeworkMap[student.id] == null ? null : homeworkMap[student.id],
+          isStar: starId === student.id,
+          sessionNotes: notes,
+        });
+        if (!result.ok) {
+          await dialog.alert({
+            title: t("error"),
+            message: t("shareNoPhone"),
+          });
+          return;
+        }
+        dialog.toast(t("success"), "success");
+      } catch (e) {
+        await dialog.alert({
+          title: t("error"),
+          message: userFacingErrorMessage(e),
+        });
+      }
+    },
+    [dialog, groupName, homeworkMap, map, notes, session, starId]
+  );
+
   const pickStar = useCallback(
     async (studentId: number | null) => {
       setStarId(studentId);
@@ -204,6 +276,27 @@ export default function AttendanceScreen() {
       if (ok) await setAllStatus("absent_unexcused");
     })();
   }, [dialog, setAllStatus]);
+
+  const onMarkAllHomeworkDone = useCallback(() => {
+    void (async () => {
+      const ok = await dialog.confirm({
+        title: t("markAllHomeworkDone"),
+        message: t("markAllHomeworkDoneConfirm"),
+      });
+      if (ok) await setAllHomework(true);
+    })();
+  }, [dialog, setAllHomework]);
+
+  const onMarkAllHomeworkNotDone = useCallback(() => {
+    void (async () => {
+      const ok = await dialog.confirm({
+        title: t("markAllHomeworkNotDone"),
+        message: t("markAllHomeworkNotDoneConfirm"),
+        danger: true,
+      });
+      if (ok) await setAllHomework(false);
+    })();
+  }, [dialog, setAllHomework]);
 
   const onCompleteSession = useCallback(() => {
     void (async () => {
@@ -328,20 +421,41 @@ export default function AttendanceScreen() {
       ];
     }
 
+    const bulkActions: IconAction[] =
+      tab === "homework"
+        ? [
+            {
+              key: "hw-done",
+              icon: "check",
+              label: t("actionHomeworkDone"),
+              tone: "accent",
+              onPress: onMarkAllHomeworkDone,
+            },
+            {
+              key: "hw-not",
+              icon: "times",
+              label: t("actionHomeworkNotDone"),
+              onPress: onMarkAllHomeworkNotDone,
+            },
+          ]
+        : [
+            {
+              key: "present",
+              icon: "check",
+              label: t("actionPresent"),
+              tone: "accent",
+              onPress: onMarkAllPresent,
+            },
+            {
+              key: "absent",
+              icon: "times",
+              label: t("actionAbsent"),
+              onPress: onMarkAllAbsent,
+            },
+          ];
+
     return [
-      {
-        key: "present",
-        icon: "check",
-        label: t("actionPresent"),
-        tone: "accent",
-        onPress: onMarkAllPresent,
-      },
-      {
-        key: "absent",
-        icon: "times",
-        label: t("actionAbsent"),
-        onPress: onMarkAllAbsent,
-      },
+      ...bulkActions,
       completed
         ? {
             key: "reopen",
@@ -381,15 +495,19 @@ export default function AttendanceScreen() {
     onCancelSession,
     onCompleteSession,
     onMarkAllAbsent,
+    onMarkAllHomeworkDone,
+    onMarkAllHomeworkNotDone,
     onMarkAllPresent,
     onReopenSession,
     onRestoreSession,
     openReschedule,
+    tab,
   ]);
 
   const renderItem = useCallback<ListRenderItem<Student>>(
     ({ item }) => {
       const current = map[item.id];
+      const hwDone = homeworkMap[item.id] === true;
       const isStar = starId === item.id;
       return (
         <View
@@ -398,41 +516,98 @@ export default function AttendanceScreen() {
             isStar && { borderColor: colors.star, borderWidth: 2 },
           ]}
         >
-          <Text style={styles.name}>
-            {isStar ? "★ " : ""}
-            {item.name}
-          </Text>
-          {/* Per-student attendance: حاضر / غياب بعذر / غياب بدون عذر */}
-          <View style={styles.row}>
-            {STATUSES.map((status) => {
-              const selected = current === status.key;
-              return (
-                <Pressable
-                  key={status.key}
-                  onPress={() => void setStatus(item.id, status.key)}
-                  disabled={cancelled}
-                  style={[
-                    styles.chip,
-                    selected && styles.chipOn,
-                    cancelled && { opacity: 0.5 },
-                  ]}
-                >
-                  <Text
+          <View style={[styles.nameRow, rtlRow()]}>
+            <Text style={styles.name}>
+              {isStar ? "★ " : ""}
+              {item.name}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t("shareLesson")}
+              hitSlop={8}
+              onPress={() => void shareLessonForStudent(item)}
+              style={styles.shareBtn}
+            >
+              <Text style={styles.shareBtnText}>WhatsApp</Text>
+            </Pressable>
+          </View>
+
+          {tab === "attendance" ? (
+            <View style={styles.row}>
+              {STATUSES.map((status) => {
+                const selected = current === status.key;
+                return (
+                  <Pressable
+                    key={status.key}
+                    onPress={() => void setStatus(item.id, status.key)}
+                    disabled={cancelled}
                     style={[
-                      styles.chipText,
-                      selected && styles.chipTextOn,
+                      styles.chip,
+                      selected && styles.chipOn,
+                      cancelled && { opacity: 0.5 },
                     ]}
                   >
-                    {status.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+                    <Text
+                      style={[
+                        styles.chipText,
+                        selected && styles.chipTextOn,
+                      ]}
+                    >
+                      {status.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : (
+            <View style={styles.row}>
+              {(
+                [
+                  { done: true, label: t("homeworkDone") },
+                  { done: false, label: t("homeworkNotDone") },
+                ] as const
+              ).map((opt) => {
+                const selected = homeworkMap[item.id] === opt.done;
+                return (
+                  <Pressable
+                    key={String(opt.done)}
+                    onPress={() => void setHomework(item.id, opt.done)}
+                    disabled={cancelled}
+                    style={[
+                      styles.chip,
+                      selected && styles.chipOn,
+                      cancelled && { opacity: 0.5 },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.chipText,
+                        selected && styles.chipTextOn,
+                      ]}
+                    >
+                      {opt.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
+          {tab === "attendance" && hwDone ? (
+            <Text style={styles.homeworkHint}>✓ {t("homeworkDone")}</Text>
+          ) : null}
         </View>
       );
     },
-    [cancelled, map, setStatus, starId]
+    [
+      cancelled,
+      homeworkMap,
+      map,
+      setHomework,
+      setStatus,
+      shareLessonForStudent,
+      starId,
+      tab,
+    ]
   );
 
   const listHeader = useMemo(() => {
@@ -488,8 +663,33 @@ export default function AttendanceScreen() {
           ]}
         />
 
+        {/* Attendance / Homework tabs — each has its own bulk actions in the bar. */}
+        <View style={[styles.tabs, rtlRow()]}>
+          {(
+            [
+              { id: "attendance" as const, label: t("tabAttendance") },
+              { id: "homework" as const, label: t("tabHomework") },
+            ] as const
+          ).map((item) => {
+            const on = tab === item.id;
+            return (
+              <Pressable
+                key={item.id}
+                onPress={() => setTab(item.id)}
+                style={[styles.tabChip, on && styles.tabChipOn]}
+              >
+                <Text style={[styles.tabChipText, on && styles.tabChipTextOn]}>
+                  {item.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
         {/* Comment: section label so the per-student list is obvious below. */}
-        <Text style={styles.studentsHeading}>{t("markAttendance")}</Text>
+        <Text style={styles.studentsHeading}>
+          {tab === "homework" ? t("homework") : t("markAttendance")}
+        </Text>
         {cancelled ? <Muted>{t("sessionCancelled")}</Muted> : null}
       </View>
     );
@@ -504,6 +704,7 @@ export default function AttendanceScreen() {
     dialog,
     bump,
     cancelled,
+    tab,
   ]);
 
   if (loading || !session) {
@@ -629,12 +830,61 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.border,
   },
+  nameRow: {
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    marginBottom: 8,
+  },
   name: {
     ...rtlText,
-    width: "100%",
+    flex: 1,
+    minWidth: 0,
     fontWeight: "700",
-    marginBottom: 8,
     color: colors.text,
+  },
+  shareBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radii.sm,
+    backgroundColor: "#25D366",
+  },
+  shareBtnText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 11,
+  },
+  homeworkHint: {
+    ...rtlText,
+    marginTop: 6,
+    fontSize: 12,
+    color: colors.success,
+    fontWeight: "600",
+  },
+  tabs: {
+    gap: 8,
+    marginTop: spacing.sm,
+  },
+  tabChip: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 10,
+    borderRadius: radii.md,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  tabChipOn: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  tabChipText: {
+    ...rtlText,
+    fontWeight: "700",
+    color: colors.text,
+  },
+  tabChipTextOn: {
+    color: "#fff",
   },
   row: { ...rtlChipRow(), gap: 6 },
   chip: {

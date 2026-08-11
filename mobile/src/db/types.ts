@@ -67,6 +67,7 @@ export interface SchedulePattern {
 export interface Student {
   id: number;
   name: string;
+  student_phone: string | null;
   guardian_phone: string | null;
   notes: string | null;
   status: string;
@@ -102,6 +103,8 @@ export interface Attendance {
   student_id: number;
   status: AttendanceStatus;
   notes: string | null;
+  /** 1 = homework completed for this lesson, 0 = not. */
+  homework_done: number;
 }
 
 export interface BillingRound {
@@ -138,6 +141,7 @@ export interface Payment {
 export interface StudentDueRow {
   student_id: number;
   student_name: string;
+  student_phone: string | null;
   guardian_phone: string | null;
   group_id: number;
   group_name: string;

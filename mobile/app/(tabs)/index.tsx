@@ -20,13 +20,8 @@ import { LanguageSwitcher } from "@/src/components/LanguageSwitcher";
 import { useAppData } from "@/src/contexts/AppDataContext";
 import { t } from "@/src/i18n/ar";
 import { useLanguage } from "@/src/i18n/LanguageContext";
-import { getOpenRoundsPaymentSummary } from "@/src/services/rounds";
-import {
-  listGroups,
-  listTodaysSessions,
-  listUpcomingSessions,
-} from "@/src/repositories";
-import { formatDateTimeAr, formatMoney, formatInteger } from "@/src/utils/date";
+import { listGroups, listUpcomingSessions } from "@/src/repositories";
+import { formatDateTimeAr } from "@/src/utils/date";
 import type { GroupSession } from "@/src/db/types";
 import { colors, groupAccentColor, radii, spacing } from "@/src/theme/colors";
 import { fonts } from "@/src/theme/typography";
@@ -37,19 +32,6 @@ import { TourAnchor } from "@/src/tour/TourAnchor";
 
 /** Soft cap so the home header stays compact next to the language switcher. */
 const HOME_NAME_MAX = 18;
-
-function SnapshotChip({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.snapChip}>
-      <Text style={styles.snapValue} numberOfLines={1}>
-        {value}
-      </Text>
-      <Text style={styles.snapLabel} numberOfLines={1}>
-        {label}
-      </Text>
-    </View>
-  );
-}
 
 function displayHomeName(raw: string): string {
   const name = raw.trim();
@@ -197,30 +179,17 @@ export default function HomeScreen() {
   const [nextSession, setNextSession] = useState<
     (GroupSession & { group_name: string; accent_color?: string | null }) | null
   >(null);
-  const [unpaidCount, setUnpaidCount] = useState(0);
-  const [todayCount, setTodayCount] = useState(0);
   const [groupCount, setGroupCount] = useState(0);
-  const [totalRemaining, setTotalRemaining] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [upcoming, today, groups] = await Promise.all([
+      const [upcoming, groups] = await Promise.all([
         listUpcomingSessions(1),
-        listTodaysSessions(),
         listGroups(),
       ]);
       setNextSession(upcoming[0] ?? null);
-      setTodayCount(today.length);
       setGroupCount(groups.length);
-      try {
-        const summary = await getOpenRoundsPaymentSummary();
-        setUnpaidCount(summary.unpaidCount + summary.partialCount);
-        setTotalRemaining(summary.totalRemaining);
-      } catch {
-        setUnpaidCount(0);
-        setTotalRemaining(0);
-      }
     } finally {
       setLoading(false);
     }
@@ -286,21 +255,6 @@ export default function HomeScreen() {
           />
         ) : (
           <>
-            <View style={styles.snapRow}>
-              <SnapshotChip
-                label={t("snapshotUnpaid")}
-                value={formatInteger(unpaidCount)}
-              />
-              <SnapshotChip
-                label={t("snapshotToday")}
-                value={formatInteger(todayCount)}
-              />
-              <SnapshotChip
-                label={t("remaining")}
-                value={formatMoney(totalRemaining)}
-              />
-            </View>
-
             <Text style={styles.section}>{t("nextSession")}</Text>
             {!nextSession ? (
               <Muted>{t("noSessions")}</Muted>
@@ -345,9 +299,6 @@ export default function HomeScreen() {
                     title: t("qaUnpaid"),
                     icon: ICONS.payments,
                     border: colors.danger,
-                    subtitle: unpaidCount
-                      ? `${formatInteger(unpaidCount)} · ${formatMoney(totalRemaining)}`
-                      : undefined,
                     onPress: () => router.push("/payments" as never),
                   },
                   {
@@ -372,16 +323,6 @@ export default function HomeScreen() {
                   <Text style={styles.qaLabel} numberOfLines={2}>
                     {a.title}
                   </Text>
-                  {"subtitle" in a && a.subtitle ? (
-                    <Text
-                      style={styles.qaSub}
-                      numberOfLines={1}
-                      adjustsFontSizeToFit={false}
-                      allowFontScaling={false}
-                    >
-                      {a.subtitle}
-                    </Text>
-                  ) : null}
                 </Pressable>
               ))}
             </View>
@@ -470,36 +411,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#FFFFFF",
   },
-  snapRow: {
-    ...rtlRow(),
-    flexWrap: "wrap",
-    gap: 8,
-    marginBottom: spacing.md,
-  },
-  snapChip: {
-    flexGrow: 1,
-    minWidth: "30%",
-    backgroundColor: colors.surface,
-    borderRadius: radii.md,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-  },
-  snapValue: {
-    ...rtlText,
-    fontFamily: fonts.extraBold,
-    fontWeight: "800",
-    fontSize: 22,
-    lineHeight: 28,
-    color: colors.text,
-  },
-  snapLabel: {
-    ...rtlText,
-    fontSize: 11,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
   section: {
     ...rtlText,
     width: "100%",
@@ -550,17 +461,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.text,
     lineHeight: 18,
-  },
-  qaSub: {
-    ...rtlText,
-    textAlign: "center",
-    fontFamily: fonts.extraBold,
-    fontWeight: "800",
-    // Keep well above qaLabel (12) — was ~10 and illegible on the dues tile.
-    fontSize: 20,
-    lineHeight: 26,
-    color: colors.text,
-    marginTop: 6,
-    width: "100%",
   },
 });

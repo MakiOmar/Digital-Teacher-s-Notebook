@@ -528,7 +528,7 @@ export default function AttendanceScreen() {
               onPress={() => void shareLessonForStudent(item)}
               style={styles.shareBtn}
             >
-              <Text style={styles.shareBtnText}>WhatsApp</Text>
+              <Text style={styles.shareBtnText}>{t("shareLesson")}</Text>
             </Pressable>
           </View>
 

@@ -94,28 +94,20 @@ function Bootstrap({
     };
   }, []);
 
-  const [minSplashDone, setMinSplashDone] = useState(false);
-
-  useEffect(() => {
-    // Hold long enough to see the sliding bar under the wordmark.
-    const id = setTimeout(() => setMinSplashDone(true), 2200);
-    return () => clearTimeout(id);
-  }, []);
-
   const bootReady = ready && rtlReady && licenseReady && profileReady && appLockReady;
 
+  // Parent RootLayout owns the branded splash hold; just signal when boot is ready.
   useEffect(() => {
-    if (bootReady && minSplashDone) {
+    if (bootReady) {
       onAppReady();
     }
-  }, [bootReady, minSplashDone, onAppReady]);
+  }, [bootReady, onAppReady]);
 
   // Fail-safe: never stay on splash if init hangs (license/db/rtl).
   useEffect(() => {
     const id = setTimeout(() => {
       setRtlReady(true);
       setForceShow(true);
-      setMinSplashDone(true);
       onAppReady();
     }, 10_000);
     return () => clearTimeout(id);
@@ -155,8 +147,9 @@ function Bootstrap({
     };
   }, [licenseStatus, setupComplete]);
 
-  // Show splash until boot + minimum branding time, unless fail-safe fired.
-  if ((!bootReady || !minSplashDone) && !forceShow) {
+  // Show splash until boot is ready, unless fail-safe fired.
+  // (Minimum brand hold is enforced by RootLayout overlay.)
+  if (!bootReady && !forceShow) {
     return (
       <View style={styles.bootPlaceholder}>
         <SplashBackground />
@@ -216,13 +209,21 @@ export default function RootLayout() {
     Cairo_700Bold,
   });
   const [fontsTimedOut, setFontsTimedOut] = useState(false);
+  /** Guaranteed brand+loader hold from first JS paint (covers fast boot / license gate). */
+  const [brandHoldDone, setBrandHoldDone] = useState(false);
 
   useEffect(() => {
     const id = setTimeout(() => setFontsTimedOut(true), 5000);
     return () => clearTimeout(id);
   }, []);
 
+  useEffect(() => {
+    const id = setTimeout(() => setBrandHoldDone(true), 2800);
+    return () => clearTimeout(id);
+  }, []);
+
   const fontsOk = fontsLoaded || fontsTimedOut;
+  const showBrandSplash = !fontsOk || !brandHoldDone || !appReady;
 
   // Unblock Android OnPreDraw immediately — do not wait for DB/license/fonts.
   // JS SplashBackground covers boot until Bootstrap sets appReady.
@@ -233,9 +234,9 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    if (!appReady || !fontsOk) return;
+    if (!appReady || !fontsOk || !brandHoldDone) return;
     hideNativeSplashSoon();
-  }, [appReady, fontsOk]);
+  }, [appReady, fontsOk, brandHoldDone]);
 
   if (!fontsOk) {
     return (
@@ -246,87 +247,108 @@ export default function RootLayout() {
   }
 
   return (
-    <SafeAreaProvider style={styles.root}>
-      <StatusBar style="dark" />
-      <LanguageProvider>
-        <AppDataProvider>
-          <LicenseProvider>
-            <TutorProfileProvider>
-              <AppLockProvider>
-                <GeneralSettingsProvider>
-                  <CurrencyProvider>
-                  <TourProvider>
-                    <DialogProvider>
-                      <Bootstrap onAppReady={onAppReady}>
-                        <AppShell>
-                          <Stack
-                            screenOptions={{
-                              // No page titles — back button only on stack screens
-                              headerShown: true,
-                              headerTitle: "",
-                              headerTitleStyle: { fontFamily: fonts.bold },
-                              headerShadowVisible: false,
-                              // Opaque scenes — transparent content lets both pages'
-                              // text paint during the slide, which looks like overlap.
-                              headerStyle: { backgroundColor: colors.background },
-                              headerTintColor: colors.text,
-                              contentStyle: {
-                                flex: 1,
-                                backgroundColor: colors.background,
-                              },
-                              animation: "slide_from_right",
-                            }}
-                          >
-                            <Stack.Screen
-                              name="(tabs)"
-                              options={{
-                                headerShown: false,
+    <View style={styles.root}>
+      <SafeAreaProvider style={styles.root}>
+        <StatusBar style="dark" />
+        <LanguageProvider>
+          <AppDataProvider>
+            <LicenseProvider>
+              <TutorProfileProvider>
+                <AppLockProvider>
+                  <GeneralSettingsProvider>
+                    <CurrencyProvider>
+                    <TourProvider>
+                      <DialogProvider>
+                        <Bootstrap onAppReady={onAppReady}>
+                          <AppShell>
+                            <Stack
+                              screenOptions={{
+                                // No page titles — back button only on stack screens
+                                headerShown: true,
+                                headerTitle: "",
+                                headerTitleStyle: { fontFamily: fonts.bold },
+                                headerShadowVisible: false,
+                                // Opaque scenes — transparent content lets both pages'
+                                // text paint during the slide, which looks like overlap.
+                                headerStyle: { backgroundColor: colors.background },
+                                headerTintColor: colors.text,
                                 contentStyle: {
                                   flex: 1,
                                   backgroundColor: colors.background,
                                 },
-                                animation: "fade",
+                                animation: "slide_from_right",
                               }}
-                            />
-                            <Stack.Screen name="groups/form" />
-                            <Stack.Screen name="groups/[id]" />
-                            <Stack.Screen name="groups/add-students" />
-                            <Stack.Screen name="groups/round-payments" />
-                            <Stack.Screen name="groups/sessions" />
-                            <Stack.Screen name="attendance/[sessionId]" />
-                            <Stack.Screen name="students/form" />
-                            <Stack.Screen name="students/[id]" />
-                            <Stack.Screen name="payments/form" />
-                            <Stack.Screen name="years/index" />
-                            <Stack.Screen name="years/form" />
-                            <Stack.Screen name="backup" />
-                            <Stack.Screen name="about" />
-                            <Stack.Screen name="license-manage" />
-                            <Stack.Screen name="profile-edit" />
-                            <Stack.Screen name="app-lock" />
-                            <Stack.Screen name="reminders" />
-                            <Stack.Screen name="general-settings" />
-                            <Stack.Screen name="reports" />
-                          </Stack>
-                          <TourSpotlight />
-                        </AppShell>
-                      </Bootstrap>
-                    </DialogProvider>
-                  </TourProvider>
-                  </CurrencyProvider>
-                </GeneralSettingsProvider>
-              </AppLockProvider>
-            </TutorProfileProvider>
-          </LicenseProvider>
-        </AppDataProvider>
-      </LanguageProvider>
-    </SafeAreaProvider>
+                            >
+                              <Stack.Screen
+                                name="(tabs)"
+                                options={{
+                                  headerShown: false,
+                                  contentStyle: {
+                                    flex: 1,
+                                    backgroundColor: colors.background,
+                                  },
+                                  animation: "fade",
+                                }}
+                              />
+                              <Stack.Screen name="groups/form" />
+                              <Stack.Screen name="groups/[id]" />
+                              <Stack.Screen name="groups/add-students" />
+                              <Stack.Screen name="groups/round-payments" />
+                              <Stack.Screen name="groups/sessions" />
+                              <Stack.Screen name="attendance/[sessionId]" />
+                              <Stack.Screen name="students/form" />
+                              <Stack.Screen name="students/[id]" />
+                              <Stack.Screen name="payments/form" />
+                              <Stack.Screen name="years/index" />
+                              <Stack.Screen name="years/form" />
+                              <Stack.Screen name="backup" />
+                              <Stack.Screen name="about" />
+                              <Stack.Screen name="license-manage" />
+                              <Stack.Screen name="profile-edit" />
+                              <Stack.Screen name="app-lock" />
+                              <Stack.Screen name="reminders" />
+                              <Stack.Screen name="general-settings" />
+                              <Stack.Screen name="reports" />
+                            </Stack>
+                            <TourSpotlight />
+                          </AppShell>
+                        </Bootstrap>
+                      </DialogProvider>
+                    </TourProvider>
+                    </CurrencyProvider>
+                  </GeneralSettingsProvider>
+                </AppLockProvider>
+              </TutorProfileProvider>
+            </LicenseProvider>
+          </AppDataProvider>
+        </LanguageProvider>
+      </SafeAreaProvider>
+      {/* Full-screen brand+loader until hold + boot finish (visible over license/home). */}
+      {showBrandSplash ? (
+        <View
+          style={styles.splashOverlay}
+          pointerEvents="auto"
+          collapsable={false}
+        >
+          <SplashBackground />
+        </View>
+      ) : null}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#DCEEF7" },
   bootPlaceholder: { flex: 1 },
+  splashOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1000,
+    elevation: 1000,
+  },
   errorWrap: {
     flex: 1,
     alignItems: "center",

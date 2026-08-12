@@ -190,7 +190,7 @@ export const ar = {
   markAllHomeworkNotDoneConfirm: "تسجيل عدم إنجاز الواجب لكل الطلاب؟",
   actionHomeworkDone: "أنجز",
   actionHomeworkNotDone: "لم ينجز",
-  shareLesson: "مشاركة الحصة",
+  shareLesson: "إرسال التقرير",
   shareMonthly: "مشاركة الأداء الشهري",
   shareLessonTitle: "📘 تقرير الحصة",
   shareMonthlyTitle: "📊 التقرير الشهري",
@@ -316,6 +316,14 @@ export const ar = {
   reminderUnpaidChannel: "تذكيرات المستحقات",
   reminderUnpaidChannelSilent: "تذكيرات المستحقات (بدون صوت)",
   reminderSoundEnable: "تشغيل صوت التذكير",
+  reminderSoundRepeat: "تكرار الصوت حتى الإزالة",
+  reminderSoundRepeatHint:
+    "عند التفعيل، يُعاد تشغيل صوت التذكير حتى تضغط على الإشعار أو تزيله.",
+  reminderSoundRepeatHintDynamic:
+    "يُعاد تشغيل صوت التذكير كل {interval} {unit} حتى تضغط على الإشعار أو تزيله.",
+  reminderSoundRepeatInterval: "التكرار كل",
+  reminderUnitMinutes: "دقائق",
+  reminderUnitSeconds: "ثوانٍ",
   reminderSoundPicker: "اختيار صوت التذكير",
   reminderSoundPickerHint:
     "يفتح إعدادات نظام أندرويد لقناة التذكير لاختيار أي نغمة.",

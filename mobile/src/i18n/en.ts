@@ -172,7 +172,7 @@ export const en = {
   markAllHomeworkNotDoneConfirm: "Mark homework not done for every student?",
   actionHomeworkDone: "Done",
   actionHomeworkNotDone: "Not done",
-  shareLesson: "Share lesson",
+  shareLesson: "Send report",
   shareMonthly: "Share monthly performance",
   shareLessonTitle: "📘 Lesson report",
   shareMonthlyTitle: "📊 Monthly report",
@@ -285,6 +285,14 @@ export const en = {
   reminderUnpaidChannel: "Unpaid dues reminders",
   reminderUnpaidChannelSilent: "Unpaid dues reminders (silent)",
   reminderSoundEnable: "Play reminder sound",
+  reminderSoundRepeat: "Repeat sound until dismissed",
+  reminderSoundRepeatHint:
+    "When enabled, the reminder sound plays again until you tap or remove the notification.",
+  reminderSoundRepeatHintDynamic:
+    "The reminder sound plays again every {interval} {unit} until you tap or remove the notification.",
+  reminderSoundRepeatInterval: "Repeat every",
+  reminderUnitMinutes: "minutes",
+  reminderUnitSeconds: "seconds",
   reminderSoundPicker: "Choose reminder sound",
   reminderSoundPickerHint:
     "Opens Android’s notification channel settings so you can pick any ringtone.",

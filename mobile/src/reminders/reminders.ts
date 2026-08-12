@@ -24,6 +24,17 @@ const UNPAID_CHANNEL_SILENT = "unpaid-reminders-v3-silent";
 const LOOKAHEAD_LIMIT = 60;
 /** Default lead time before each class. */
 export const DEFAULT_CLASS_LEAD_MINUTES = 30;
+/** Default re-alert interval when sound repeat is on. */
+export const DEFAULT_SOUND_REPEAT_INTERVAL = 3;
+export const DEFAULT_SOUND_REPEAT_UNIT: SoundRepeatUnit = "minutes";
+/** Cap scheduled follow-ups (device alarm budget). */
+const MAX_REPEAT_ALERTS = 40;
+const REPEAT_SUFFIX = "-r";
+/** iOS category so swipe-dismiss cancels pending repeats. */
+const REMINDER_CATEGORY_ID = "tutor-reminder-v1";
+
+export type SoundRepeatMode = "once" | "repeat";
+export type SoundRepeatUnit = "seconds" | "minutes";
 
 export type ReminderSettings = {
   /** Alert before each upcoming class (default on). */
@@ -31,6 +42,12 @@ export type ReminderSettings = {
   unpaidEnabled: boolean;
   /** Play notification sound (default on). */
   soundEnabled: boolean;
+  /** Once per alert, or re-alert until tapped / removed (default once). */
+  soundRepeatMode: SoundRepeatMode;
+  /** How often to re-alert in repeat mode (default 3). */
+  soundRepeatInterval: number;
+  /** Interval unit: seconds or minutes (default minutes). */
+  soundRepeatUnit: SoundRepeatUnit;
   /** Minutes before `starts_at` (fixed at 30 for now). */
   classLeadMinutes: number;
 };
@@ -39,6 +56,9 @@ const DEFAULTS: ReminderSettings = {
   classEnabled: true,
   unpaidEnabled: false,
   soundEnabled: true,
+  soundRepeatMode: "once",
+  soundRepeatInterval: DEFAULT_SOUND_REPEAT_INTERVAL,
+  soundRepeatUnit: DEFAULT_SOUND_REPEAT_UNIT,
   classLeadMinutes: DEFAULT_CLASS_LEAD_MINUTES,
 };
 
@@ -85,7 +105,32 @@ function initHandler(): void {
   });
 }
 
+function initInteractionHandlers(): void {
+  const Notifications = getNotifications();
+  if (!Notifications) return;
+
+  void Notifications.setNotificationCategoryAsync(REMINDER_CATEGORY_ID, [], {
+    customDismissAction: true,
+  }).catch(() => undefined);
+
+  Notifications.addNotificationResponseReceivedListener((response) => {
+    const id = response.notification.request.identifier;
+    if (!isManagedReminderIdentifier(id)) return;
+    void stopReminderSeries(Notifications, id).catch(() => undefined);
+  });
+
+  const last = Notifications.getLastNotificationResponse();
+  if (last && isManagedReminderIdentifier(last.notification.request.identifier)) {
+    void stopReminderSeries(
+      Notifications,
+      last.notification.request.identifier
+    ).catch(() => undefined);
+    Notifications.clearLastNotificationResponse();
+  }
+}
+
 initHandler();
+initInteractionHandlers();
 
 export function remindersAvailableInThisRuntime(): boolean {
   return !notificationsBlocked;
@@ -120,6 +165,112 @@ function classNotificationId(sessionId: number): string {
   return `${CLASS_ID_PREFIX}${sessionId}`;
 }
 
+function classRepeatNotificationId(
+  sessionId: number,
+  repeatIndex: number
+): string {
+  if (repeatIndex <= 0) return classNotificationId(sessionId);
+  return `${CLASS_ID_PREFIX}${sessionId}${REPEAT_SUFFIX}${repeatIndex}`;
+}
+
+function unpaidRepeatNotificationId(repeatIndex: number): string {
+  if (repeatIndex <= 0) return UNPAID_ID;
+  return `${UNPAID_ID}${REPEAT_SUFFIX}${repeatIndex}`;
+}
+
+function repeatAlertCount(
+  mode: SoundRepeatMode,
+  intervalMs: number,
+  windowMs: number
+): number {
+  if (mode !== "repeat") return 1;
+  if (intervalMs <= 0) return 1;
+  const byWindow = Math.floor(windowMs / intervalMs) + 1;
+  return Math.max(2, Math.min(MAX_REPEAT_ALERTS, byWindow));
+}
+
+/** Clamp interval to a sane range for the chosen unit. */
+export function normalizeSoundRepeatInterval(
+  value: unknown,
+  unit: SoundRepeatUnit
+): number {
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n) || n < 1) return DEFAULT_SOUND_REPEAT_INTERVAL;
+  const max = unit === "seconds" ? 3600 : 120;
+  return Math.min(max, Math.floor(n));
+}
+
+export function normalizeSoundRepeatUnit(value: unknown): SoundRepeatUnit {
+  return value === "seconds" ? "seconds" : "minutes";
+}
+
+function soundRepeatIntervalMs(prefs: ReminderSettings): number {
+  const interval = normalizeSoundRepeatInterval(
+    prefs.soundRepeatInterval,
+    prefs.soundRepeatUnit
+  );
+  return prefs.soundRepeatUnit === "seconds"
+    ? interval * 1000
+    : interval * 60 * 1000;
+}
+
+function parseClassSessionId(identifier: string): number | null {
+  const m = identifier.match(/^class-(\d+)(?:-r\d+)?$/);
+  return m ? Number(m[1]) : null;
+}
+
+function isManagedReminderIdentifier(identifier: string): boolean {
+  return (
+    identifier === TODAY_ID ||
+    identifier === UNPAID_ID ||
+    identifier.startsWith(CLASS_ID_PREFIX) ||
+    identifier.startsWith(`${UNPAID_ID}${REPEAT_SUFFIX}`)
+  );
+}
+
+/** Stop further repeats after the user taps or dismisses an alert. */
+async function stopReminderSeries(
+  Notifications: NotificationsModule,
+  identifier: string
+): Promise<void> {
+  const sessionId = parseClassSessionId(identifier);
+  if (sessionId != null) {
+    await cancelClassReminderGroup(Notifications, sessionId);
+    return;
+  }
+  if (
+    identifier === UNPAID_ID ||
+    identifier.startsWith(`${UNPAID_ID}${REPEAT_SUFFIX}`)
+  ) {
+    await cancelUnpaidReminderGroup(Notifications);
+  }
+}
+
+async function cancelClassReminderGroup(
+  Notifications: NotificationsModule,
+  sessionId: number
+): Promise<void> {
+  for (let i = 0; i < MAX_REPEAT_ALERTS; i++) {
+    const id = classRepeatNotificationId(sessionId, i);
+    await Notifications.cancelScheduledNotificationAsync(id).catch(
+      () => undefined
+    );
+    await Notifications.dismissNotificationAsync(id).catch(() => undefined);
+  }
+}
+
+async function cancelUnpaidReminderGroup(
+  Notifications: NotificationsModule
+): Promise<void> {
+  for (let i = 0; i < MAX_REPEAT_ALERTS; i++) {
+    const id = unpaidRepeatNotificationId(i);
+    await Notifications.cancelScheduledNotificationAsync(id).catch(
+      () => undefined
+    );
+    await Notifications.dismissNotificationAsync(id).catch(() => undefined);
+  }
+}
+
 export async function loadReminderSettings(): Promise<ReminderSettings> {
   try {
     const raw = await AsyncStorage.getItem(SETTINGS_KEY);
@@ -136,6 +287,13 @@ export async function loadReminderSettings(): Promise<ReminderSettings> {
       soundEnabled: Boolean(
         parsed.soundEnabled ?? DEFAULTS.soundEnabled
       ),
+      soundRepeatMode:
+        parsed.soundRepeatMode === "repeat" ? "repeat" : "once",
+      soundRepeatUnit: normalizeSoundRepeatUnit(parsed.soundRepeatUnit),
+      soundRepeatInterval: normalizeSoundRepeatInterval(
+        parsed.soundRepeatInterval,
+        normalizeSoundRepeatUnit(parsed.soundRepeatUnit)
+      ),
       classLeadMinutes:
         typeof parsed.classLeadMinutes === "number" &&
         parsed.classLeadMinutes > 0
@@ -151,7 +309,16 @@ export async function saveReminderSettings(
   input: Partial<ReminderSettings>
 ): Promise<ReminderSettings> {
   const current = await loadReminderSettings();
-  const next = { ...current, ...input };
+  const merged = { ...current, ...input };
+  const soundRepeatUnit = normalizeSoundRepeatUnit(merged.soundRepeatUnit);
+  const next: ReminderSettings = {
+    ...merged,
+    soundRepeatUnit,
+    soundRepeatInterval: normalizeSoundRepeatInterval(
+      merged.soundRepeatInterval,
+      soundRepeatUnit
+    ),
+  };
   await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
   await rescheduleReminders(next);
   return next;
@@ -255,12 +422,7 @@ async function cancelManagedNotifications(
   );
   await Promise.all(
     pending
-      .filter(
-        (n) =>
-          n.identifier === TODAY_ID ||
-          n.identifier === UNPAID_ID ||
-          n.identifier.startsWith(CLASS_ID_PREFIX)
-      )
+      .filter((n) => isManagedReminderIdentifier(n.identifier))
       .map((n) =>
         Notifications.cancelScheduledNotificationAsync(n.identifier).catch(
           () => undefined
@@ -292,6 +454,14 @@ export async function rescheduleReminders(
   const classCh = classChannelId(prefs.soundEnabled);
   const unpaidCh = unpaidChannelId(prefs.soundEnabled);
   const notifSound = prefs.soundEnabled ? "default" : false;
+  const repeatMs = soundRepeatIntervalMs(prefs);
+  const repeatWindowMs =
+    Math.max(1, prefs.classLeadMinutes) * 60 * 1000;
+  const alertCount = repeatAlertCount(
+    prefs.soundRepeatMode,
+    repeatMs,
+    repeatWindowMs
+  );
 
   if (prefs.classEnabled) {
     const leadMs = Math.max(1, prefs.classLeadMinutes) * 60 * 1000;
@@ -304,29 +474,37 @@ export async function rescheduleReminders(
       const when = new Date(starts.getTime() - leadMs);
       if (when.getTime() <= now) continue;
 
-      await Notifications.scheduleNotificationAsync({
-        identifier: classNotificationId(session.id),
-        content: {
-          title: t("reminderClassTitle"),
-          body: t("reminderClassBody", {
-            group: session.group_name,
-            time: formatHm(starts),
-            minutes: prefs.classLeadMinutes,
-          }),
-          sound: notifSound,
-          ...(Platform.OS === "android"
-            ? {
-                channelId: classCh,
-                priority: Notifications.AndroidNotificationPriority.HIGH,
-              }
-            : null),
-        },
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.DATE,
-          date: when,
-          channelId: classCh,
-        },
-      });
+      const content = {
+        title: t("reminderClassTitle"),
+        body: t("reminderClassBody", {
+          group: session.group_name,
+          time: formatHm(starts),
+          minutes: prefs.classLeadMinutes,
+        }),
+        sound: notifSound,
+        categoryIdentifier: REMINDER_CATEGORY_ID,
+        ...(Platform.OS === "android"
+          ? {
+              channelId: classCh,
+              priority: Notifications.AndroidNotificationPriority.HIGH,
+            }
+          : null),
+      };
+
+      for (let repeatIndex = 0; repeatIndex < alertCount; repeatIndex++) {
+        const fireAt = new Date(when.getTime() + repeatIndex * repeatMs);
+        if (fireAt.getTime() <= now) continue;
+
+        await Notifications.scheduleNotificationAsync({
+          identifier: classRepeatNotificationId(session.id, repeatIndex),
+          content,
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+            date: fireAt,
+            channelId: classCh,
+          },
+        });
+      }
     }
   }
 
@@ -339,22 +517,30 @@ export async function rescheduleReminders(
       const when = new Date();
       when.setDate(when.getDate() + 7);
       when.setHours(10, 0, 0, 0);
-      await Notifications.scheduleNotificationAsync({
-        identifier: UNPAID_ID,
-        content: {
-          title: t("reminderUnpaidTitle"),
-          body: t("reminderUnpaidBodyCount", { count: unpaid }),
-          sound: notifSound,
-          ...(Platform.OS === "android"
-            ? { channelId: unpaidCh }
-            : null),
-        },
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.DATE,
-          date: when,
-          channelId: unpaidCh,
-        },
-      });
+      const content = {
+        title: t("reminderUnpaidTitle"),
+        body: t("reminderUnpaidBodyCount", { count: unpaid }),
+        sound: notifSound,
+        categoryIdentifier: REMINDER_CATEGORY_ID,
+        ...(Platform.OS === "android"
+          ? { channelId: unpaidCh }
+          : null),
+      };
+
+      for (let repeatIndex = 0; repeatIndex < alertCount; repeatIndex++) {
+        const fireAt = new Date(when.getTime() + repeatIndex * repeatMs);
+        if (fireAt.getTime() <= Date.now()) continue;
+
+        await Notifications.scheduleNotificationAsync({
+          identifier: unpaidRepeatNotificationId(repeatIndex),
+          content,
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+            date: fireAt,
+            channelId: unpaidCh,
+          },
+        });
+      }
     }
   }
 }

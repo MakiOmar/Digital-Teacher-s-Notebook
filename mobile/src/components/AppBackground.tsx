@@ -22,34 +22,33 @@ export const SPLASH_LETTERBOX = "#BFE4F0";
 const SPLASH_GRADIENT = ["#DFF7F2", "#B5E2F0", "#7ECAE6"] as const;
 
 const BAR_WIDTH = 180;
-const THUMB_WIDTH = 64;
-const BAR_HEIGHT = 14;
+const THUMB_WIDTH = 58;
+const BAR_HEIGHT = 12;
 const MAX_TRAVEL = BAR_WIDTH - THUMB_WIDTH;
 
 /**
- * Indeterminate sliding thumb under the splash logo.
- * Absolute `left` inside an LTR track — avoids RTL flex flipping that hid the thumb.
+ * Indeterminate sliding fill inside the solid track parent.
  */
 function SplashProgressBar() {
-  const [offset, setOffset] = useState(0);
+  const [offset, setOffset] = useState(THUMB_WIDTH);
   const dirRef = useRef(1);
-  const posRef = useRef(0);
+  const posRef = useRef(THUMB_WIDTH);
 
   useEffect(() => {
     let raf = 0;
     let last = Date.now();
-    const speed = MAX_TRAVEL / 1050;
+    const speed = (BAR_WIDTH - THUMB_WIDTH) / 900;
 
     const tick = () => {
       const now = Date.now();
       const dt = Math.min(32, now - last);
       last = now;
       let next = posRef.current + dirRef.current * speed * dt;
-      if (next >= MAX_TRAVEL) {
-        next = MAX_TRAVEL;
+      if (next >= BAR_WIDTH) {
+        next = BAR_WIDTH;
         dirRef.current = -1;
-      } else if (next <= 0) {
-        next = 0;
+      } else if (next <= THUMB_WIDTH) {
+        next = THUMB_WIDTH;
         dirRef.current = 1;
       }
       posRef.current = next;
@@ -63,16 +62,13 @@ function SplashProgressBar() {
   return (
     <View
       collapsable={false}
-      style={styles.progressTrack}
-      accessibilityRole="progressbar"
-      accessibilityLabel="Loading"
-    >
-      {/* Sliding thumb — pinned with left inside direction:ltr track */}
-      <View
-        collapsable={false}
-        style={[styles.progressThumb, { left: offset }]}
-      />
-    </View>
+      style={{
+        width: offset,
+        height: 14,
+        backgroundColor: "#0F766E",
+        borderRadius: 999,
+      }}
+    />
   );
 }
 
@@ -103,8 +99,19 @@ export function SplashBackground({
           resizeMode="contain"
           onLoadEnd={onLoadEnd}
         />
-        {/* Below the full image only — never overlap Arabic/English */}
-        {showLoader ? <SplashProgressBar /> : null}
+        {/* Sliding progress bar under wordmark */}
+        {showLoader ? (
+          <View
+            collapsable={false}
+            style={styles.progressOuter}
+            accessibilityRole="progressbar"
+            accessibilityLabel="Loading"
+          >
+            <View collapsable={false} style={styles.progressTrack}>
+              <SplashProgressBar />
+            </View>
+          </View>
+        ) : null}
       </View>
     </View>
   );
@@ -139,30 +146,29 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   splashImage: {
-    width: "70%",
-    maxWidth: 260,
+    width: "68%",
+    maxWidth: 240,
     aspectRatio: 1,
   },
+  progressOuter: {
+    marginTop: 18,
+    width: BAR_WIDTH,
+    alignSelf: "center",
+  },
+  progressFill: {
+    height: BAR_HEIGHT,
+    borderRadius: 999,
+    // Hardcoded — avoid theme StyleSheet edge cases on cold boot.
+    backgroundColor: "#115E59",
+  },
   progressTrack: {
-    direction: "ltr",
-    marginTop: 22,
     width: BAR_WIDTH,
     height: BAR_HEIGHT,
     borderRadius: 999,
-    backgroundColor: "rgba(15, 118, 110, 0.45)",
-    borderWidth: 1,
-    borderColor: colors.primaryDark,
+    backgroundColor: "rgba(15, 118, 110, 0.28)",
+    borderWidth: 1.5,
+    borderColor: "#115E59",
     overflow: "hidden",
-    alignSelf: "center",
-    position: "relative",
-  },
-  progressThumb: {
-    position: "absolute",
-    top: 0,
-    width: THUMB_WIDTH,
-    height: BAR_HEIGHT,
-    borderRadius: 999,
-    backgroundColor: colors.primaryDark,
   },
   shell: {
     flex: 1,

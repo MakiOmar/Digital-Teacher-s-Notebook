@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
-  I18nManager,
   Image,
   ImageBackground,
   StyleSheet,
@@ -28,9 +27,8 @@ const BAR_HEIGHT = 14;
 const MAX_TRAVEL = BAR_WIDTH - THUMB_WIDTH;
 
 /**
- * Indeterminate sliding thumb under the splash logo (original look).
- * Spacer row with RTL flex compensation — Yoga flips `row` under forceRTL,
- * so we use row-reverse when isRTL so [spacer][thumb] still runs left→right.
+ * Indeterminate sliding thumb under the splash logo.
+ * Absolute `left` inside an LTR track — avoids RTL flex flipping that hid the thumb.
  */
 function SplashProgressBar() {
   const [offset, setOffset] = useState(0);
@@ -65,21 +63,15 @@ function SplashProgressBar() {
   return (
     <View
       collapsable={false}
-      style={[
-        styles.progressTrack,
-        // Undo Yoga's RTL flex flip so the thumb slides left→right physically.
-        { flexDirection: I18nManager.isRTL ? "row-reverse" : "row" },
-      ]}
+      style={styles.progressTrack}
       accessibilityRole="progressbar"
       accessibilityLabel="Loading"
     >
-      {/* Leading spacer drives the thumb across the track */}
+      {/* Sliding thumb — pinned with left inside direction:ltr track */}
       <View
         collapsable={false}
-        style={{ width: offset, height: BAR_HEIGHT, flexShrink: 0 }}
+        style={[styles.progressThumb, { left: offset }]}
       />
-      {/* Sliding thumb — original indeterminate bar (not a spinner). */}
-      <View collapsable={false} style={styles.progressThumb} />
     </View>
   );
 }
@@ -88,7 +80,6 @@ function SplashProgressBar() {
 export function SplashBackground({
   onLoadEnd,
   style,
-  /** When false, brand only (matches native windowBackground — no second flash). */
   showLoader = true,
 }: {
   onLoadEnd?: () => void;
@@ -96,8 +87,6 @@ export function SplashBackground({
   showLoader?: boolean;
 }) {
   return (
-    // Outer View owns layout — LinearGradient is background-only so loaders
-    // are not clipped by the native gradient surface under RTL/Fabric.
     <View style={[styles.splashRoot, style]}>
       <LinearGradient
         colors={[...SPLASH_GRADIENT]}
@@ -107,14 +96,14 @@ export function SplashBackground({
         style={StyleSheet.absoluteFill}
       />
       <View style={styles.brandBlock}>
-        {/* Brand mark + bilingual title (asset is square 1024²) */}
+        {/* Brand mark + bilingual title (square 1024² asset) */}
         <Image
           source={SPLASH_BRAND}
           style={styles.splashImage}
           resizeMode="contain"
           onLoadEnd={onLoadEnd}
         />
-        {/* Always below the full image — never overlap Arabic/English text */}
+        {/* Below the full image only — never overlap Arabic/English */}
         {showLoader ? <SplashProgressBar /> : null}
       </View>
     </View>
@@ -150,26 +139,30 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   splashImage: {
-    width: "72%",
-    maxWidth: 280,
+    width: "70%",
+    maxWidth: 260,
     aspectRatio: 1,
   },
   progressTrack: {
-    // Clear gap under the square wordmark (no negative margin — that covered Arabic).
-    marginTop: 20,
+    direction: "ltr",
+    marginTop: 22,
     width: BAR_WIDTH,
     height: BAR_HEIGHT,
     borderRadius: 999,
-    backgroundColor: "rgba(15, 118, 110, 0.4)",
+    backgroundColor: "rgba(15, 118, 110, 0.45)",
+    borderWidth: 1,
+    borderColor: colors.primaryDark,
     overflow: "hidden",
     alignSelf: "center",
+    position: "relative",
   },
   progressThumb: {
+    position: "absolute",
+    top: 0,
     width: THUMB_WIDTH,
     height: BAR_HEIGHT,
     borderRadius: 999,
     backgroundColor: colors.primaryDark,
-    flexShrink: 0,
   },
   shell: {
     flex: 1,

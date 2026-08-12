@@ -97,8 +97,8 @@ function Bootstrap({
   const [minSplashDone, setMinSplashDone] = useState(false);
 
   useEffect(() => {
-    // Short brand hold — long enough to see the sliding bar, not a triple flash.
-    const id = setTimeout(() => setMinSplashDone(true), 1400);
+    // Hold long enough to see the sliding bar under the wordmark.
+    const id = setTimeout(() => setMinSplashDone(true), 2200);
     return () => clearTimeout(id);
   }, []);
 

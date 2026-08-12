@@ -24,9 +24,8 @@ import { t } from "@/src/i18n/ar";
 import { colors, spacing } from "@/src/theme/colors";
 import { rtlText } from "@/src/theme/rtl";
 import { whatsappUrl } from "@/src/utils/phone";
+import { APP_LOGO_MARK } from "@/src/components/AppBackground";
 import { userFacingErrorMessage } from "@/src/utils/errors";
-
-const BRAND_LOGO = require("../../assets/images/logo-full.webp");
 
 type TrialOffer = {
   /** undefined = still loading / unknown; false = disabled by API */
@@ -146,8 +145,9 @@ export function LicenseActivateScreen() {
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
         >
+          {/* Compact mark only — full wordmark splash already played at boot */}
           <Image
-            source={BRAND_LOGO}
+            source={APP_LOGO_MARK}
             style={styles.brandLogo}
             resizeMode="contain"
           />
@@ -205,8 +205,8 @@ const styles = StyleSheet.create({
     paddingBottom: 48,
   },
   brandLogo: {
-    width: "100%",
-    height: 168,
+    width: 88,
+    height: 88,
     alignSelf: "center",
     marginBottom: spacing.md,
     backgroundColor: "transparent",

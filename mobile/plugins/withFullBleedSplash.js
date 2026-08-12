@@ -22,17 +22,13 @@ const SPLASH_GRADIENT_XML = `<?xml version="1.0" encoding="utf-8"?>
 
 /**
  * Full wordmark centered on brand gradient — not the circular Android 12+ splash icon.
- *
- * Logo must stay square: a 320×200 box lets Android scale the square PNG by width
- * (→ ~320×320), so a progress bar at top≈118dp cuts through the English title.
- * Bar sits just under the English line (~84% of logo height → ~+84dp from center
- * for a 260dp logo) with a small gap.
+ * Logo only (no static progress bar). JS SplashBackground owns the animated loader
+ * so cold-start never flashes: native bar → JS bar → brand without bar.
  */
 const SPLASH_FULL_XML = `<?xml version="1.0" encoding="utf-8"?>
 <!--
   Full-bleed splash wordmark (no circular Android 12 icon mask).
-  Square logo bounds match the asset so the loader never overlays English text.
-  Static progress track under the wordmark until JS SplashBackground mounts.
+  Logo only — animated loader is drawn by JS SplashBackground.
 -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
   <item android:drawable="@drawable/splashscreen_gradient" />
@@ -43,32 +39,6 @@ const SPLASH_FULL_XML = `<?xml version="1.0" encoding="utf-8"?>
     <bitmap
       android:gravity="fill"
       android:src="@drawable/splashscreen_logo" />
-  </item>
-  <!-- Track just under English wordmark (content ends ~84% → +88dp from center) -->
-  <item
-    android:width="180dp"
-    android:height="14dp"
-    android:gravity="center"
-    android:top="96dp">
-    <shape android:shape="rectangle">
-      <solid android:color="#590F766E" />
-      <corners android:radius="999dp" />
-      <stroke
-        android:width="2dp"
-        android:color="#DE115E59" />
-    </shape>
-  </item>
-  <!-- Thumb (left-biased static stand-in until JS sliding bar mounts) -->
-  <item
-    android:width="64dp"
-    android:height="14dp"
-    android:gravity="center"
-    android:top="96dp"
-    android:left="-52dp">
-    <shape android:shape="rectangle">
-      <solid android:color="#115E59" />
-      <corners android:radius="999dp" />
-    </shape>
   </item>
 </layer-list>
 `;

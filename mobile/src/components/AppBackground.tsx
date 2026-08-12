@@ -88,9 +88,12 @@ function SplashProgressBar() {
 export function SplashBackground({
   onLoadEnd,
   style,
+  /** When false, brand only (matches native windowBackground — no second flash). */
+  showLoader = true,
 }: {
   onLoadEnd?: () => void;
   style?: StyleProp<ViewStyle>;
+  showLoader?: boolean;
 }) {
   return (
     // Outer View owns layout — LinearGradient is background-only so loaders
@@ -104,15 +107,15 @@ export function SplashBackground({
         style={StyleSheet.absoluteFill}
       />
       <View style={styles.brandBlock}>
-        {/* Brand mark + bilingual title */}
+        {/* Brand mark + bilingual title (asset is square 1024²) */}
         <Image
           source={SPLASH_BRAND}
           style={styles.splashImage}
           resizeMode="contain"
           onLoadEnd={onLoadEnd}
         />
-        {/* Indeterminate sliding boot progress under the logo */}
-        <SplashProgressBar />
+        {/* Always below the full image — never overlap Arabic/English text */}
+        {showLoader ? <SplashProgressBar /> : null}
       </View>
     </View>
   );
@@ -149,14 +152,11 @@ const styles = StyleSheet.create({
   splashImage: {
     width: "72%",
     maxWidth: 280,
-    // Square asset (logo + titles); keep aspect so English line isn’t clipped.
     aspectRatio: 1,
-    // Pull the progress bar up into the image’s transparent bottom pad (~16%).
-    marginBottom: -36,
   },
   progressTrack: {
-    // Small visual gap under the English wordmark after the negative margin.
-    marginTop: 8,
+    // Clear gap under the square wordmark (no negative margin — that covered Arabic).
+    marginTop: 20,
     width: BAR_WIDTH,
     height: BAR_HEIGHT,
     borderRadius: 999,

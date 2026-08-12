@@ -97,8 +97,8 @@ function Bootstrap({
   const [minSplashDone, setMinSplashDone] = useState(false);
 
   useEffect(() => {
-    // Keep branded splash visible briefly so gradient + progress are readable.
-    const id = setTimeout(() => setMinSplashDone(true), 3200);
+    // Short brand hold — long enough to see the sliding bar, not a triple flash.
+    const id = setTimeout(() => setMinSplashDone(true), 1400);
     return () => clearTimeout(id);
   }, []);
 

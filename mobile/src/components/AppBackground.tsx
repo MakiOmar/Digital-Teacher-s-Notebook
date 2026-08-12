@@ -101,7 +101,7 @@ export function SplashBackground({
         locations={[0, 0.5, 1]}
         start={{ x: 0.2, y: 0 }}
         end={{ x: 0.8, y: 1 }}
-        style={StyleSheet.absoluteFillObject}
+        style={StyleSheet.absoluteFill}
       />
       <View style={styles.brandBlock}>
         {/* Brand mark + bilingual title */}
@@ -149,11 +149,14 @@ const styles = StyleSheet.create({
   splashImage: {
     width: "72%",
     maxWidth: 280,
-    // Slightly shorter so the sliding bar sits tightly under the wordmark.
-    height: 200,
+    // Square asset (logo + titles); keep aspect so English line isn’t clipped.
+    aspectRatio: 1,
+    // Pull the progress bar up into the image’s transparent bottom pad (~16%).
+    marginBottom: -36,
   },
   progressTrack: {
-    marginTop: 18,
+    // Small visual gap under the English wordmark after the negative margin.
+    marginTop: 8,
     width: BAR_WIDTH,
     height: BAR_HEIGHT,
     borderRadius: 999,

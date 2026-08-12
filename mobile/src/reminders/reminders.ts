@@ -10,9 +10,15 @@ const SETTINGS_KEY = "tutor.reminders.v1";
 const TODAY_ID = "reminder-today-sessions";
 const UNPAID_ID = "reminder-weekly-unpaid";
 const CLASS_ID_PREFIX = "class-";
-/** Android channel id — new id so sound/HIGH apply (channels are immutable once created). */
-const CLASS_CHANNEL_ID = "class-reminders-v2";
-const UNPAID_CHANNEL_ID = "unpaid-reminders-v2";
+/**
+ * Android channel ids — bump version when sound/importance must change
+ * (channels are immutable once created). Separate silent channels so users
+ * can mute without losing a custom ringtone on the sounding channel.
+ */
+const CLASS_CHANNEL_SOUND = "class-reminders-v3";
+const CLASS_CHANNEL_SILENT = "class-reminders-v3-silent";
+const UNPAID_CHANNEL_SOUND = "unpaid-reminders-v3";
+const UNPAID_CHANNEL_SILENT = "unpaid-reminders-v3-silent";
 
 /** How far ahead to schedule class alarms (device alarm budget). */
 const LOOKAHEAD_LIMIT = 60;
@@ -23,6 +29,8 @@ export type ReminderSettings = {
   /** Alert before each upcoming class (default on). */
   classEnabled: boolean;
   unpaidEnabled: boolean;
+  /** Play notification sound (default on). */
+  soundEnabled: boolean;
   /** Minutes before `starts_at` (fixed at 30 for now). */
   classLeadMinutes: number;
 };
@@ -30,8 +38,22 @@ export type ReminderSettings = {
 const DEFAULTS: ReminderSettings = {
   classEnabled: true,
   unpaidEnabled: false,
+  soundEnabled: true,
   classLeadMinutes: DEFAULT_CLASS_LEAD_MINUTES,
 };
+
+function classChannelId(soundEnabled: boolean): string {
+  return soundEnabled ? CLASS_CHANNEL_SOUND : CLASS_CHANNEL_SILENT;
+}
+
+function unpaidChannelId(soundEnabled: boolean): string {
+  return soundEnabled ? UNPAID_CHANNEL_SOUND : UNPAID_CHANNEL_SILENT;
+}
+
+/** Channel opened in system settings so the user can pick a ringtone. */
+export function reminderSoundSettingsChannelId(): string {
+  return CLASS_CHANNEL_SOUND;
+}
 
 /**
  * Android Expo Go throws on any `expo-notifications` import (push token
@@ -111,6 +133,9 @@ export async function loadReminderSettings(): Promise<ReminderSettings> {
         parsed.classEnabled ?? parsed.todayEnabled ?? DEFAULTS.classEnabled
       ),
       unpaidEnabled: Boolean(parsed.unpaidEnabled ?? DEFAULTS.unpaidEnabled),
+      soundEnabled: Boolean(
+        parsed.soundEnabled ?? DEFAULTS.soundEnabled
+      ),
       classLeadMinutes:
         typeof parsed.classLeadMinutes === "number" &&
         parsed.classLeadMinutes > 0
@@ -141,9 +166,12 @@ async function ensurePermission(
   return req.granted;
 }
 
-async function ensureChannels(Notifications: NotificationsModule): Promise<void> {
+async function ensureChannels(
+  Notifications: NotificationsModule
+): Promise<void> {
   if (Platform.OS !== "android") return;
-  await Notifications.setNotificationChannelAsync(CLASS_CHANNEL_ID, {
+  // Always register both sound + silent so toggling never leaves a stale channel.
+  await Notifications.setNotificationChannelAsync(CLASS_CHANNEL_SOUND, {
     name: t("reminderClassChannel"),
     importance: Notifications.AndroidImportance.HIGH,
     sound: "default",
@@ -152,12 +180,64 @@ async function ensureChannels(Notifications: NotificationsModule): Promise<void>
     lockscreenVisibility:
       Notifications.AndroidNotificationVisibility.PUBLIC,
   });
-  await Notifications.setNotificationChannelAsync(UNPAID_CHANNEL_ID, {
+  await Notifications.setNotificationChannelAsync(CLASS_CHANNEL_SILENT, {
+    name: t("reminderClassChannelSilent"),
+    importance: Notifications.AndroidImportance.HIGH,
+    sound: undefined,
+    enableVibrate: true,
+    vibrationPattern: [0, 250, 180, 250],
+    lockscreenVisibility:
+      Notifications.AndroidNotificationVisibility.PUBLIC,
+  });
+  await Notifications.setNotificationChannelAsync(UNPAID_CHANNEL_SOUND, {
     name: t("reminderUnpaidChannel"),
     importance: Notifications.AndroidImportance.DEFAULT,
     sound: "default",
     enableVibrate: true,
   });
+  await Notifications.setNotificationChannelAsync(UNPAID_CHANNEL_SILENT, {
+    name: t("reminderUnpaidChannelSilent"),
+    importance: Notifications.AndroidImportance.DEFAULT,
+    sound: undefined,
+    enableVibrate: true,
+  });
+}
+
+/**
+ * Open Android channel settings so the user can pick a reminder ringtone.
+ * iOS falls back to the app’s system settings page.
+ */
+export async function openReminderSoundPicker(): Promise<void> {
+  const { Linking } = await import("react-native");
+  if (Platform.OS === "android") {
+    const Notifications = getNotifications();
+    if (Notifications) {
+      await ensureChannels(Notifications);
+    }
+    try {
+      const Application = await import("expo-application");
+      const pkg =
+        Application.applicationId ??
+        "com.itqandev.digitalteachernotebook";
+      await Linking.sendIntent(
+        "android.settings.CHANNEL_NOTIFICATION_SETTINGS",
+        [
+          {
+            key: "android.provider.extra.APP_PACKAGE",
+            value: pkg,
+          },
+          {
+            key: "android.provider.extra.CHANNEL_ID",
+            value: CLASS_CHANNEL_SOUND,
+          },
+        ]
+      );
+      return;
+    } catch {
+      // Fall through to app settings if the channel intent isn’t available.
+    }
+  }
+  await Linking.openSettings();
 }
 
 /** Drop all app-owned scheduled locals before recreating. */
@@ -209,6 +289,9 @@ export async function rescheduleReminders(
   if (!ok) return;
 
   await ensureChannels(Notifications);
+  const classCh = classChannelId(prefs.soundEnabled);
+  const unpaidCh = unpaidChannelId(prefs.soundEnabled);
+  const notifSound = prefs.soundEnabled ? "default" : false;
 
   if (prefs.classEnabled) {
     const leadMs = Math.max(1, prefs.classLeadMinutes) * 60 * 1000;
@@ -230,10 +313,10 @@ export async function rescheduleReminders(
             time: formatHm(starts),
             minutes: prefs.classLeadMinutes,
           }),
-          sound: "default",
+          sound: notifSound,
           ...(Platform.OS === "android"
             ? {
-                channelId: CLASS_CHANNEL_ID,
+                channelId: classCh,
                 priority: Notifications.AndroidNotificationPriority.HIGH,
               }
             : null),
@@ -241,7 +324,7 @@ export async function rescheduleReminders(
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.DATE,
           date: when,
-          channelId: CLASS_CHANNEL_ID,
+          channelId: classCh,
         },
       });
     }
@@ -261,15 +344,15 @@ export async function rescheduleReminders(
         content: {
           title: t("reminderUnpaidTitle"),
           body: t("reminderUnpaidBodyCount", { count: unpaid }),
-          sound: "default",
+          sound: notifSound,
           ...(Platform.OS === "android"
-            ? { channelId: UNPAID_CHANNEL_ID }
+            ? { channelId: unpaidCh }
             : null),
         },
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.DATE,
           date: when,
-          channelId: UNPAID_CHANNEL_ID,
+          channelId: unpaidCh,
         },
       });
     }

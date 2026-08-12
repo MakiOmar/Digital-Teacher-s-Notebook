@@ -308,11 +308,19 @@ export const ar = {
     "إشعارات محلية على الجهاز (مع صوت) قبل كل حصة بـ 30 دقيقة، وتذكير المستحقات. تعمل حتى لو التطبيق مغلق.",
   remindersExpoGoUnavailable:
     "جدولة التذكيرات غير متاحة داخل Expo Go على أندرويد. احفظ الإعدادات هنا، واختبر الإشعارات عبر نسخة التطوير أو ملف APK.",
-  reminderTodayEnable: "تذكير قبل كل حصة بـ 30 دقيقة (مع صوت)",
+  reminderTodayEnable: "تذكير قبل كل حصة بـ 30 دقيقة",
   reminderUnpaidEnable: "تذكير أسبوعي بالمستحقات",
   remindersSaved: "تم حفظ التذكيرات",
   reminderClassChannel: "تذكيرات الحصص",
+  reminderClassChannelSilent: "تذكيرات الحصص (بدون صوت)",
   reminderUnpaidChannel: "تذكيرات المستحقات",
+  reminderUnpaidChannelSilent: "تذكيرات المستحقات (بدون صوت)",
+  reminderSoundEnable: "تشغيل صوت التذكير",
+  reminderSoundPicker: "اختيار صوت التذكير",
+  reminderSoundPickerHint:
+    "يفتح إعدادات نظام أندرويد لقناة التذكير لاختيار أي نغمة.",
+  reminderSoundPickerHintIos:
+    "على iOS يمكن التحكم بصوت الإشعارات من إعدادات النظام للتطبيق.",
   reminderClassTitle: "حصة قادمة",
   reminderClassBody: "{group} تبدأ خلال {minutes} دقيقة (الساعة {time})",
   reminderUnpaidBodyCount: "هناك {count} طالب بحاجة للمتابعة. راجع المدفوعات.",

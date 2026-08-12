@@ -1,11 +1,12 @@
 import { useCallback, useState } from "react";
-import { StyleSheet, Switch, Text, View } from "react-native";
+import { Platform, StyleSheet, Switch, Text, View } from "react-native";
 import { useFocusEffect } from "expo-router";
-import { Muted, Screen, Title } from "@/src/components/ui";
+import { Muted, PrimaryButton, Screen, Title } from "@/src/components/ui";
 import { useDialog } from "@/src/components/DialogProvider";
 import {
   DEFAULT_CLASS_LEAD_MINUTES,
   loadReminderSettings,
+  openReminderSoundPicker,
   remindersAvailableInThisRuntime,
   saveReminderSettings,
   type ReminderSettings,
@@ -22,6 +23,7 @@ export default function RemindersScreen() {
   const [settings, setSettings] = useState<ReminderSettings>({
     classEnabled: true,
     unpaidEnabled: false,
+    soundEnabled: true,
     classLeadMinutes: DEFAULT_CLASS_LEAD_MINUTES,
   });
 
@@ -37,6 +39,20 @@ export default function RemindersScreen() {
       const next = await saveReminderSettings(partial);
       setSettings(next);
       dialog.toast(t("remindersSaved"), "success");
+    } catch (e) {
+      await dialog.alert({
+        title: t("error"),
+        message: userFacingErrorMessage(e),
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onChangeSound() {
+    setBusy(true);
+    try {
+      await openReminderSoundPicker();
     } catch (e) {
       await dialog.alert({
         title: t("error"),
@@ -85,6 +101,33 @@ export default function RemindersScreen() {
           }
         />
       </View>
+
+      {/* Play notification sound when a reminder fires */}
+      <View style={styles.switchRow}>
+        <Text style={styles.label}>{t("reminderSoundEnable")}</Text>
+        <Switch
+          value={settings.soundEnabled}
+          disabled={busy || !schedulingOk}
+          onValueChange={(soundEnabled) => void persist({ soundEnabled })}
+          trackColor={{ false: colors.border, true: colors.primarySoft }}
+          thumbColor={
+            settings.soundEnabled ? colors.primary : colors.textMuted
+          }
+        />
+      </View>
+
+      {/* Opens Android channel settings to pick any system ringtone */}
+      <Muted style={{ marginBottom: spacing.sm }}>
+        {Platform.OS === "android"
+          ? t("reminderSoundPickerHint")
+          : t("reminderSoundPickerHintIos")}
+      </Muted>
+      <PrimaryButton
+        label={t("reminderSoundPicker")}
+        onPress={() => void onChangeSound()}
+        disabled={busy || !schedulingOk || !settings.soundEnabled}
+        variant="ghost"
+      />
     </Screen>
   );
 }

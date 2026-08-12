@@ -20,30 +20,36 @@ const SPLASH_GRADIENT_XML = `<?xml version="1.0" encoding="utf-8"?>
 </shape>
 `;
 
-/** Full wordmark centered on brand gradient — not the circular Android 12+ splash icon. */
+/**
+ * Full wordmark centered on brand gradient — not the circular Android 12+ splash icon.
+ *
+ * Logo must stay square: a 320×200 box lets Android scale the square PNG by width
+ * (→ ~320×320), so a progress bar at top≈118dp cuts through the English title.
+ * Bar sits just under the English line (~84% of logo height → ~+84dp from center
+ * for a 260dp logo) with a small gap.
+ */
 const SPLASH_FULL_XML = `<?xml version="1.0" encoding="utf-8"?>
 <!--
   Full-bleed splash wordmark (no circular Android 12 icon mask).
-  Wider than tall so Arabic + English brand text stay visible.
-  Includes a static progress track under the logo so Arabic cold-start
-  still shows a loader before JS SplashBackground mounts.
+  Square logo bounds match the asset so the loader never overlays English text.
+  Static progress track under the wordmark until JS SplashBackground mounts.
 -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
   <item android:drawable="@drawable/splashscreen_gradient" />
   <item
-    android:width="320dp"
-    android:height="200dp"
+    android:width="260dp"
+    android:height="260dp"
     android:gravity="center">
     <bitmap
-      android:gravity="center"
+      android:gravity="fill"
       android:src="@drawable/splashscreen_logo" />
   </item>
-  <!-- Track (high-contrast, just under wordmark — visible before JS mounts) -->
+  <!-- Track just under English wordmark (content ends ~84% → +88dp from center) -->
   <item
     android:width="180dp"
     android:height="14dp"
     android:gravity="center"
-    android:top="118dp">
+    android:top="96dp">
     <shape android:shape="rectangle">
       <solid android:color="#590F766E" />
       <corners android:radius="999dp" />
@@ -57,7 +63,7 @@ const SPLASH_FULL_XML = `<?xml version="1.0" encoding="utf-8"?>
     android:width="64dp"
     android:height="14dp"
     android:gravity="center"
-    android:top="118dp"
+    android:top="96dp"
     android:left="-52dp">
     <shape android:shape="rectangle">
       <solid android:color="#115E59" />

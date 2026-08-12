@@ -277,11 +277,19 @@ export const en = {
   remindersHint:
     "Local device alerts (with sound) 30 minutes before each class, plus unpaid-dues reminders. They fire even when the app is closed.",
   remindersExpoGoUnavailable: "Reminder scheduling is unavailable in Expo Go on Android. Save settings here and test notifications in a development build or APK.",
-  reminderTodayEnable: "Remind me 30 minutes before each class (with sound)",
+  reminderTodayEnable: "Remind me 30 minutes before each class",
   reminderUnpaidEnable: "Weekly unpaid dues reminder",
   remindersSaved: "Reminders saved",
   reminderClassChannel: "Class reminders",
+  reminderClassChannelSilent: "Class reminders (silent)",
   reminderUnpaidChannel: "Unpaid dues reminders",
+  reminderUnpaidChannelSilent: "Unpaid dues reminders (silent)",
+  reminderSoundEnable: "Play reminder sound",
+  reminderSoundPicker: "Choose reminder sound",
+  reminderSoundPickerHint:
+    "Opens Android’s notification channel settings so you can pick any ringtone.",
+  reminderSoundPickerHintIos:
+    "On iOS, notification sounds are controlled in the system Settings app.",
   reminderClassTitle: "Upcoming class",
   reminderClassBody: "{group} starts in {minutes} minutes (at {time})",
   reminderUnpaidBodyCount: "There are {count} students to follow up. Check payments.",

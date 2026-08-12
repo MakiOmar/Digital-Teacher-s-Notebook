@@ -11,6 +11,7 @@ import { DetailCard } from "@/src/components/DetailCard";
 import { StudentCardEdgeContacts } from "@/src/components/StudentCardEdgeContacts";
 import { FiltersSheet } from "@/src/components/FilterSelect";
 import { IconActionBar } from "@/src/components/IconActionBar";
+import { StudentImportModal } from "@/src/components/StudentImportModal";
 import { PaginationBar, pagingBarProps } from "@/src/components/PaginationBar";
 import { t } from "@/src/i18n/ar";
 import {
@@ -30,6 +31,7 @@ export default function StudentsTab() {
   const [query, setQuery] = useState("");
   const [groupFilter, setGroupFilter] = useState<"all" | string>("all");
   const [statusFilter, setStatusFilter] = useState<"all" | string>("all");
+  const [importOpen, setImportOpen] = useState(false);
   const groupsFetcher = useCallback(() => listGroups(), []);
   const { data: groups, reload: reloadGroups } =
     useRefreshableList(groupsFetcher);
@@ -88,6 +90,12 @@ export default function StudentsTab() {
               tone: "accent",
               tourId: "studentsAdd",
               onPress: () => router.push("/students/form"),
+            },
+            {
+              key: "import",
+              icon: "upload",
+              label: t("actionImport"),
+              onPress: () => setImportOpen(true),
             },
           ]}
         />
@@ -176,6 +184,15 @@ export default function StudentsTab() {
         }}
         refreshing={paging.refreshing}
         onRefresh={() => {
+          void paging.reload();
+          void reloadGroups();
+        }}
+      />
+      {/* Bulk import from Excel or Google Sheets */}
+      <StudentImportModal
+        visible={importOpen}
+        onClose={() => setImportOpen(false)}
+        onImported={() => {
           void paging.reload();
           void reloadGroups();
         }}

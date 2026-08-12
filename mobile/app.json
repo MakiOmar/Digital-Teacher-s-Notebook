@@ -36,7 +36,8 @@
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.SCHEDULE_EXACT_ALARM",
         "android.permission.RECEIVE_BOOT_COMPLETED",
-        "android.permission.VIBRATE"
+        "android.permission.VIBRATE",
+        "android.permission.READ_CONTACTS"
       ],
       "adaptiveIcon": {
         "backgroundColor": "#12537C",
@@ -105,6 +106,12 @@
         {
           "photosPermission": "السماح للتطبيق بالوصول إلى صورك لوضع صورة المدرس.",
           "cameraPermission": "السماح للتطبيق باستخدام الكاميرا لالتقاط صورة المدرس."
+        }
+      ],
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "السماح للتطبيق بالوصول إلى جهات الاتصال لإضافة أرقام الطلاب وأولياء الأمور بسرعة."
         }
       ],
       [

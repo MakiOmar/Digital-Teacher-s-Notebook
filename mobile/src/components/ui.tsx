@@ -198,8 +198,8 @@ export function FormField({
   onFocus?: () => void;
 }) {
   return (
-    <View style={[styles.field, rtlBlock]}>
-      <Text style={styles.label}>{label}</Text>
+    <View style={[styles.field, rtlBlock, !label ? { marginBottom: 0 } : null]}>
+      {label ? <Text style={styles.label}>{label}</Text> : null}
       <View style={inputShell}>
         <TextInput
           value={value}

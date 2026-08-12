@@ -454,6 +454,13 @@ export default function GroupDetailsScreen() {
             router.push(`/groups/add-students?groupId=${groupId}` as never),
         },
         {
+          key: "addOne",
+          icon: "plus",
+          label: t("addStudent"),
+          onPress: () =>
+            router.push(`/students/form?groupId=${groupId}` as never),
+        },
+        {
           key: "payments",
           icon: "money",
           label: t("payments"),

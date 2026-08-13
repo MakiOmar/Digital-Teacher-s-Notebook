@@ -3,6 +3,8 @@
 App: **دفتر المعلم الرقمي** (`com.itqandev.digitalteachernotebook`)  
 Target artifact: signed **Android App Bundle (`.aab`)**
 
+**Full step-by-step publish + testing guide:** [`README-GOOGLE-PLAY.md`](./README-GOOGLE-PLAY.md)
+
 ---
 
 ## 1. Build identity (configured)

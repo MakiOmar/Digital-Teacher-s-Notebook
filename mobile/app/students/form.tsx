@@ -12,6 +12,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { FormField, Screen } from "@/src/components/ui";
+import { SelectField } from "@/src/components/FilterSelect";
 import { IconActionBar } from "@/src/components/IconActionBar";
 import { DateField } from "@/src/components/DateFields";
 import { t } from "@/src/i18n/ar";
@@ -280,36 +281,21 @@ export default function StudentFormScreen() {
             </Pressable>
           </View>
 
-          <Text style={styles.label}>{t("groupOptional")}</Text>
-          <View style={styles.wrap}>
-            {/* Clear group selection */}
-            <Pressable
-              onPress={() => setGroupId(null)}
-              style={[styles.chip, groupId == null && styles.chipOn]}
-            >
-              <Text
-                style={[
-                  styles.chipText,
-                  groupId == null && styles.chipTextOn,
-                ]}
-              >
-                {t("noGroup")}
-              </Text>
-            </Pressable>
-            {groups.map((g) => (
-              <Pressable
-                key={g.id}
-                onPress={() => setGroupId(g.id)}
-                style={[styles.chip, groupId === g.id && styles.chipOn]}
-              >
-                <Text
-                  style={[styles.chipText, groupId === g.id && styles.chipTextOn]}
-                >
-                  {g.name}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
+          {/* Searchable dropdown — chips do not scale with many groups */}
+          <SelectField
+            label={t("groupOptional")}
+            value={groupId == null ? "" : String(groupId)}
+            options={[
+              { value: "", label: t("noGroup") },
+              ...groups.map((g) => ({
+                value: String(g.id),
+                label: g.name,
+              })),
+            ]}
+            onChange={(next) => setGroupId(next ? Number(next) : null)}
+            placeholder={t("noGroup")}
+            searchable
+          />
 
           {/* Optional fields collapsed for faster entry */}
           <Pressable

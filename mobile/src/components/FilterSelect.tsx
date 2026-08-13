@@ -5,6 +5,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
@@ -208,22 +209,40 @@ export function SelectField({
   options,
   onChange,
   placeholder,
+  searchable = false,
 }: {
   label: string;
   value: string;
   options: FilterOption[];
   onChange: (value: string) => void;
   placeholder?: string;
+  /** Show a search box when the list can get long (e.g. groups). */
+  searchable?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const selected = options.find((o) => o.value === value);
   const display = selected?.label ?? placeholder ?? t("selectYear");
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return options;
+    return options.filter((o) => o.label.toLowerCase().includes(q));
+  }, [options, query]);
+
+  const close = () => {
+    setOpen(false);
+    setQuery("");
+  };
 
   return (
     <View style={[styles.fieldWrap, rtlBlock]}>
       <Text style={styles.fieldLabelOutside}>{label}</Text>
       <Pressable
-        onPress={() => setOpen(true)}
+        onPress={() => {
+          setQuery("");
+          setOpen(true);
+        }}
         accessibilityRole="button"
         accessibilityLabel={label}
         style={({ pressed }) => [
@@ -242,15 +261,28 @@ export function SelectField({
         visible={open}
         transparent
         animationType="fade"
-        onRequestClose={() => setOpen(false)}
+        onRequestClose={close}
       >
         <View style={styles.backdrop}>
           <Pressable
             style={StyleSheet.absoluteFill}
-            onPress={() => setOpen(false)}
+            onPress={close}
           />
           <View style={styles.card}>
             <Text style={styles.title}>{label}</Text>
+            {searchable ? (
+              <View style={styles.searchShell}>
+                <FontAwesome name="search" size={14} color={colors.textMuted} />
+                <TextInput
+                  value={query}
+                  onChangeText={setQuery}
+                  placeholder={t("searchPlaceholder")}
+                  placeholderTextColor={colors.textMuted}
+                  style={styles.searchInput}
+                  autoCorrect={false}
+                />
+              </View>
+            ) : null}
             <ScrollView
               style={styles.body}
               contentContainerStyle={{
@@ -259,40 +291,44 @@ export function SelectField({
               }}
               keyboardShouldPersistTaps="handled"
             >
-              {options.map((opt) => {
-                const on = opt.value === value;
-                return (
-                  <Pressable
-                    key={opt.value}
-                    onPress={() => {
-                      onChange(opt.value);
-                      setOpen(false);
-                    }}
-                    style={({ pressed }) => [
-                      styles.option,
-                      on && styles.optionOn,
-                      pressed && { opacity: 0.75 },
-                    ]}
-                  >
-                    <Text
-                      style={[styles.optionText, on && styles.optionTextOn]}
-                      numberOfLines={2}
+              {filtered.length === 0 ? (
+                <Text style={styles.emptySearch}>{t("empty")}</Text>
+              ) : (
+                filtered.map((opt) => {
+                  const on = opt.value === value;
+                  return (
+                    <Pressable
+                      key={opt.value}
+                      onPress={() => {
+                        onChange(opt.value);
+                        close();
+                      }}
+                      style={({ pressed }) => [
+                        styles.option,
+                        on && styles.optionOn,
+                        pressed && { opacity: 0.75 },
+                      ]}
                     >
-                      {opt.label}
-                    </Text>
-                    {on ? (
-                      <FontAwesome
-                        name="check"
-                        size={14}
-                        color={colors.primary}
-                      />
-                    ) : null}
-                  </Pressable>
-                );
-              })}
+                      <Text
+                        style={[styles.optionText, on && styles.optionTextOn]}
+                        numberOfLines={2}
+                      >
+                        {opt.label}
+                      </Text>
+                      {on ? (
+                        <FontAwesome
+                          name="check"
+                          size={14}
+                          color={colors.primary}
+                        />
+                      ) : null}
+                    </Pressable>
+                  );
+                })
+              )}
             </ScrollView>
             <Pressable
-              onPress={() => setOpen(false)}
+              onPress={close}
               style={({ pressed }) => [
                 styles.cancelBtn,
                 pressed && { opacity: 0.75 },
@@ -413,6 +449,32 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     paddingVertical: 12,
     paddingHorizontal: spacing.md,
+  },
+  searchShell: {
+    ...rtlRow(),
+    alignItems: "center",
+    gap: spacing.sm,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.md,
+  },
+  searchInput: {
+    ...rtlText,
+    flex: 1,
+    minWidth: 0,
+    paddingVertical: 10,
+    fontSize: 15,
+    fontFamily: fonts.regular,
+    color: colors.text,
+  },
+  emptySearch: {
+    ...rtlText,
+    color: colors.textMuted,
+    fontFamily: fonts.regular,
+    paddingVertical: spacing.md,
   },
   selectValue: {
     ...rtlText,

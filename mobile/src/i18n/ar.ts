@@ -119,6 +119,8 @@ export const ar = {
   actionAdd: "إضافة",
   actionExport: "تصدير",
   actionImport: "استيراد",
+  actionSelect: "تحديد",
+  actionSelectDone: "تم",
   actionPresent: "حضور",
   actionAbsent: "غياب",
   actionComplete: "إنهاء",
@@ -162,6 +164,9 @@ export const ar = {
   studentInOtherGroup: "حالياً في {name}",
   addSelectedConfirm: "إضافة {count} طلاب لهذه المجموعة؟",
   selectAllStudents: "تحديد الكل",
+  deleteStudentsConfirm:
+    "حذف {count} طلاب؟ سيتم حذف الحضور والمدفوعات الخاصة بهم أيضاً.",
+  deleteStudentsDone: "تم حذف {count} طلاب",
   clearSelectedStudents: "مسح",
 
   // Students

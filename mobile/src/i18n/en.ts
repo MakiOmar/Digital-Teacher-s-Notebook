@@ -105,6 +105,8 @@ export const en = {
   actionAdd: "Add",
   actionExport: "Export",
   actionImport: "Import",
+  actionSelect: "Select",
+  actionSelectDone: "Done",
   actionPresent: "Present",
   actionAbsent: "Absent",
   actionComplete: "Complete",
@@ -148,6 +150,9 @@ export const en = {
   studentInOtherGroup: "Currently in {name}",
   addSelectedConfirm: "Add {count} students to this group?",
   selectAllStudents: "Select all",
+  deleteStudentsConfirm:
+    "Delete {count} students? Attendance and payments for them will be removed too.",
+  deleteStudentsDone: "Deleted {count} students",
   clearSelectedStudents: "Clear",
   addStudent: "Add student",
   editStudent: "Edit student",

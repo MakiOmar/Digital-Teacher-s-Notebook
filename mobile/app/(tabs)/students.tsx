@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
-import { FlatList, StyleSheet, View } from "react-native";
+import { FlatList, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
 import {
   EmptyState,
   Screen,
@@ -14,8 +15,10 @@ import { IconActionBar } from "@/src/components/IconActionBar";
 import { StudentImportModal } from "@/src/components/StudentImportModal";
 import { PaginationBar, pagingBarProps } from "@/src/components/PaginationBar";
 import { useDialog } from "@/src/components/DialogProvider";
+import { useAppData } from "@/src/contexts/AppDataContext";
 import { t } from "@/src/i18n/ar";
 import {
+  deleteStudents,
   listGroups,
   listStudentsWithEnrollmentPage,
 } from "@/src/repositories";
@@ -24,19 +27,24 @@ import { useRefreshableList } from "@/src/hooks/useRefreshableList";
 import { useServerPagination } from "@/src/hooks/useServerPagination";
 import { useGeneralSettings } from "@/src/settings/GeneralSettingsContext";
 import { spacing, colors } from "@/src/theme/colors";
-import { appIsRtl } from "@/src/theme/rtl";
+import { fonts } from "@/src/theme/typography";
+import { appIsRtl, rtlText } from "@/src/theme/rtl";
 import { enrollmentStatusLabel } from "@/src/utils/statusLabels";
 import { userFacingErrorMessage } from "@/src/utils/errors";
 
 export default function StudentsTab() {
   const router = useRouter();
   const dialog = useDialog();
+  const { bump } = useAppData();
   const { pageSize } = useGeneralSettings();
   const [query, setQuery] = useState("");
   const [groupFilter, setGroupFilter] = useState<"all" | string>("all");
   const [statusFilter, setStatusFilter] = useState<"all" | string>("all");
   const [importOpen, setImportOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [deleting, setDeleting] = useState(false);
   const groupsFetcher = useCallback(() => listGroups(), []);
   const { data: groups, reload: reloadGroups } =
     useRefreshableList(groupsFetcher);
@@ -75,6 +83,32 @@ export default function StudentsTab() {
   );
   const paging = useServerPagination(fetchPage, pageSize, resetKey);
 
+  const pageAllSelected =
+    paging.pageItems.length > 0 &&
+    paging.pageItems.every((item) => selectedIds.has(item.id));
+
+  const exitSelectMode = useCallback(() => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  }, []);
+
+  const toggleStudent = useCallback((id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const selectAllOnPage = useCallback(() => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      for (const item of paging.pageItems) next.add(item.id);
+      return next;
+    });
+  }, [paging.pageItems]);
+
   const onExport = useCallback(async () => {
     if (exporting) return;
     setExporting(true);
@@ -92,6 +126,92 @@ export default function StudentsTab() {
     }
   }, [dialog, exporting]);
 
+  const onDeleteSelected = useCallback(async () => {
+    const ids = [...selectedIds];
+    if (!ids.length || deleting) return;
+    const ok = await dialog.confirm({
+      title: t("delete"),
+      message: t("deleteStudentsConfirm", { count: ids.length }),
+      confirmLabel: t("delete"),
+      danger: true,
+    });
+    if (!ok) return;
+    setDeleting(true);
+    try {
+      const count = await deleteStudents(ids);
+      bump();
+      exitSelectMode();
+      await paging.reload();
+      dialog.toast(t("deleteStudentsDone", { count }), "success");
+    } catch (e) {
+      dialog.toast(userFacingErrorMessage(e), "error");
+    } finally {
+      setDeleting(false);
+    }
+  }, [bump, deleting, dialog, exitSelectMode, paging, selectedIds]);
+
+  const toolbarActions = selectMode
+    ? [
+        {
+          key: "done",
+          icon: "check" as const,
+          label: t("actionSelectDone"),
+          onPress: exitSelectMode,
+        },
+        {
+          key: "selectAll",
+          icon: "check-square" as const,
+          label: t("selectAllStudents"),
+          disabled: paging.pageItems.length === 0 || pageAllSelected,
+          onPress: selectAllOnPage,
+        },
+        {
+          key: "clear",
+          icon: "times" as const,
+          label: t("clearSelectedStudents"),
+          disabled: selectedIds.size === 0,
+          onPress: () => setSelectedIds(new Set()),
+        },
+        {
+          key: "delete",
+          icon: "trash" as const,
+          label: t("delete"),
+          tone: "danger" as const,
+          disabled: selectedIds.size === 0 || deleting,
+          onPress: () => void onDeleteSelected(),
+        },
+      ]
+    : [
+        {
+          key: "add",
+          icon: "plus" as const,
+          label: t("actionAdd"),
+          tone: "accent" as const,
+          tourId: "studentsAdd" as const,
+          onPress: () => router.push("/students/form"),
+        },
+        {
+          key: "import",
+          icon: "upload" as const,
+          label: t("actionImport"),
+          onPress: () => setImportOpen(true),
+        },
+        {
+          key: "export",
+          icon: "download" as const,
+          label: t("actionExport"),
+          disabled: exporting,
+          onPress: () => void onExport(),
+        },
+        {
+          key: "select",
+          icon: "check-square-o" as const,
+          label: t("actionSelect"),
+          disabled: paging.pageItems.length === 0,
+          onPress: () => setSelectMode(true),
+        },
+      ];
+
   if (paging.loading) {
     return (
       <Screen safeTop padded={false} style={{ flex: 1 }}>
@@ -103,31 +223,7 @@ export default function StudentsTab() {
   return (
     <Screen safeTop padded={false} style={{ flex: 1 }}>
       <View style={{ padding: spacing.lg, paddingBottom: 0 }}>
-        <IconActionBar
-          actions={[
-            {
-              key: "add",
-              icon: "plus",
-              label: t("actionAdd"),
-              tone: "accent",
-              tourId: "studentsAdd",
-              onPress: () => router.push("/students/form"),
-            },
-            {
-              key: "import",
-              icon: "upload",
-              label: t("actionImport"),
-              onPress: () => setImportOpen(true),
-            },
-            {
-              key: "export",
-              icon: "download",
-              label: t("actionExport"),
-              disabled: exporting,
-              onPress: () => void onExport(),
-            },
-          ]}
-        />
+        <IconActionBar actions={toolbarActions} />
         <FiltersSheet
           fields={[
             {
@@ -153,6 +249,12 @@ export default function StudentsTab() {
           onChangeText={setQuery}
           placeholder={t("searchPlaceholder")}
         />
+        {/* How many students are checked across pages */}
+        {selectMode && selectedIds.size > 0 ? (
+          <Text style={styles.selectedCount}>
+            {t("selectedStudentsCount", { count: selectedIds.size })}
+          </Text>
+        ) : null}
       </View>
       <FlatList
         style={{ flex: 1 }}
@@ -164,6 +266,7 @@ export default function StudentsTab() {
         }}
         data={paging.pageItems}
         keyExtractor={(item) => String(item.id)}
+        extraData={selectMode ? selectedIds : undefined}
         removeClippedSubviews={false}
         ListEmptyComponent={
           <EmptyState
@@ -179,16 +282,26 @@ export default function StudentsTab() {
           const hasContacts = Boolean(
             item.student_phone?.trim() || item.guardian_phone?.trim()
           );
+          const checked = selectedIds.has(item.id);
           return (
           <View style={styles.cardWrap}>
-            <StudentCardEdgeContacts
-              studentPhone={item.student_phone}
-              guardianPhone={item.guardian_phone}
-            />
+            {/* Hide call chips in select mode so taps only toggle the card */}
+            {!selectMode ? (
+              <StudentCardEdgeContacts
+                studentPhone={item.student_phone}
+                guardianPhone={item.guardian_phone}
+              />
+            ) : null}
             <DetailCard
               title={item.name}
               // Card stays full-width; only header text clears the edge chips.
-              contactEdge={hasContacts ? (appIsRtl() ? "left" : "right") : undefined}
+              contactEdge={
+                !selectMode && hasContacts
+                  ? appIsRtl()
+                    ? "left"
+                    : "right"
+                  : undefined
+              }
               badge={{
                 label: enrollmentStatusLabel(item.status),
                 color:
@@ -198,6 +311,15 @@ export default function StudentsTab() {
                       ? colors.warning
                       : colors.danger,
               }}
+              trailing={
+                selectMode ? (
+                  <FontAwesome
+                    name={checked ? "check-square" : "square-o"}
+                    size={22}
+                    color={checked ? colors.primary : colors.textMuted}
+                  />
+                ) : undefined
+              }
               details={[
                 {
                   icon: "users",
@@ -206,7 +328,11 @@ export default function StudentsTab() {
                 },
               ]}
               borderColor={colors.primary}
-              onPress={() => router.push(`/students/${item.id}`)}
+              onPress={() =>
+                selectMode
+                  ? toggleStudent(item.id)
+                  : router.push(`/students/${item.id}`)
+              }
             />
           </View>
           );
@@ -237,5 +363,11 @@ const styles = StyleSheet.create({
     position: "relative",
     marginTop: 28,
     overflow: "visible",
+  },
+  selectedCount: {
+    ...rtlText,
+    fontFamily: fonts.bold,
+    color: colors.primary,
+    marginBottom: spacing.sm,
   },
 });

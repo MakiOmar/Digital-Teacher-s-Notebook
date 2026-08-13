@@ -838,6 +838,25 @@ export async function deleteStudent(id: number): Promise<void> {
   await db.runAsync("DELETE FROM students WHERE id = ?", [id]);
 }
 
+/** Delete many students in one transaction (cascades enrollments / attendance). */
+export async function deleteStudents(ids: number[]): Promise<number> {
+  const unique = [
+    ...new Set(ids.filter((id) => Number.isFinite(id) && id > 0)),
+  ];
+  if (!unique.length) return 0;
+  await withTransaction(async (db) => {
+    const chunkSize = 200;
+    for (let i = 0; i < unique.length; i += chunkSize) {
+      const part = unique.slice(i, i + chunkSize);
+      await db.runAsync(
+        `DELETE FROM students WHERE id IN (${part.map(() => "?").join(",")})`,
+        part
+      );
+    }
+  });
+  return unique.length;
+}
+
 export async function getActiveEnrollment(
   studentId: number
 ): Promise<(Enrollment & { group_name?: string }) | null> {

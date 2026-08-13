@@ -212,8 +212,12 @@ export const ar = {
   importNoValidRows: "لا توجد صفوف صالحة للاستيراد",
   importPreview: "معاينة",
   importPreviewFrom: "معاينة — {name}",
-  importPreviewStats: "{valid} جاهز · {errors} بأخطاء",
+  importPreviewStats:
+    "{valid} جاهز · {duplicates} موجودون مسبقاً · {errors} بأخطاء",
   importRowMissingName: "(بدون اسم)",
+  importRowDuplicate: "موجود مسبقاً — سيتم تخطيه",
+  importAllDuplicates: "كل الصفوف موجودة مسبقاً — لا يوجد جديد للاستيراد",
+  importSkippedDuplicates: "تم تخطي {count} طلاب موجودين مسبقاً",
   importMoreRows: "+{count} صفوف إضافية",
   importConfirmCount: "استيراد {count} طلاب؟",
   importDoneCount: "تم استيراد {count} طلاب",

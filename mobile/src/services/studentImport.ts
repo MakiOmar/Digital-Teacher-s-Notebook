@@ -14,6 +14,8 @@ export type ParsedStudentRow = {
   student_phone: string | null;
   guardian_phone: string | null;
   error?: string;
+  /** Same name + phone as an existing student or an earlier sheet row. */
+  duplicate?: boolean;
 };
 
 export type StudentImportParseResult = {
@@ -25,6 +27,7 @@ export type StudentImportParseResult = {
 export type StudentImportRunResult = {
   imported: number;
   skipped: number;
+  duplicates: number;
   errors: string[];
 };
 
@@ -78,6 +81,62 @@ function normalizeHeader(value: string): string {
     .toLowerCase()
     .replace(/[_-]+/g, " ")
     .replace(/\s+/g, " ");
+}
+
+function normalizeName(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+/** Compare phones ignoring spaces, dashes, and country-code prefix. */
+function normalizePhone(value: string | null | undefined): string {
+  if (!value) return "";
+  const digits = value.replace(/\D/g, "");
+  if (digits.length >= 9) return digits.slice(-9);
+  return digits;
+}
+
+type ContactIdentity = {
+  name: string;
+  student_phone: string | null;
+  guardian_phone: string | null;
+};
+
+function isSameStudent(a: ContactIdentity, b: ContactIdentity): boolean {
+  if (normalizeName(a.name) !== normalizeName(b.name)) return false;
+  const aGuardian = normalizePhone(a.guardian_phone);
+  const bGuardian = normalizePhone(b.guardian_phone);
+  const aStudent = normalizePhone(a.student_phone);
+  const bStudent = normalizePhone(b.student_phone);
+  if (aGuardian && bGuardian && aGuardian === bGuardian) return true;
+  if (aStudent && bStudent && aStudent === bStudent) return true;
+  if (!aGuardian && !bGuardian && !aStudent && !bStudent) return true;
+  return false;
+}
+
+/** Mark sheet rows that match the DB or an earlier row in the same file. */
+export function flagDuplicateStudentRows(
+  rows: ParsedStudentRow[],
+  existing: ContactIdentity[]
+): ParsedStudentRow[] {
+  const seen: ContactIdentity[] = existing.map((s) => ({
+    name: s.name,
+    student_phone: s.student_phone,
+    guardian_phone: s.guardian_phone,
+  }));
+  return rows.map((row) => {
+    if (row.error || !row.name.trim()) return { ...row, duplicate: false };
+    const hit = seen.some((s) => isSameStudent(s, row));
+    if (hit) return { ...row, duplicate: true };
+    seen.push(row);
+    return { ...row, duplicate: false };
+  });
+}
+
+export async function prepareStudentImportRows(
+  rows: ParsedStudentRow[]
+): Promise<ParsedStudentRow[]> {
+  const existing = await listStudents();
+  return flagDuplicateStudentRows(rows, existing);
 }
 
 function cellToString(value: unknown): string {
@@ -280,18 +339,29 @@ export async function pickStudentSheetFile(): Promise<{
   return { uri: asset.uri, name: asset.name ?? "sheet" };
 }
 
-/** Create students from contact rows (no group enrollment). */
+/** Create students from contact rows (no group enrollment). Skips duplicates. */
 export async function importParsedStudents(
   rows: ParsedStudentRow[]
 ): Promise<StudentImportRunResult> {
+  const prepared = await prepareStudentImportRows(rows);
   let imported = 0;
   let skipped = 0;
+  let duplicates = 0;
   const errors: string[] = [];
+  const created: ContactIdentity[] = [];
 
-  for (const row of rows) {
+  for (const row of prepared) {
     if (row.error || !row.name.trim()) {
       skipped += 1;
       errors.push(`#${row.rowNumber}: missing name`);
+      continue;
+    }
+    if (
+      row.duplicate ||
+      created.some((s) => isSameStudent(s, row))
+    ) {
+      duplicates += 1;
+      skipped += 1;
       continue;
     }
     try {
@@ -300,6 +370,7 @@ export async function importParsedStudents(
         student_phone: row.student_phone,
         guardian_phone: row.guardian_phone,
       });
+      created.push(row);
       imported += 1;
     } catch (e) {
       skipped += 1;
@@ -309,7 +380,7 @@ export async function importParsedStudents(
     }
   }
 
-  return { imported, skipped, errors };
+  return { imported, skipped, duplicates, errors };
 }
 
 /** Build an .xlsx of student contacts and open the system share sheet. */

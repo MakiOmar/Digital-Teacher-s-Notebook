@@ -21,6 +21,7 @@ import {
   parseStudentsFromFileUri,
   parseStudentsFromGoogleSheetsUrl,
   pickStudentSheetFile,
+  prepareStudentImportRows,
   type ParsedStudentRow,
 } from "@/src/services/studentImport";
 import { colors, radii, spacing } from "@/src/theme/colors";
@@ -63,10 +64,14 @@ export function StudentImportModal({ visible, onClose, onImported }: Props) {
   const [importing, setImporting] = useState(false);
 
   const validRows = useMemo(
-    () => rows.filter((r) => !r.error && r.name.trim()),
+    () => rows.filter((r) => !r.error && !r.duplicate && r.name.trim()),
     [rows]
   );
   const errorRows = useMemo(() => rows.filter((r) => r.error), [rows]);
+  const duplicateRows = useMemo(
+    () => rows.filter((r) => r.duplicate && !r.error),
+    [rows]
+  );
 
   useEffect(() => {
     if (!visible) return;
@@ -83,8 +88,9 @@ export function StudentImportModal({ visible, onClose, onImported }: Props) {
     onClose();
   };
 
-  const goPreview = (parsedRows: ParsedStudentRow[], label: string) => {
-    setRows(parsedRows);
+  const goPreview = async (parsedRows: ParsedStudentRow[], label: string) => {
+    const marked = await prepareStudentImportRows(parsedRows);
+    setRows(marked);
     setSourceLabel(label);
     setStep("preview");
   };
@@ -99,7 +105,7 @@ export function StudentImportModal({ visible, onClose, onImported }: Props) {
         dialog.toast(t("importNoRows"), "error");
         return;
       }
-      goPreview(parsed.rows, file.name);
+      await goPreview(parsed.rows, file.name);
     } catch (e) {
       const msg =
         e instanceof Error && e.message.startsWith("IMPORT_")
@@ -119,7 +125,7 @@ export function StudentImportModal({ visible, onClose, onImported }: Props) {
         dialog.toast(t("importNoRows"), "error");
         return;
       }
-      goPreview(parsed.rows, t("importFromGoogleSheets"));
+      await goPreview(parsed.rows, t("importFromGoogleSheets"));
     } catch (e) {
       const msg =
         e instanceof Error && e.message.startsWith("IMPORT_")
@@ -133,7 +139,10 @@ export function StudentImportModal({ visible, onClose, onImported }: Props) {
 
   const onConfirmImport = async () => {
     if (!validRows.length) {
-      dialog.toast(t("importNoValidRows"), "error");
+      dialog.toast(
+        duplicateRows.length ? t("importAllDuplicates") : t("importNoValidRows"),
+        "error"
+      );
       return;
     }
     const ok = await dialog.confirm({
@@ -156,7 +165,12 @@ export function StudentImportModal({ visible, onClose, onImported }: Props) {
       } else {
         dialog.toast(t("importNoneImported"), "error");
       }
-      if (result.skipped > 0 && result.imported > 0) {
+      if (result.duplicates > 0 && result.imported > 0) {
+        await dialog.alert({
+          title: t("importStudents"),
+          message: t("importSkippedDuplicates", { count: result.duplicates }),
+        });
+      } else if (result.skipped > 0 && result.imported > 0) {
         await dialog.alert({
           title: t("importStudents"),
           message: t("importPartialSkipped", { count: result.skipped }),
@@ -289,6 +303,7 @@ export function StudentImportModal({ visible, onClose, onImported }: Props) {
               <Text style={styles.stats}>
                 {t("importPreviewStats", {
                   valid: validRows.length,
+                  duplicates: duplicateRows.length,
                   errors: errorRows.length,
                 })}
               </Text>
@@ -303,16 +318,20 @@ export function StudentImportModal({ visible, onClose, onImported }: Props) {
                     <Text
                       style={[
                         styles.previewName,
-                        row.error ? styles.previewError : null,
+                        row.error || row.duplicate
+                          ? styles.previewError
+                          : null,
                       ]}
                       numberOfLines={1}
                     >
                       {row.name || t("importRowMissingName")}
                     </Text>
                     <Text style={styles.previewMeta} numberOfLines={1}>
-                      {[row.guardian_phone, row.student_phone]
-                        .filter(Boolean)
-                        .join(" · ") || "—"}
+                      {row.duplicate
+                        ? t("importRowDuplicate")
+                        : [row.guardian_phone, row.student_phone]
+                            .filter(Boolean)
+                            .join(" · ") || "—"}
                     </Text>
                   </View>
                 ))}

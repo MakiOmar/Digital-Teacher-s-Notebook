@@ -196,8 +196,12 @@ export const en = {
   importNoValidRows: "No valid rows to import",
   importPreview: "Preview",
   importPreviewFrom: "Preview — {name}",
-  importPreviewStats: "{valid} ready · {errors} with errors",
+  importPreviewStats:
+    "{valid} ready · {duplicates} already exist · {errors} with errors",
   importRowMissingName: "(missing name)",
+  importRowDuplicate: "Already exists — will be skipped",
+  importAllDuplicates: "Every row already exists — nothing new to import",
+  importSkippedDuplicates: "Skipped {count} students who already exist",
   importMoreRows: "+{count} more rows",
   importConfirmCount: "Import {count} students?",
   importDoneCount: "Imported {count} students",

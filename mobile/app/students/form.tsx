@@ -36,6 +36,33 @@ const LAST_GROUP_KEY = "tutor.lastStudentGroupId.v1";
 
 type PhoneTarget = "guardian" | "student";
 
+/** Label + contacts on one row; icon and caption stay inline. */
+function ContactsPickButton({
+  disabled,
+  onPress,
+}: {
+  disabled: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={t("pickFromContacts")}
+      style={({ pressed }) => [
+        styles.contactBtn,
+        pressed && { opacity: 0.75 },
+      ]}
+    >
+      <FontAwesome name="address-book" size={14} color={colors.primary} />
+      <Text style={styles.contactBtnText} numberOfLines={1}>
+        {t("pickFromContacts")}
+      </Text>
+    </Pressable>
+  );
+}
+
 export default function StudentFormScreen() {
   const { id, groupId: groupIdParam } = useLocalSearchParams<{
     id?: string;
@@ -253,32 +280,21 @@ export default function StudentFormScreen() {
             onChangeText={setName}
           />
 
-          <Text style={styles.label}>{t("guardianPhone")}</Text>
-          <View style={styles.phoneRow}>
-            <View style={styles.phoneField}>
-              <FormField
-                label=""
-                value={guardianPhone}
-                onChangeText={setGuardianPhone}
-                keyboardType="phone-pad"
-                placeholder={t("guardianPhoneHint")}
+          <View style={styles.phoneBlock}>
+            <View style={styles.labelRow}>
+              <Text style={styles.labelInRow}>{t("guardianPhone")}</Text>
+              <ContactsPickButton
+                disabled={saving}
+                onPress={() => void pickPhone("guardian")}
               />
             </View>
-            <Pressable
-              onPress={() => void pickPhone("guardian")}
-              disabled={saving}
-              accessibilityRole="button"
-              accessibilityLabel={t("pickFromContacts")}
-              style={({ pressed }) => [
-                styles.contactBtn,
-                pressed && { opacity: 0.75 },
-              ]}
-            >
-              <FontAwesome name="address-book" size={18} color={colors.primary} />
-              <Text style={styles.contactBtnText} numberOfLines={1}>
-                {t("pickFromContacts")}
-              </Text>
-            </Pressable>
+            <FormField
+              label=""
+              value={guardianPhone}
+              onChangeText={setGuardianPhone}
+              keyboardType="phone-pad"
+              placeholder={t("guardianPhoneHint")}
+            />
           </View>
 
           {/* Searchable dropdown — chips do not scale with many groups */}
@@ -315,35 +331,20 @@ export default function StudentFormScreen() {
 
           {moreOpen ? (
             <View>
-              <Text style={styles.label}>{t("studentPhone")}</Text>
-              <View style={styles.phoneRow}>
-                <View style={styles.phoneField}>
-                  <FormField
-                    label=""
-                    value={studentPhone}
-                    onChangeText={setStudentPhone}
-                    keyboardType="phone-pad"
+              <View style={styles.phoneBlock}>
+                <View style={styles.labelRow}>
+                  <Text style={styles.labelInRow}>{t("studentPhone")}</Text>
+                  <ContactsPickButton
+                    disabled={saving}
+                    onPress={() => void pickPhone("student")}
                   />
                 </View>
-                <Pressable
-                  onPress={() => void pickPhone("student")}
-                  disabled={saving}
-                  accessibilityRole="button"
-                  accessibilityLabel={t("pickFromContacts")}
-                  style={({ pressed }) => [
-                    styles.contactBtn,
-                    pressed && { opacity: 0.75 },
-                  ]}
-                >
-                  <FontAwesome
-                    name="address-book"
-                    size={18}
-                    color={colors.primary}
-                  />
-                  <Text style={styles.contactBtnText} numberOfLines={1}>
-                    {t("pickFromContacts")}
-                  </Text>
-                </Pressable>
+                <FormField
+                  label=""
+                  value={studentPhone}
+                  onChangeText={setStudentPhone}
+                  keyboardType="phone-pad"
+                />
               </View>
 
               <FormField
@@ -429,24 +430,33 @@ const styles = StyleSheet.create({
   chipOn: { backgroundColor: colors.primary, borderColor: colors.primary },
   chipText: { color: colors.text, fontWeight: "600", ...rtlText },
   chipTextOn: { color: "#fff" },
-  phoneRow: {
-    ...rtlRow(),
-    alignItems: "flex-start",
-    gap: spacing.sm,
-    marginBottom: spacing.md,
+  phoneBlock: {
+    width: "100%",
+    marginBottom: spacing.sm,
   },
-  phoneField: {
+  labelRow: {
+    ...rtlRow(),
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+    marginBottom: 8,
+    width: "100%",
+  },
+  labelInRow: {
+    ...rtlText,
     flex: 1,
     minWidth: 0,
+    fontWeight: "600",
+    color: colors.text,
   },
   contactBtn: {
-    marginTop: 4,
+    ...rtlRow(),
     alignItems: "center",
     justifyContent: "center",
-    gap: 4,
-    minWidth: 76,
-    paddingVertical: 10,
-    paddingHorizontal: 8,
+    gap: 6,
+    flexShrink: 0,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
     borderRadius: radii.md,
     borderWidth: 1.5,
     borderColor: colors.primary,
@@ -454,10 +464,9 @@ const styles = StyleSheet.create({
   },
   contactBtnText: {
     ...rtlText,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "700",
     color: colors.primary,
-    textAlign: "center",
   },
   moreToggle: {
     ...rtlRow(),

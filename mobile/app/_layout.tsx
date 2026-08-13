@@ -147,14 +147,9 @@ function Bootstrap({
     };
   }, [licenseStatus, setupComplete]);
 
-  // Show splash until boot is ready, unless fail-safe fired.
-  // (Minimum brand hold is enforced by RootLayout overlay.)
+  // Empty under the root overlay — a second SplashBackground here remounts the logo.
   if (!bootReady && !forceShow) {
-    return (
-      <View style={styles.bootPlaceholder}>
-        <SplashBackground />
-      </View>
-    );
+    return <View style={styles.bootPlaceholder} />;
   }
   if (error && !forceShow) {
     return (
@@ -173,18 +168,10 @@ function Bootstrap({
     if (forceShow) {
       return <LicenseActivateScreen />;
     }
-    return (
-      <View style={styles.bootPlaceholder}>
-        <SplashBackground />
-      </View>
-    );
+    return <View style={styles.bootPlaceholder} />;
   }
   if (licenseStatus !== "unlocked") {
-    return (
-      <View style={styles.bootPlaceholder}>
-        <SplashBackground />
-      </View>
-    );
+    return <View style={styles.bootPlaceholder} />;
   }
 
   // Post-license setup wizard until tutor profile is completed
@@ -209,42 +196,19 @@ export default function RootLayout() {
     Cairo_700Bold,
   });
   const [fontsTimedOut, setFontsTimedOut] = useState(false);
-  /** Guaranteed brand+loader hold from first JS paint (covers fast boot / license gate). */
-  const [brandHoldDone, setBrandHoldDone] = useState(false);
 
   useEffect(() => {
     const id = setTimeout(() => setFontsTimedOut(true), 5000);
     return () => clearTimeout(id);
   }, []);
 
-  useEffect(() => {
-    const id = setTimeout(() => setBrandHoldDone(true), 2800);
-    return () => clearTimeout(id);
-  }, []);
-
   const fontsOk = fontsLoaded || fontsTimedOut;
-  const showBrandSplash = !fontsOk || !brandHoldDone || !appReady;
-
-  // Unblock Android OnPreDraw immediately — do not wait for DB/license/fonts.
-  // JS SplashBackground covers boot until Bootstrap sets appReady.
-  useEffect(() => {
-    hideNativeSplashSoon();
-    const id = setTimeout(hideNativeSplashSoon, 50);
-    return () => clearTimeout(id);
-  }, []);
+  // One overlay until fonts + boot finish. Do not remount a splash-only tree.
+  const showBrandSplash = !fontsOk || !appReady;
 
   useEffect(() => {
-    if (!appReady || !fontsOk || !brandHoldDone) return;
-    hideNativeSplashSoon();
-  }, [appReady, fontsOk, brandHoldDone]);
-
-  if (!fontsOk) {
-    return (
-      <View style={styles.root}>
-        <SplashBackground />
-      </View>
-    );
-  }
+    if (!showBrandSplash) hideNativeSplashSoon();
+  }, [showBrandSplash]);
 
   return (
     <View style={styles.root}>
@@ -323,14 +287,14 @@ export default function RootLayout() {
           </AppDataProvider>
         </LanguageProvider>
       </SafeAreaProvider>
-      {/* Full-screen brand+loader until hold + boot finish (visible over license/home). */}
+      {/* Single JS splash. Hide native only after this logo is on screen. */}
       {showBrandSplash ? (
         <View
           style={styles.splashOverlay}
           pointerEvents="auto"
           collapsable={false}
         >
-          <SplashBackground />
+          <SplashBackground onLoadEnd={hideNativeSplashSoon} />
         </View>
       ) : null}
     </View>

@@ -154,6 +154,15 @@ export const ar = {
   seatsRequired: "أدخل عدد المقاعد أولاً",
   atLeastOneSeat: "أضف اسماً واحداً على الأقل",
   studentsAdded: "تم إضافة الطلاب للمجموعة",
+  pickExistingStudents: "طلاب موجودون",
+  createNewStudents: "أسماء جديدة",
+  addSelectedStudents: "إضافة المحددين",
+  noAvailableStudents: "كل الطلاب موجودون في هذه المجموعة",
+  selectedStudentsCount: "{count} محددون",
+  studentInOtherGroup: "حالياً في {name}",
+  addSelectedConfirm: "إضافة {count} طلاب لهذه المجموعة؟",
+  selectAllStudents: "تحديد الكل",
+  clearSelectedStudents: "مسح",
 
   // Students
   addStudent: "إضافة طالب",

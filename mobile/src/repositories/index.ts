@@ -569,6 +569,43 @@ export async function listStudentsWithEnrollmentPage(input: {
   return { items, total: Number(count?.total ?? 0) };
 }
 
+/** Active/paused students who are not currently enrolled in this group. */
+export async function listStudentsNotInGroup(
+  groupId: number
+): Promise<StudentEnrollmentRow[]> {
+  const db = await getDb();
+  return db.getAllAsync<StudentEnrollmentRow>(
+    `SELECT s.*, g.name as group_name, e.group_id as group_id
+     FROM students s
+     LEFT JOIN enrollments e
+       ON e.student_id = s.id AND e.status = 'active'
+     LEFT JOIN groups g ON g.id = e.group_id
+     WHERE s.status != 'withdrawn'
+       AND s.id NOT IN (
+         SELECT e2.student_id FROM enrollments e2
+         WHERE e2.group_id = ? AND e2.status = 'active'
+       )
+     ORDER BY s.name COLLATE NOCASE`,
+    [groupId]
+  );
+}
+
+/** Enroll several existing students and open a billing round for each. */
+export async function enrollStudentsInGroup(
+  studentIds: number[],
+  groupId: number,
+  startDate: string
+): Promise<number> {
+  const { openRoundForNewEnrollment } = await import("../services/rounds");
+  let added = 0;
+  for (const studentId of studentIds) {
+    await enrollStudentInGroup(studentId, groupId, startDate);
+    await openRoundForNewEnrollment(studentId, groupId);
+    added += 1;
+  }
+  return added;
+}
+
 /** Case-insensitive name search for autocomplete. */
 export async function searchStudentsByName(
   query: string,

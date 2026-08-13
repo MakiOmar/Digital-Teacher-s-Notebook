@@ -678,10 +678,16 @@ export async function createStudent(input: {
   guardian_phone?: string | null;
   notes?: string | null;
   status?: string;
-  group_id: number;
+  /** Optional — student can be created without a group enrollment. */
+  group_id?: number | null;
   custom_monthly_fee?: number | null;
-  start_date: string;
+  start_date?: string;
 }): Promise<number> {
+  const groupId =
+    input.group_id != null && Number.isFinite(input.group_id)
+      ? Number(input.group_id)
+      : null;
+
   return withTransaction(async (db) => {
     const r = await db.runAsync(
       `INSERT INTO students (name, student_phone, guardian_phone, notes, status)
@@ -695,21 +701,25 @@ export async function createStudent(input: {
       ]
     );
     const studentId = Number(r.lastInsertRowId);
-    await db.runAsync(
-      `INSERT INTO enrollments
-       (student_id, group_id, start_date, end_date, custom_monthly_fee, status)
-       VALUES (?, ?, ?, NULL, ?, 'active')`,
-      [
-        studentId,
-        input.group_id,
-        input.start_date,
-        input.custom_monthly_fee ?? null,
-      ]
-    );
+    if (groupId != null) {
+      await db.runAsync(
+        `INSERT INTO enrollments
+         (student_id, group_id, start_date, end_date, custom_monthly_fee, status)
+         VALUES (?, ?, ?, NULL, ?, 'active')`,
+        [
+          studentId,
+          groupId,
+          input.start_date ?? new Date().toISOString().slice(0, 10),
+          input.custom_monthly_fee ?? null,
+        ]
+      );
+    }
     return studentId;
   }).then(async (studentId) => {
-    const { openRoundForNewEnrollment } = await import("../services/rounds");
-    await openRoundForNewEnrollment(studentId, input.group_id);
+    if (groupId != null) {
+      const { openRoundForNewEnrollment } = await import("../services/rounds");
+      await openRoundForNewEnrollment(studentId, groupId);
+    }
     return studentId;
   });
 }
@@ -722,10 +732,16 @@ export async function updateStudent(
     guardian_phone?: string | null;
     notes?: string | null;
     status: string;
-    group_id: number;
+    /** Null/undefined clears the active group enrollment. */
+    group_id?: number | null;
     custom_monthly_fee?: number | null;
   }
 ): Promise<void> {
+  const groupId =
+    input.group_id != null && Number.isFinite(input.group_id)
+      ? Number(input.group_id)
+      : null;
+
   await withTransaction(async (db) => {
     await db.runAsync(
       `UPDATE students SET name = ?, student_phone = ?, guardian_phone = ?, notes = ?, status = ? WHERE id = ?`,
@@ -742,8 +758,17 @@ export async function updateStudent(
       `SELECT * FROM enrollments WHERE student_id = ? AND status = 'active' LIMIT 1`,
       [id]
     );
+    if (groupId == null) {
+      if (active) {
+        await db.runAsync(
+          `UPDATE enrollments SET status = 'ended', end_date = date('now') WHERE id = ?`,
+          [active.id]
+        );
+      }
+      return;
+    }
     if (active) {
-      if (active.group_id !== input.group_id) {
+      if (active.group_id !== groupId) {
         await db.runAsync(
           `UPDATE enrollments SET status = 'ended', end_date = date('now') WHERE id = ?`,
           [active.id]
@@ -752,7 +777,7 @@ export async function updateStudent(
           `INSERT INTO enrollments
            (student_id, group_id, start_date, end_date, custom_monthly_fee, status)
            VALUES (?, ?, date('now'), NULL, ?, 'active')`,
-          [id, input.group_id, input.custom_monthly_fee ?? null]
+          [id, groupId, input.custom_monthly_fee ?? null]
         );
       } else {
         await db.runAsync(
@@ -765,7 +790,7 @@ export async function updateStudent(
         `INSERT INTO enrollments
          (student_id, group_id, start_date, end_date, custom_monthly_fee, status)
          VALUES (?, ?, date('now'), NULL, ?, 'active')`,
-        [id, input.group_id, input.custom_monthly_fee ?? null]
+        [id, groupId, input.custom_monthly_fee ?? null]
       );
     }
   });

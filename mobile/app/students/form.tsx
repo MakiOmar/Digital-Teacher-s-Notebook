@@ -89,7 +89,7 @@ export default function StudentFormScreen() {
         return;
       }
 
-      // New student: prefer URL group, then last used, then first group.
+      // New student: URL group wins, else last used — never force a group.
       if (presetGroupId && g.some((x) => x.id === presetGroupId)) {
         setGroupId(presetGroupId);
         return;
@@ -99,12 +99,10 @@ export default function StudentFormScreen() {
         const lastId = raw ? Number(raw) : NaN;
         if (Number.isFinite(lastId) && g.some((x) => x.id === lastId)) {
           setGroupId(lastId);
-          return;
         }
       } catch {
         // ignore storage errors
       }
-      if (g[0]) setGroupId(g[0].id);
     })();
   }, [editId, presetGroupId]);
 
@@ -146,7 +144,7 @@ export default function StudentFormScreen() {
   }
 
   async function onSave(addAnother: boolean) {
-    if (!name.trim() || !groupId) {
+    if (!name.trim()) {
       await dialog.alert({ title: t("error"), message: t("required") });
       return;
     }
@@ -168,9 +166,11 @@ export default function StudentFormScreen() {
           group_id: groupId,
           custom_monthly_fee: feeVal,
         });
-        await AsyncStorage.setItem(LAST_GROUP_KEY, String(groupId)).catch(
-          () => undefined
-        );
+        if (groupId != null) {
+          await AsyncStorage.setItem(LAST_GROUP_KEY, String(groupId)).catch(
+            () => undefined
+          );
+        }
         bump();
         dialog.toast(t("success"), "success");
         router.back();
@@ -184,12 +184,14 @@ export default function StudentFormScreen() {
         notes: notes.trim() || null,
         status,
         group_id: groupId,
-        custom_monthly_fee: feeVal,
+        custom_monthly_fee: groupId != null ? feeVal : null,
         start_date: startDate,
       });
-      await AsyncStorage.setItem(LAST_GROUP_KEY, String(groupId)).catch(
-        () => undefined
-      );
+      if (groupId != null) {
+        await AsyncStorage.setItem(LAST_GROUP_KEY, String(groupId)).catch(
+          () => undefined
+        );
+      }
       bump();
       dialog.toast(t("studentSaved"), "success");
 
@@ -243,7 +245,7 @@ export default function StudentFormScreen() {
             ]}
           />
 
-          {/* Essentials: name, parent phone, group */}
+          {/* Essentials: name, parent phone; group is optional */}
           <FormField
             label={t("studentName")}
             value={name}
@@ -278,8 +280,22 @@ export default function StudentFormScreen() {
             </Pressable>
           </View>
 
-          <Text style={styles.label}>{t("group")}</Text>
+          <Text style={styles.label}>{t("groupOptional")}</Text>
           <View style={styles.wrap}>
+            {/* Clear group selection */}
+            <Pressable
+              onPress={() => setGroupId(null)}
+              style={[styles.chip, groupId == null && styles.chipOn]}
+            >
+              <Text
+                style={[
+                  styles.chipText,
+                  groupId == null && styles.chipTextOn,
+                ]}
+              >
+                {t("noGroup")}
+              </Text>
+            </Pressable>
             {groups.map((g) => (
               <Pressable
                 key={g.id}
@@ -350,19 +366,23 @@ export default function StudentFormScreen() {
                 onChangeText={setNotes}
                 multiline
               />
-              <FormField
-                label={t("customFee")}
-                value={customFee}
-                onChangeText={setCustomFee}
-                keyboardType="numeric"
-                placeholder={t("defaultFee")}
-              />
-              {!editId ? (
-                <DateField
-                  label={t("enrollmentDate")}
-                  value={startDate}
-                  onChange={setStartDate}
-                />
+              {groupId != null ? (
+                <>
+                  <FormField
+                    label={t("customFee")}
+                    value={customFee}
+                    onChangeText={setCustomFee}
+                    keyboardType="numeric"
+                    placeholder={t("defaultFee")}
+                  />
+                  {!editId ? (
+                    <DateField
+                      label={t("enrollmentDate")}
+                      value={startDate}
+                      onChange={setStartDate}
+                    />
+                  ) : null}
+                </>
               ) : null}
 
               <Text style={styles.label}>{t("status")}</Text>

@@ -13,25 +13,30 @@ import { FiltersSheet } from "@/src/components/FilterSelect";
 import { IconActionBar } from "@/src/components/IconActionBar";
 import { StudentImportModal } from "@/src/components/StudentImportModal";
 import { PaginationBar, pagingBarProps } from "@/src/components/PaginationBar";
+import { useDialog } from "@/src/components/DialogProvider";
 import { t } from "@/src/i18n/ar";
 import {
   listGroups,
   listStudentsWithEnrollmentPage,
 } from "@/src/repositories";
+import { exportStudentsSheet } from "@/src/services/studentImport";
 import { useRefreshableList } from "@/src/hooks/useRefreshableList";
 import { useServerPagination } from "@/src/hooks/useServerPagination";
 import { useGeneralSettings } from "@/src/settings/GeneralSettingsContext";
 import { spacing, colors } from "@/src/theme/colors";
 import { appIsRtl } from "@/src/theme/rtl";
 import { enrollmentStatusLabel } from "@/src/utils/statusLabels";
+import { userFacingErrorMessage } from "@/src/utils/errors";
 
 export default function StudentsTab() {
   const router = useRouter();
+  const dialog = useDialog();
   const { pageSize } = useGeneralSettings();
   const [query, setQuery] = useState("");
   const [groupFilter, setGroupFilter] = useState<"all" | string>("all");
   const [statusFilter, setStatusFilter] = useState<"all" | string>("all");
   const [importOpen, setImportOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const groupsFetcher = useCallback(() => listGroups(), []);
   const { data: groups, reload: reloadGroups } =
     useRefreshableList(groupsFetcher);
@@ -70,6 +75,23 @@ export default function StudentsTab() {
   );
   const paging = useServerPagination(fetchPage, pageSize, resetKey);
 
+  const onExport = useCallback(async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const result = await exportStudentsSheet();
+      dialog.toast(t("exportStudentsDone", { count: result.count }), "success");
+    } catch (e) {
+      if (e instanceof Error && e.message === "EXPORT_NO_STUDENTS") {
+        dialog.toast(t("exportStudentsEmpty"), "error");
+      } else {
+        dialog.toast(userFacingErrorMessage(e), "error");
+      }
+    } finally {
+      setExporting(false);
+    }
+  }, [dialog, exporting]);
+
   if (paging.loading) {
     return (
       <Screen safeTop padded={false} style={{ flex: 1 }}>
@@ -96,6 +118,13 @@ export default function StudentsTab() {
               icon: "upload",
               label: t("actionImport"),
               onPress: () => setImportOpen(true),
+            },
+            {
+              key: "export",
+              icon: "download",
+              label: t("actionExport"),
+              disabled: exporting,
+              onPress: () => void onExport(),
             },
           ]}
         />

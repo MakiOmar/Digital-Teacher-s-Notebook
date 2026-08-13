@@ -1,22 +1,18 @@
 /**
- * Parse Excel/CSV (and public Google Sheets CSV export) into student rows,
- * then create students + enrollments via the repository layer.
+ * Parse Excel/CSV (and public Google Sheets CSV export) into student contact rows,
+ * create students without enrollment, and export contacts to a shareable sheet.
  */
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
+import * as Sharing from "expo-sharing";
 import * as XLSX from "xlsx";
-import { createStudent } from "@/src/repositories";
-import type { StudyGroup } from "@/src/db/types";
-import { todayDateOnly } from "@/src/utils/date";
+import { createStudent, listStudents } from "@/src/repositories";
 
 export type ParsedStudentRow = {
   rowNumber: number;
   name: string;
   student_phone: string | null;
   guardian_phone: string | null;
-  notes: string | null;
-  group_name: string | null;
-  custom_monthly_fee: number | null;
   error?: string;
 };
 
@@ -32,13 +28,7 @@ export type StudentImportRunResult = {
   errors: string[];
 };
 
-type MappedField =
-  | "name"
-  | "student_phone"
-  | "guardian_phone"
-  | "notes"
-  | "group_name"
-  | "custom_monthly_fee";
+type MappedField = "name" | "student_phone" | "guardian_phone";
 
 const HEADER_ALIASES: Record<MappedField, string[]> = {
   name: [
@@ -73,27 +63,14 @@ const HEADER_ALIASES: Record<MappedField, string[]> = {
     "رقم ولي الأمر",
     "هاتف الولي",
   ],
-  notes: ["notes", "note", "ملاحظات", "ملاحظة"],
-  group_name: [
-    "group",
-    "group name",
-    "group_name",
-    "class",
-    "المجموعة",
-    "اسم المجموعة",
-    "فصل",
-  ],
-  custom_monthly_fee: [
-    "fee",
-    "monthly fee",
-    "custom fee",
-    "custom_monthly_fee",
-    "السعر",
-    "سعر",
-    "الرسوم",
-    "رسوم",
-  ],
 };
+
+/** Stable export / re-import headers (English so sheets stay portable). */
+export const STUDENT_SHEET_HEADERS = [
+  "name",
+  "parent phone",
+  "student phone",
+] as const;
 
 function normalizeHeader(value: string): string {
   return value
@@ -112,14 +89,6 @@ function cellToString(value: unknown): string {
   return String(value).trim();
 }
 
-function parseFee(raw: string): number | null {
-  if (!raw) return null;
-  const cleaned = raw.replace(/[^\d.]/g, "");
-  if (!cleaned) return null;
-  const n = Number(cleaned);
-  return Number.isFinite(n) ? n : null;
-}
-
 function mapHeaders(headers: string[]): Partial<Record<MappedField, number>> {
   const map: Partial<Record<MappedField, number>> = {};
   headers.forEach((header, index) => {
@@ -135,7 +104,7 @@ function mapHeaders(headers: string[]): Partial<Record<MappedField, number>> {
   return map;
 }
 
-/** Convert a 2D sheet matrix into validated student import rows. */
+/** Convert a 2D sheet matrix into validated contact-only student rows. */
 export function parseStudentMatrix(
   matrix: unknown[][]
 ): StudentImportParseResult {
@@ -173,17 +142,6 @@ export function parseStudentMatrix(
       col.guardian_phone != null
         ? cellToString(raw[col.guardian_phone]) || null
         : null;
-    const notes =
-      col.notes != null ? cellToString(raw[col.notes]) || null : null;
-    const group_name =
-      col.group_name != null
-        ? cellToString(raw[col.group_name]) || null
-        : null;
-    const feeRaw =
-      col.custom_monthly_fee != null
-        ? cellToString(raw[col.custom_monthly_fee])
-        : "";
-    const custom_monthly_fee = parseFee(feeRaw);
 
     const rowNumber = i + 1;
     if (!name) {
@@ -192,9 +150,6 @@ export function parseStudentMatrix(
         name: "",
         student_phone,
         guardian_phone,
-        notes,
-        group_name,
-        custom_monthly_fee,
         error: "IMPORT_ROW_MISSING_NAME",
       });
       continue;
@@ -205,9 +160,6 @@ export function parseStudentMatrix(
       name,
       student_phone,
       guardian_phone,
-      notes,
-      group_name,
-      custom_monthly_fee,
     });
   }
 
@@ -263,7 +215,6 @@ export function googleSheetsToCsvExportUrl(input: string): string {
     throw new Error("IMPORT_SHEETS_URL_REQUIRED");
   }
 
-  // Already a CSV export / published CSV.
   if (
     /output=csv/i.test(url) ||
     /export\?.*format=csv/i.test(url) ||
@@ -329,30 +280,10 @@ export async function pickStudentSheetFile(): Promise<{
   return { uri: asset.uri, name: asset.name ?? "sheet" };
 }
 
-function resolveGroupId(
-  groupName: string | null,
-  defaultGroupId: number,
-  groups: StudyGroup[]
-): number | null {
-  if (groupName) {
-    const normalized = groupName.trim().toLowerCase();
-    const match = groups.find((g) => g.name.trim().toLowerCase() === normalized);
-    if (match) return match.id;
-    return null;
-  }
-  return defaultGroupId;
-}
-
-/** Create students from parsed rows. Rows with errors or unknown groups are skipped. */
+/** Create students from contact rows (no group enrollment). */
 export async function importParsedStudents(
-  rows: ParsedStudentRow[],
-  options: {
-    defaultGroupId: number;
-    groups: StudyGroup[];
-    startDate?: string;
-  }
+  rows: ParsedStudentRow[]
 ): Promise<StudentImportRunResult> {
-  const startDate = options.startDate ?? todayDateOnly();
   let imported = 0;
   let skipped = 0;
   const errors: string[] = [];
@@ -363,25 +294,11 @@ export async function importParsedStudents(
       errors.push(`#${row.rowNumber}: missing name`);
       continue;
     }
-    const groupId = resolveGroupId(
-      row.group_name,
-      options.defaultGroupId,
-      options.groups
-    );
-    if (groupId == null) {
-      skipped += 1;
-      errors.push(`#${row.rowNumber}: unknown group "${row.group_name}"`);
-      continue;
-    }
     try {
       await createStudent({
         name: row.name.trim(),
         student_phone: row.student_phone,
         guardian_phone: row.guardian_phone,
-        notes: row.notes,
-        group_id: groupId,
-        custom_monthly_fee: row.custom_monthly_fee,
-        start_date: startDate,
       });
       imported += 1;
     } catch (e) {
@@ -393,4 +310,50 @@ export async function importParsedStudents(
   }
 
   return { imported, skipped, errors };
+}
+
+/** Build an .xlsx of student contacts and open the system share sheet. */
+export async function exportStudentsSheet(): Promise<{
+  path: string;
+  count: number;
+}> {
+  const students = await listStudents();
+  if (!students.length) {
+    throw new Error("EXPORT_NO_STUDENTS");
+  }
+
+  const aoa: (string | number)[][] = [
+    [...STUDENT_SHEET_HEADERS],
+    ...students.map((s) => [
+      s.name ?? "",
+      s.guardian_phone ?? "",
+      s.student_phone ?? "",
+    ]),
+  ];
+
+  const workbook = XLSX.utils.book_new();
+  const sheet = XLSX.utils.aoa_to_sheet(aoa);
+  XLSX.utils.book_append_sheet(workbook, sheet, "Students");
+  const base64 = XLSX.write(workbook, {
+    type: "base64",
+    bookType: "xlsx",
+  }) as string;
+
+  const dir = FileSystem.cacheDirectory ?? FileSystem.documentDirectory;
+  if (!dir) throw new Error("EXPORT_NO_STORAGE");
+  const path = `${dir}students-export-${Date.now()}.xlsx`;
+  await FileSystem.writeAsStringAsync(path, base64, {
+    encoding: FileSystem.EncodingType.Base64,
+  });
+
+  if (await Sharing.isAvailableAsync()) {
+    await Sharing.shareAsync(path, {
+      mimeType:
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      dialogTitle: "Export students",
+      UTI: "org.openxmlformats.spreadsheetml.sheet",
+    });
+  }
+
+  return { path, count: students.length };
 }

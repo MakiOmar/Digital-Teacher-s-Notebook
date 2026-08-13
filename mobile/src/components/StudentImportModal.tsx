@@ -1,5 +1,6 @@
 /**
  * Modal to import students from an Excel/CSV file or a public Google Sheet.
+ * Contact fields only: name, parent phone, student phone.
  */
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -15,8 +16,6 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { FormField } from "@/src/components/ui";
 import { useDialog } from "@/src/components/DialogProvider";
 import { t } from "@/src/i18n/ar";
-import { listGroups } from "@/src/repositories";
-import type { StudyGroup } from "@/src/db/types";
 import {
   importParsedStudents,
   parseStudentsFromFileUri,
@@ -57,8 +56,6 @@ function mapImportError(code: string): string {
 export function StudentImportModal({ visible, onClose, onImported }: Props) {
   const dialog = useDialog();
   const [step, setStep] = useState<Step>("choose");
-  const [groups, setGroups] = useState<StudyGroup[]>([]);
-  const [groupId, setGroupId] = useState<number | null>(null);
   const [sheetsUrl, setSheetsUrl] = useState("");
   const [rows, setRows] = useState<ParsedStudentRow[]>([]);
   const [sourceLabel, setSourceLabel] = useState("");
@@ -79,11 +76,6 @@ export function StudentImportModal({ visible, onClose, onImported }: Props) {
     setSourceLabel("");
     setLoading(false);
     setImporting(false);
-    void (async () => {
-      const g = await listGroups();
-      setGroups(g);
-      setGroupId(g[0]?.id ?? null);
-    })();
   }, [visible]);
 
   const close = () => {
@@ -140,10 +132,6 @@ export function StudentImportModal({ visible, onClose, onImported }: Props) {
   };
 
   const onConfirmImport = async () => {
-    if (groupId == null) {
-      dialog.toast(t("importSelectGroup"), "error");
-      return;
-    }
     if (!validRows.length) {
       dialog.toast(t("importNoValidRows"), "error");
       return;
@@ -157,10 +145,7 @@ export function StudentImportModal({ visible, onClose, onImported }: Props) {
 
     try {
       setImporting(true);
-      const result = await importParsedStudents(validRows, {
-        defaultGroupId: groupId,
-        groups,
-      });
+      const result = await importParsedStudents(validRows);
       if (result.imported > 0) {
         dialog.toast(
           t("importDoneCount", { count: result.imported }),
@@ -271,7 +256,6 @@ export function StudentImportModal({ visible, onClose, onImported }: Props) {
           {step === "google" && !loading && (
             <View style={styles.body}>
               <Text style={styles.hint}>{t("importSheetsUrlHint")}</Text>
-              {/* Google Sheets share URL */}
               <FormField
                 label={t("importSheetsUrlLabel")}
                 value={sheetsUrl}
@@ -309,39 +293,6 @@ export function StudentImportModal({ visible, onClose, onImported }: Props) {
                 })}
               </Text>
 
-              <Text style={styles.sectionLabel}>{t("importDefaultGroup")}</Text>
-              <Text style={styles.sectionHint}>
-                {t("importDefaultGroupHint")}
-              </Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.groupChips}
-              >
-                {groups.map((g) => {
-                  const selected = g.id === groupId;
-                  return (
-                    <Pressable
-                      key={g.id}
-                      onPress={() => setGroupId(g.id)}
-                      style={[
-                        styles.chip,
-                        selected && styles.chipSelected,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.chipText,
-                          selected && styles.chipTextSelected,
-                        ]}
-                      >
-                        {g.name}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-
               {/* Preview list */}
               <ScrollView style={styles.previewList}>
                 {rows.slice(0, 40).map((row) => (
@@ -359,8 +310,9 @@ export function StudentImportModal({ visible, onClose, onImported }: Props) {
                       {row.name || t("importRowMissingName")}
                     </Text>
                     <Text style={styles.previewMeta} numberOfLines={1}>
-                      {row.group_name || t("importUsesDefaultGroup")}
-                      {row.guardian_phone ? ` · ${row.guardian_phone}` : ""}
+                      {[row.guardian_phone, row.student_phone]
+                        .filter(Boolean)
+                        .join(" · ") || "—"}
                     </Text>
                   </View>
                 ))}
@@ -513,48 +465,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.text,
   },
-  sectionLabel: {
-    ...rtlText,
-    fontFamily: fonts.semiBold,
-    fontSize: 13,
-    color: colors.text,
-  },
-  sectionHint: {
-    ...rtlText,
-    fontFamily: fonts.regular,
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: -spacing.sm,
-  },
-  groupChips: {
-    ...rtlRow(),
-    gap: spacing.sm,
-    paddingVertical: 2,
-  },
-  chip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
-  },
-  chipSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primarySoft ?? colors.background,
-  },
-  chipText: {
-    ...rtlText,
-    fontFamily: fonts.regular,
-    fontSize: 13,
-    color: colors.text,
-  },
-  chipTextSelected: {
-    color: colors.primary,
-    fontFamily: fonts.semiBold,
-  },
   previewList: {
-    maxHeight: 220,
+    maxHeight: 280,
   },
   previewRow: {
     paddingVertical: spacing.sm,

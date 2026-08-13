@@ -57,6 +57,19 @@ export const TOUR_STEPS: TourStep[] = [
     requirement: async () => Boolean(await getActiveYear()),
   },
   {
+    id: "createStudent",
+    titleKey: "tourStudentTitle",
+    bodyKey: "tourStudentBody",
+    targetId: "studentsAdd",
+    tabHref: "/(tabs)/students",
+    createRoute: "/students/form",
+    allowNext: true,
+    requirement: async () => {
+      const rows = await listStudentsWithEnrollment();
+      return rows.some((r) => r.status === "active");
+    },
+  },
+  {
     id: "createGroup",
     titleKey: "tourGroupTitle",
     bodyKey: "tourGroupBody",
@@ -73,19 +86,6 @@ export const TOUR_STEPS: TourStep[] = [
     targetId: "groupsList",
     tabHref: "/(tabs)/groups",
     allowNext: true,
-  },
-  {
-    id: "createStudent",
-    titleKey: "tourStudentTitle",
-    bodyKey: "tourStudentBody",
-    targetId: "studentsAdd",
-    tabHref: "/(tabs)/students",
-    createRoute: "/students/form",
-    allowNext: true,
-    requirement: async () => {
-      const rows = await listStudentsWithEnrollment();
-      return rows.some((r) => r.group_name != null && r.status === "active");
-    },
   },
   {
     id: "todayHint",

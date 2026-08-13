@@ -2,7 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { isKnownTourStepId } from "./tourSteps";
 
 /** Bumped when step IDs / flow change so stale step pointers reset. */
-const SETTINGS_KEY = "tutor.tour.v2";
+const SETTINGS_KEY = "tutor.tour.v3";
 
 export type TourStatus = "pending" | "skipped" | "completed";
 

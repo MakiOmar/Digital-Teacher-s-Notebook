@@ -20,7 +20,11 @@ import { LanguageSwitcher } from "@/src/components/LanguageSwitcher";
 import { useAppData } from "@/src/contexts/AppDataContext";
 import { t } from "@/src/i18n/ar";
 import { useLanguage } from "@/src/i18n/LanguageContext";
-import { listGroups, listUpcomingSessions } from "@/src/repositories";
+import {
+  listGroups,
+  listStudents,
+  listUpcomingSessions,
+} from "@/src/repositories";
 import { formatDateTimeAr } from "@/src/utils/date";
 import type { GroupSession } from "@/src/db/types";
 import { colors, groupAccentColor, radii, spacing } from "@/src/theme/colors";
@@ -180,16 +184,19 @@ export default function HomeScreen() {
     (GroupSession & { group_name: string; accent_color?: string | null }) | null
   >(null);
   const [groupCount, setGroupCount] = useState(0);
+  const [studentCount, setStudentCount] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [upcoming, groups] = await Promise.all([
+      const [upcoming, groups, students] = await Promise.all([
         listUpcomingSessions(1),
         listGroups(),
+        listStudents(),
       ]);
       setNextSession(upcoming[0] ?? null);
       setGroupCount(groups.length);
+      setStudentCount(students.length);
     } finally {
       setLoading(false);
     }
@@ -222,7 +229,7 @@ export default function HomeScreen() {
     );
   }
 
-  if (loading && !nextSession && groupCount === 0) {
+  if (loading && !nextSession && groupCount === 0 && studentCount === 0) {
     return (
       <Screen safeTop padded={false} style={{ flex: 1 }}>
         <SkeletonList rows={6} />
@@ -247,7 +254,14 @@ export default function HomeScreen() {
           />
         </TourAnchor>
 
-        {groupCount === 0 ? (
+        {studentCount === 0 ? (
+          <EmptyState
+            message={t("getStartedStudents")}
+            actionLabel={t("addStudentCta")}
+            onAction={() => router.push("/students/form")}
+            tourAnchorId="studentsAdd"
+          />
+        ) : groupCount === 0 ? (
           <EmptyState
             message={t("getStartedGroup")}
             actionLabel={t("addGroupCta")}

@@ -5,11 +5,12 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  FlatList,
   Modal,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
@@ -56,6 +57,8 @@ function mapImportError(code: string): string {
 
 export function StudentImportModal({ visible, onClose, onImported }: Props) {
   const dialog = useDialog();
+  const { height: windowHeight } = useWindowDimensions();
+  const previewListMaxHeight = Math.round(windowHeight * 0.5);
   const [step, setStep] = useState<Step>("choose");
   const [sheetsUrl, setSheetsUrl] = useState("");
   const [rows, setRows] = useState<ParsedStudentRow[]>([]);
@@ -190,9 +193,10 @@ export function StudentImportModal({ visible, onClose, onImported }: Props) {
       animationType="fade"
       onRequestClose={close}
     >
-      {/* Dimmed backdrop */}
-      <Pressable style={styles.backdrop} onPress={close}>
-        <Pressable style={styles.sheet} onPress={() => undefined}>
+      {/* Dimmed backdrop — sheet is a View so the preview list can scroll */}
+      <View style={styles.backdrop}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={close} />
+        <View style={styles.sheet}>
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.title}>{t("importStudents")}</Text>
@@ -308,13 +312,15 @@ export function StudentImportModal({ visible, onClose, onImported }: Props) {
                 })}
               </Text>
 
-              {/* Preview list */}
-              <ScrollView style={styles.previewList}>
-                {rows.slice(0, 40).map((row) => (
-                  <View
-                    key={`${row.rowNumber}-${row.name}`}
-                    style={styles.previewRow}
-                  >
+              {/* Full preview — FlatList so long sheets stay scrollable */}
+              <FlatList
+                data={rows}
+                keyExtractor={(row) => `${row.rowNumber}-${row.name}`}
+                style={[styles.previewList, { maxHeight: previewListMaxHeight }]}
+                nestedScrollEnabled
+                keyboardShouldPersistTaps="handled"
+                renderItem={({ item: row }) => (
+                  <View style={styles.previewRow}>
                     <Text
                       style={[
                         styles.previewName,
@@ -334,13 +340,8 @@ export function StudentImportModal({ visible, onClose, onImported }: Props) {
                             .join(" · ") || "—"}
                     </Text>
                   </View>
-                ))}
-                {rows.length > 40 ? (
-                  <Text style={styles.moreRows}>
-                    {t("importMoreRows", { count: rows.length - 40 })}
-                  </Text>
-                ) : null}
-              </ScrollView>
+                )}
+              />
 
               <View style={styles.actions}>
                 <Pressable
@@ -369,8 +370,8 @@ export function StudentImportModal({ visible, onClose, onImported }: Props) {
               </View>
             </View>
           )}
-        </Pressable>
-      </Pressable>
+        </View>
+      </View>
     </Modal>
   );
 }
@@ -485,7 +486,7 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   previewList: {
-    maxHeight: 280,
+    flexGrow: 0,
   },
   previewRow: {
     paddingVertical: spacing.sm,
@@ -504,13 +505,6 @@ const styles = StyleSheet.create({
   },
   previewMeta: {
     ...rtlText,
-    fontFamily: fonts.regular,
-    fontSize: 12,
-    color: colors.textMuted,
-  },
-  moreRows: {
-    ...rtlText,
-    marginTop: spacing.sm,
     fontFamily: fonts.regular,
     fontSize: 12,
     color: colors.textMuted,

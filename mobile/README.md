@@ -30,7 +30,8 @@ npx expo start
 
 لبناء وتشغيل **development build** على الجهاز (وليس فتح المتصفح): [`README-DEV-BUILD.md`](./README-DEV-BUILD.md)
 
-لنشر التطبيق على **Google Play** (الخطوات الكاملة + مسار الاختبار): [`README-GOOGLE-PLAY.md`](./README-GOOGLE-PLAY.md)
+لنشر التطبيق على **Google Play** (الخطوات الكاملة + مسار الاختبار): [`README-GOOGLE-PLAY.md`](./README-GOOGLE-PLAY.md)  
+سياسة الخصوصية لنشرها على موقع HTTPS وربطها في Play Console: [`PRIVACY_POLICY.md`](./PRIVACY_POLICY.md)
 
 ## البداية السريعة داخل التطبيق
 

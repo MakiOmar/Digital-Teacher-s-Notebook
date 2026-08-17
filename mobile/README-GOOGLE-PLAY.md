@@ -30,6 +30,9 @@ For a short checklist of technical facts, see also [`PLAY_STORE_REQUIREMENTS.md`
 
 ### 1.2 Legal & product pages you must host
 
+Ready-to-host text (Arabic + English) and Data safety cheat sheet:  
+[`PRIVACY_POLICY.md`](./PRIVACY_POLICY.md)
+
 You need a public **HTTPS privacy policy URL** before review. It must mention at least:
 
 - What data the app stores on device (students, payments, attendance, backups).

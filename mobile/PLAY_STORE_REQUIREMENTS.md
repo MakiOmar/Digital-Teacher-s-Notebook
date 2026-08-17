@@ -81,7 +81,8 @@ npm run verify:aab
 - [ ] Optional tablet screenshots
 
 ### Policy / compliance
-- [ ] **Privacy policy URL** (hosted HTTPS) — required (license activation, backups, camera, biometrics, notifications)
+- [ ] **Privacy policy URL** (hosted HTTPS) — required (license activation, backups, camera, biometrics, notifications)  
+  Full draft: [`PRIVACY_POLICY.md`](./PRIVACY_POLICY.md)
 - [ ] Data safety form (see §5)
 - [ ] Content rating questionnaire
 - [ ] Target audience / news apps declarations (as applicable)

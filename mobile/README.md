@@ -9,7 +9,7 @@
 متغيرات بيئة اختيارية (Expo):
 
 ```bash
-EXPO_PUBLIC_ULSP_API_BASE=https://ulsp.gamesspoteg.com/api/v1
+EXPO_PUBLIC_ULSP_API_BASE=https://ulspbase.itqandev.com/api/v1
 EXPO_PUBLIC_ULSP_API_KEY=your_product_api_key
 ```
 

@@ -43,7 +43,7 @@ This information stays on the device unless **you** export a backup or share a f
 
 To activate or validate a license / trial, the App contacts:
 
-**`https://ulsp.gamesspoteg.com`** (ULSP license API)
+**`https://ulspbase.itqandev.com`** (ULSP license API)
 
 Typical data sent:
 
@@ -81,7 +81,7 @@ You can deny optional permissions; core offline features still work, except the 
 ### 5. Sharing
 
 - **Teaching data:** not shared by us. Only you can share backups or screenshots.  
-- **License data:** processed by the ULSP service at `ulsp.gamesspoteg.com` solely for licensing.  
+- **License data:** processed by the ULSP service at `ulspbase.itqandev.com` solely for licensing.  
 - **Legal:** we may disclose information if required by applicable law.
 
 ### 6. Retention
@@ -152,7 +152,7 @@ Privacy / support: **SUPPORT_EMAIL_HERE**
 
 لتفعيل أو التحقق من الترخيص / التجربة، يتصل التطبيق بـ:
 
-**`https://ulsp.gamesspoteg.com`**
+**`https://ulspbase.itqandev.com`**
 
 وقد يُرسل عادةً:
 
@@ -238,7 +238,7 @@ Privacy / support: **SUPPORT_EMAIL_HERE**
 | Photos | **Yes, optional** — profile photo on device |
 | Approximate location / precise location | **No** |
 | Web browsing / search history | **No** |
-| Shared with third parties? | License data processed by ULSP (`ulsp.gamesspoteg.com`) for **App functionality / Account management / Fraud prevention**. Teaching data **not** shared by us |
+| Shared with third parties? | License data processed by ULSP (`ulspbase.itqandev.com`) for **App functionality / Account management / Fraud prevention**. Teaching data **not** shared by us |
 | Data encrypted in transit? | **Yes** (HTTPS to license API) |
 | Users can request deletion? | **Yes** — delete in-app / uninstall; for license records contact support |
 | Committed to Play Families Policy? | **No** (not a kids app) |
@@ -254,7 +254,7 @@ In **App access**, explain that a license key is required and provide a temporar
 
 - [ ] Replace `SUPPORT_EMAIL_HERE`  
 - [ ] Replace `SUPPORT_WHATSAPP_HERE` (or remove the WhatsApp line)  
-- [ ] Confirm ULSP domain is still `https://ulsp.gamesspoteg.com`  
+- [ ] Confirm ULSP domain is still `https://ulspbase.itqandev.com`  
 - [ ] Publish HTTPS URL  
 - [ ] Paste URL in Play Console Privacy policy  
 - [ ] Align Data safety answers with this document  

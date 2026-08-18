@@ -2,7 +2,7 @@
 
 export const ULSP_API_BASE =
   process.env.EXPO_PUBLIC_ULSP_API_BASE?.replace(/\/$/, "") ||
-  "https://ulsp.gamesspoteg.com/api/v1";
+  "https://ulspbase.itqandev.com/api/v1";
 
 /** Product API key — prefer EXPO_PUBLIC_ULSP_API_KEY in env; fallback for this app. */
 export const ULSP_API_KEY =

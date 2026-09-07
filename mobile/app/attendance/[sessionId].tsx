@@ -47,7 +47,8 @@ import type {
 } from "@/src/db/types";
 import { formatDateTimeAr } from "@/src/utils/date";
 import { sessionStatusLabel } from "@/src/components/SessionClassButton";
-import { colors, radii, spacing } from "@/src/theme/colors";
+import { radii, spacing, type AppColors } from "@/src/theme/colors";
+import { useColors } from "@/src/theme/ThemeContext";
 import { rtlBlock, rtlChipRow, rtlRow, rtlText } from "@/src/theme/rtl";
 import { useAppData } from "@/src/contexts/AppDataContext";
 import { useDialog } from "@/src/components/DialogProvider";
@@ -69,6 +70,9 @@ const STATUSES: { key: AttendanceStatus; label: string }[] = [
 type SessionTab = "attendance" | "homework";
 
 export default function AttendanceScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
   const id = Number(sessionId);
   const navigation = useNavigation();
@@ -784,7 +788,8 @@ export default function AttendanceScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   listHeader: {
     paddingTop: spacing.md,
     paddingBottom: spacing.sm,
@@ -952,3 +957,4 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
 });
+}

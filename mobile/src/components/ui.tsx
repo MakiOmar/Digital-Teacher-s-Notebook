@@ -12,7 +12,8 @@ import {
   StyleProp,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, radii, spacing } from "../theme/colors";
+import { radii, spacing } from "../theme/colors";
+import { useColors } from "../theme/ThemeContext";
 import { fonts, fontBold, fontExtraBold, fontSemiBold } from "../theme/typography";
 import { rtlRow, rtlText, rtlBlock, rtlChipRow, inputShell, inputTextAlign, writingDirection } from "../theme/rtl";
 import { TourAnchor } from "@/src/tour/TourAnchor";
@@ -35,12 +36,15 @@ export function Screen({
   safeTop?: boolean;
 }) {
   const insets = useSafeAreaInsets();
+  const colors = useColors();
 
   return (
     <View
       style={[
         styles.screen,
         {
+          // Opaque so stack/tab transitions don't show the previous page's text.
+          backgroundColor: colors.background,
           paddingTop: (safeTop ? insets.top : 0) + spacing.sm,
           paddingBottom: spacing.sm,
           paddingHorizontal: padded ? spacing.lg : 0,
@@ -54,7 +58,8 @@ export function Screen({
 }
 
 export function Title({ children }: { children: React.ReactNode }) {
-  return <Text style={styles.title}>{children}</Text>;
+  const colors = useColors();
+  return <Text style={[styles.title, { color: colors.text }]}>{children}</Text>;
 }
 
 export function Muted({
@@ -64,14 +69,23 @@ export function Muted({
   children: React.ReactNode;
   style?: StyleProp<TextStyle>;
 }) {
-  return <Text style={[styles.muted, style]}>{children}</Text>;
+  const colors = useColors();
+  return (
+    <Text style={[styles.muted, { color: colors.textMuted }, style]}>
+      {children}
+    </Text>
+  );
 }
 
 export function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <Text style={styles.sectionTitle}>{children}</Text>;
+  const colors = useColors();
+  return (
+    <Text style={[styles.sectionTitle, { color: colors.text }]}>{children}</Text>
+  );
 }
 
 export function LoadingBlock() {
+  const colors = useColors();
   return (
     <View style={styles.center}>
       <ActivityIndicator color={colors.primary} size="large" />
@@ -91,6 +105,7 @@ export function EmptyState({
   /** Optional spotlight anchor around the CTA */
   tourAnchorId?: TourTargetId;
 }) {
+  const colors = useColors();
   const button =
     actionLabel && onAction ? (
       <View style={{ marginTop: spacing.md, width: "100%", maxWidth: 280 }}>
@@ -100,7 +115,7 @@ export function EmptyState({
 
   return (
     <View style={styles.center}>
-      <Text style={styles.muted}>{message}</Text>
+      <Text style={[styles.muted, { color: colors.textMuted }]}>{message}</Text>
       {tourAnchorId && button ? (
         <TourAnchor id={tourAnchorId}>{button}</TourAnchor>
       ) : (
@@ -111,10 +126,14 @@ export function EmptyState({
 }
 
 export function SkeletonList({ rows = 5 }: { rows?: number }) {
+  const colors = useColors();
   return (
     <View style={{ padding: spacing.lg, gap: 10 }}>
       {Array.from({ length: rows }).map((_, i) => (
-        <View key={i} style={styles.skeletonRow} />
+        <View
+          key={i}
+          style={[styles.skeletonRow, { backgroundColor: colors.primarySoft }]}
+        />
       ))}
     </View>
   );
@@ -129,6 +148,7 @@ export function SearchField({
   onChangeText: (t: string) => void;
   placeholder?: string;
 }) {
+  const colors = useColors();
   return (
     <View style={[styles.field, rtlBlock, { marginBottom: spacing.sm }]}>
       <View style={inputShell}>
@@ -137,7 +157,14 @@ export function SearchField({
           onChangeText={onChangeText}
           placeholder={placeholder ?? "بحث..."}
           placeholderTextColor={colors.textMuted}
-          style={styles.input}
+          style={[
+            styles.input,
+            {
+              borderColor: colors.border,
+              backgroundColor: colors.surface,
+              color: colors.text,
+            },
+          ]}
           textAlign={inputTextAlign()}
         />
       </View>
@@ -156,15 +183,20 @@ export function PrimaryButton({
   disabled?: boolean;
   variant?: "primary" | "danger" | "ghost";
 }) {
+  const colors = useColors();
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
       style={({ pressed }) => [
         styles.btn,
-        variant === "primary" && styles.btnPrimary,
-        variant === "danger" && styles.btnDanger,
-        variant === "ghost" && styles.btnGhost,
+        variant === "primary" && { backgroundColor: colors.primary },
+        variant === "danger" && { backgroundColor: colors.danger },
+        variant === "ghost" && {
+          backgroundColor: "transparent",
+          borderWidth: 1,
+          borderColor: colors.primary,
+        },
         (disabled || pressed) && { opacity: 0.7 },
       ]}
     >
@@ -197,9 +229,12 @@ export function FormField({
   multiline?: boolean;
   onFocus?: () => void;
 }) {
+  const colors = useColors();
   return (
     <View style={[styles.field, rtlBlock, !label ? { marginBottom: 0 } : null]}>
-      {label ? <Text style={styles.label}>{label}</Text> : null}
+      {label ? (
+        <Text style={[styles.label, { color: colors.text }]}>{label}</Text>
+      ) : null}
       <View style={inputShell}>
         <TextInput
           value={value}
@@ -212,6 +247,9 @@ export function FormField({
           style={[
             styles.input,
             {
+              borderColor: colors.border,
+              backgroundColor: colors.surface,
+              color: colors.text,
               writingDirection: writingDirection(),
               textAlign: inputTextAlign(),
             },
@@ -240,20 +278,32 @@ export function ListRow({
   /** Optional icon/actions rendered outside the main press target. */
   trailing?: React.ReactNode;
 }) {
+  const colors = useColors();
   const body = (
     <View
       style={[
         styles.row,
         rtlRow(),
-        borderColor ? { borderColor, borderWidth: 2 } : null,
-        { flex: 1, marginBottom: 0 },
+        {
+          backgroundColor: colors.surface,
+          borderColor: borderColor ?? colors.border,
+          borderWidth: borderColor ? 2 : 1.5,
+          flex: 1,
+          marginBottom: 0,
+        },
       ]}
     >
       <View style={{ flex: 1 }}>
-        <Text style={styles.rowTitle}>{title}</Text>
-        {subtitle ? <Text style={styles.muted}>{subtitle}</Text> : null}
+        <Text style={[styles.rowTitle, { color: colors.text }]}>{title}</Text>
+        {subtitle ? (
+          <Text style={[styles.muted, { color: colors.textMuted }]}>
+            {subtitle}
+          </Text>
+        ) : null}
       </View>
-      {right ? <Text style={styles.rowRight}>{right}</Text> : null}
+      {right ? (
+        <Text style={[styles.rowRight, { color: colors.primary }]}>{right}</Text>
+      ) : null}
     </View>
   );
 
@@ -291,6 +341,7 @@ export function MenuCard({
   /** Optional spotlight target for the onboarding tour */
   tourId?: TourTargetId;
 }) {
+  const colors = useColors();
   // Keep margin outside TourAnchor so the spotlight measures the card only
   const body = (
     <Pressable
@@ -298,18 +349,27 @@ export function MenuCard({
       style={({ pressed }) => [
         styles.menuCard,
         rtlRow(),
-        { borderColor: borderColor ?? colors.primary },
+        {
+          backgroundColor: colors.surface,
+          borderColor: borderColor ?? colors.primary,
+        },
         pressed && { opacity: 0.85 },
       ]}
     >
       {icon != null ? (
         <Image source={icon} style={styles.menuIcon} />
       ) : (
-        <View style={[styles.menuIconFallback, { backgroundColor: colors.primarySoft }]} />
+        <View
+          style={[styles.menuIconFallback, { backgroundColor: colors.primarySoft }]}
+        />
       )}
       <View style={{ flex: 1 }}>
-        <Text style={styles.menuTitle}>{title}</Text>
-        {subtitle ? <Text style={styles.muted}>{subtitle}</Text> : null}
+        <Text style={[styles.menuTitle, { color: colors.text }]}>{title}</Text>
+        {subtitle ? (
+          <Text style={[styles.muted, { color: colors.textMuted }]}>
+            {subtitle}
+          </Text>
+        ) : null}
       </View>
     </Pressable>
   );
@@ -327,12 +387,17 @@ export function BorderedCard({
   borderColor?: string;
   style?: StyleProp<ViewStyle>;
 }) {
+  const colors = useColors();
   return (
     <View
       style={[
         styles.card,
         rtlBlock,
-        { borderColor: borderColor ?? colors.border, borderWidth: 2 },
+        {
+          backgroundColor: colors.surface,
+          borderColor: borderColor ?? colors.border,
+          borderWidth: 2,
+        },
         style,
       ]}
     >
@@ -348,7 +413,22 @@ export function Card({
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
-  return <View style={[styles.card, rtlBlock, style]}>{children}</View>;
+  const colors = useColors();
+  return (
+    <View
+      style={[
+        styles.card,
+        rtlBlock,
+        {
+          backgroundColor: colors.surface,
+          borderColor: colors.border,
+        },
+        style,
+      ]}
+    >
+      {children}
+    </View>
+  );
 }
 
 export function StatCard({
@@ -362,6 +442,7 @@ export function StatCard({
   tone?: "default" | "success" | "danger" | "warning";
   style?: StyleProp<ViewStyle>;
 }) {
+  const colors = useColors();
   const bg =
     tone === "success"
       ? colors.paid
@@ -387,8 +468,8 @@ export function StatCard({
         style,
       ]}
     >
-      <Text style={styles.statLabel}>{label}</Text>
-      <Text style={styles.statValue}>{value}</Text>
+      <Text style={[styles.statLabel, { color: colors.textMuted }]}>{label}</Text>
+      <Text style={[styles.statValue, { color: colors.text }]}>{value}</Text>
     </View>
   );
 }
@@ -402,12 +483,24 @@ export function Chip({
   selected?: boolean;
   onPress: () => void;
 }) {
+  const colors = useColors();
   return (
     <Pressable
       onPress={onPress}
-      style={[styles.chip, selected && styles.chipSelected]}
+      style={[
+        styles.chip,
+        {
+          backgroundColor: selected ? colors.primary : colors.surface,
+          borderColor: selected ? colors.primary : colors.border,
+        },
+      ]}
     >
-      <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
+      <Text
+        style={[
+          styles.chipText,
+          { color: selected ? "#fff" : colors.text },
+        ]}
+      >
         {label}
       </Text>
     </Pressable>
@@ -421,8 +514,6 @@ export function ChipRow({ children }: { children: React.ReactNode }) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    // Opaque so stack/tab transitions don't show the previous page's text.
-    backgroundColor: colors.background,
   },
   center: {
     flex: 1,
@@ -433,13 +524,11 @@ const styles = StyleSheet.create({
   skeletonRow: {
     height: 64,
     borderRadius: radii.md,
-    backgroundColor: colors.primarySoft,
     opacity: 0.55,
   },
   title: {
     fontSize: 22,
     ...fontBold,
-    color: colors.text,
     ...rtlText,
     fontFamily: fonts.bold,
     width: "100%",
@@ -448,14 +537,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 17,
     ...fontBold,
-    color: colors.text,
     ...rtlText,
     fontFamily: fonts.bold,
     width: "100%",
     marginBottom: 6,
   },
   muted: {
-    color: colors.textMuted,
     ...rtlText,
     width: "100%",
     fontSize: 13,
@@ -465,13 +552,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 10,
     alignItems: "center",
-  },
-  btnPrimary: { backgroundColor: colors.primary },
-  btnDanger: { backgroundColor: colors.danger },
-  btnGhost: {
-    backgroundColor: "transparent",
-    borderWidth: 1,
-    borderColor: colors.primary,
   },
   btnText: {
     color: "#fff",
@@ -484,17 +564,13 @@ const styles = StyleSheet.create({
     ...rtlText,
     width: "100%",
     marginBottom: 6,
-    color: colors.text,
     ...fontSemiBold,
   },
   input: {
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    color: colors.text,
     fontSize: 16,
     fontFamily: fonts.regular,
     width: "100%",
@@ -502,12 +578,9 @@ const styles = StyleSheet.create({
   row: {
     alignItems: "center",
     gap: 12,
-    backgroundColor: colors.surface,
     borderRadius: radii.md,
     padding: spacing.md,
     marginBottom: spacing.sm,
-    borderWidth: 1.5,
-    borderColor: colors.border,
     shadowColor: "#0F172A",
     shadowOpacity: 0.06,
     shadowRadius: 6,
@@ -517,21 +590,17 @@ const styles = StyleSheet.create({
   rowTitle: {
     fontSize: 16,
     ...fontBold,
-    color: colors.text,
     ...rtlText,
     fontFamily: fonts.bold,
   },
   rowRight: {
-    color: colors.primary,
     ...fontBold,
     ...rtlText,
   },
   card: {
-    backgroundColor: colors.surface,
     borderRadius: radii.lg,
     padding: spacing.lg,
     borderWidth: 1.5,
-    borderColor: colors.border,
     marginBottom: spacing.md,
     shadowColor: "#0F172A",
     shadowOpacity: 0.06,
@@ -545,7 +614,6 @@ const styles = StyleSheet.create({
   menuCard: {
     alignItems: "center",
     gap: 10,
-    backgroundColor: colors.surface,
     borderRadius: radii.lg,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
@@ -569,7 +637,6 @@ const styles = StyleSheet.create({
   menuTitle: {
     fontSize: 15,
     ...fontExtraBold,
-    color: colors.text,
     ...rtlText,
     fontFamily: fonts.extraBold,
   },
@@ -579,12 +646,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     marginBottom: spacing.sm,
     borderWidth: 1,
-    borderColor: colors.border,
   },
   statLabel: {
     ...rtlText,
     fontSize: 11,
-    color: colors.textMuted,
     marginBottom: 2,
   },
   statValue: {
@@ -592,7 +657,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     ...fontBold,
     fontFamily: fonts.bold,
-    color: colors.text,
   },
   chipRow: {
     alignItems: "center",
@@ -602,21 +666,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
     marginHorizontal: 4,
     marginVertical: 4,
   },
-  chipSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
   chipText: {
-    color: colors.text,
     ...fontSemiBold,
     ...rtlText,
     fontFamily: fonts.semiBold,
   },
-  chipTextSelected: { color: "#fff" },
 });

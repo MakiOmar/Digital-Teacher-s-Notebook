@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useMemo } from "react";
 import {
   Linking,
   Pressable,
@@ -35,7 +35,8 @@ import type { Student } from "@/src/db/types";
 import { useAppData } from "@/src/contexts/AppDataContext";
 import { useDialog } from "@/src/components/DialogProvider";
 import { appIsRtl, rtlText } from "@/src/theme/rtl";
-import { colors, spacing } from "@/src/theme/colors";
+import { spacing, type AppColors } from "@/src/theme/colors";
+import { useColors } from "@/src/theme/ThemeContext";
 import { fonts } from "@/src/theme/typography";
 import { formatDateTimeAr, formatMoney, formatRoundTitle } from "@/src/utils/date";
 import { telUrl, whatsappUrl } from "@/src/utils/phone";
@@ -46,6 +47,9 @@ import { userFacingErrorMessage } from "@/src/utils/errors";
 const WHATSAPP_GREEN = "#25D366";
 
 export default function StudentDetailsScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const { id } = useLocalSearchParams<{ id: string }>();
   const studentId = Number(id);
   const router = useRouter();
@@ -385,7 +389,8 @@ export default function StudentDetailsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   fabColumn: {
     position: "absolute",
     gap: 12,
@@ -436,3 +441,4 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
 });
+}

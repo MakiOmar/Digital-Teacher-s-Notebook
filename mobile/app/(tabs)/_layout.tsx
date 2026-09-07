@@ -2,8 +2,8 @@ import { I18nManager, Platform, Text } from "react-native";
 import { Tabs } from "expo-router";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors } from "@/src/theme/colors";
 import { fonts } from "@/src/theme/typography";
+import { useColors } from "@/src/theme/ThemeContext";
 import { t } from "@/src/i18n/ar";
 import { useLanguage } from "@/src/i18n/LanguageContext";
 
@@ -51,6 +51,7 @@ const REVERSED_TABS: TabName[] = ["more", "payments", "groups", "today", "index"
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const { language } = useLanguage();
+  const colors = useColors();
   // Under forceRTL, the tab bar packs from the reading-start edge (right in Arabic).
   // First Screen lands on that edge — so declare LTR_TABS when native RTL matches.
   // If language and I18nManager.isRTL lag apart, reverse to keep Home on the start edge.

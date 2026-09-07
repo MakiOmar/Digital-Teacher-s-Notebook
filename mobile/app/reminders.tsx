@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useState, useMemo } from "react";
 import {
   Platform,
   Pressable,
@@ -24,11 +24,15 @@ import {
   type SoundRepeatUnit,
 } from "@/src/reminders/reminders";
 import { t } from "@/src/i18n/ar";
-import { colors, radii, spacing } from "@/src/theme/colors";
+import { radii, spacing, type AppColors } from "@/src/theme/colors";
+import { useColors } from "@/src/theme/ThemeContext";
 import { rtlRow, rtlText } from "@/src/theme/rtl";
 import { userFacingErrorMessage } from "@/src/utils/errors";
 
 export default function RemindersScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const dialog = useDialog();
   const schedulingOk = remindersAvailableInThisRuntime();
   const [busy, setBusy] = useState(false);
@@ -253,7 +257,8 @@ export default function RemindersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   switchRow: {
     ...rtlRow(),
     alignItems: "center",
@@ -319,3 +324,4 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
 });
+}

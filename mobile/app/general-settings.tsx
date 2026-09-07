@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { LanguageSwitcher } from "@/src/components/LanguageSwitcher";
 import { FormField, Muted, Screen, Title } from "@/src/components/ui";
@@ -15,7 +15,8 @@ import {
 } from "@/src/settings/currency";
 import { t } from "@/src/i18n/ar";
 import { useLanguage } from "@/src/i18n/LanguageContext";
-import { colors, radii, spacing } from "@/src/theme/colors";
+import { radii, spacing, type AppColors } from "@/src/theme/colors";
+import { useColors } from "@/src/theme/ThemeContext";
 import { fonts } from "@/src/theme/typography";
 import { rtlChipRow, rtlText } from "@/src/theme/rtl";
 import { userFacingErrorMessage } from "@/src/utils/errors";
@@ -23,6 +24,9 @@ import { formatInteger } from "@/src/utils/numbers";
 
 /** General app settings — language, currency, and page size. */
 export default function GeneralSettingsScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const { pageSize, setPageSize } = useGeneralSettings();
   const { currencyId, customSymbol, setCurrency } = useCurrency();
   const { language } = useLanguage();
@@ -197,7 +201,8 @@ export default function GeneralSettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   label: {
     ...rtlText,
     width: "100%",
@@ -247,3 +252,4 @@ const styles = StyleSheet.create({
     color: "#fff",
   },
 });
+}

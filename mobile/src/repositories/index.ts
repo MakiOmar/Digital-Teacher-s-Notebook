@@ -449,6 +449,10 @@ export type PagedGroupRow = StudyGroup & {
   patterns: SchedulePattern[];
   student_count: number;
   total_fees: number;
+  /** Non-cancelled sessions in the current study month. */
+  month_session_total: number;
+  /** Those sessions with starts_at still in the future. */
+  month_session_remaining: number;
 };
 
 /** Active groups filtered and paged in SQL, with stats for the visible page. */
@@ -523,13 +527,59 @@ export async function listGroupsWithPatternsPage(input: {
     patternsByGroup.set(pattern.group_id, list);
   }
 
+  // Current study-month session totals / remaining for the visible page.
+  const sessionStats = new Map<
+    number,
+    { month_session_total: number; month_session_remaining: number }
+  >();
+  if (groups.length) {
+    const activeYear = await getActiveYear();
+    const studyMonth = activeYear
+      ? await resolveCurrentStudyMonth(activeYear.id)
+      : null;
+    if (studyMonth) {
+      const nowLocal = (() => {
+        const d = new Date();
+        const pad = (n: number) => String(n).padStart(2, "0");
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+      })();
+      const rows = await db.getAllAsync<{
+        group_id: number;
+        total: number;
+        remaining: number;
+      }>(
+        `SELECT
+           gs.group_id as group_id,
+           COUNT(*) as total,
+           SUM(CASE WHEN gs.starts_at >= ? THEN 1 ELSE 0 END) as remaining
+         FROM group_sessions gs
+         WHERE gs.study_month_id = ?
+           AND gs.status != 'cancelled'
+           AND gs.group_id IN (${groups.map(() => "?").join(",")})
+         GROUP BY gs.group_id`,
+        [nowLocal, studyMonth.id, ...groups.map((g) => g.id)]
+      );
+      for (const row of rows) {
+        sessionStats.set(row.group_id, {
+          month_session_total: Number(row.total ?? 0),
+          month_session_remaining: Number(row.remaining ?? 0),
+        });
+      }
+    }
+  }
+
   return {
-    items: groups.map((group) => ({
-      ...group,
-      student_count: Number(group.student_count ?? 0),
-      total_fees: Number(group.total_fees ?? 0),
-      patterns: patternsByGroup.get(group.id) ?? [],
-    })),
+    items: groups.map((group) => {
+      const stats = sessionStats.get(group.id);
+      return {
+        ...group,
+        student_count: Number(group.student_count ?? 0),
+        total_fees: Number(group.total_fees ?? 0),
+        month_session_total: stats?.month_session_total ?? 0,
+        month_session_remaining: stats?.month_session_remaining ?? 0,
+        patterns: patternsByGroup.get(group.id) ?? [],
+      };
+    }),
     total: Number(count?.total ?? 0),
   };
 }

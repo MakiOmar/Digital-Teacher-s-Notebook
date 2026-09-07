@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   Pressable,
@@ -12,7 +12,8 @@ import { useDialog } from "@/src/components/DialogProvider";
 import { t } from "@/src/i18n/ar";
 import { useLanguage } from "@/src/i18n/LanguageContext";
 import type { AppLanguage } from "@/src/i18n/language";
-import { colors, radii, spacing } from "@/src/theme/colors";
+import { radii, spacing } from "@/src/theme/colors";
+import { useColors } from "@/src/theme/ThemeContext";
 import { fonts } from "@/src/theme/typography";
 import { rtlChipRow, rtlText } from "@/src/theme/rtl";
 import { userFacingErrorMessage } from "@/src/utils/errors";
@@ -54,6 +55,7 @@ type Props = CommonProps & (ControlledProps | UncontrolledProps);
 /** Flagged Arabic / English language switcher. */
 export function LanguageSwitcher(props: Props) {
   const { variant = "pill", disabled, style, showToast = true } = props;
+  const colors = useColors();
   const dialog = useDialog();
   const { language, setLanguage } = useLanguage();
   const [busy, setBusy] = useState(false);
@@ -65,6 +67,88 @@ export function LanguageSwitcher(props: Props) {
   const thumbX = useRef(
     new Animated.Value(selected === "en" ? PILL_SLOT + PILL_GAP : 0)
   ).current;
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        pill: {
+          flexDirection: "row",
+          alignItems: "center",
+          backgroundColor: colors.surface,
+          borderRadius: 999,
+          borderWidth: 1.5,
+          borderColor: colors.border,
+          padding: PILL_PAD,
+          gap: PILL_GAP,
+          shadowColor: "#0F172A",
+          shadowOpacity: 0.12,
+          shadowRadius: 8,
+          shadowOffset: { width: 0, height: 3 },
+          elevation: 3,
+          position: "relative",
+          overflow: "hidden",
+        },
+        pillThumb: {
+          position: "absolute",
+          top: PILL_PAD,
+          bottom: PILL_PAD,
+          left: PILL_PAD,
+          width: PILL_SLOT,
+          borderRadius: 999,
+          backgroundColor: colors.primarySoft,
+          borderWidth: 1,
+          borderColor: colors.primary,
+        },
+        pillHit: {
+          width: PILL_SLOT,
+          height: PILL_SLOT,
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 1,
+        },
+        pillFlag: {
+          fontSize: 18,
+          opacity: 0.55,
+        },
+        pillFlagOn: {
+          opacity: 1,
+        },
+        cardsRow: {
+          ...rtlChipRow(),
+          gap: spacing.sm,
+        },
+        card: {
+          minWidth: 120,
+          flexGrow: 1,
+          alignItems: "center",
+          gap: 6,
+          paddingVertical: 14,
+          paddingHorizontal: 16,
+          borderRadius: radii.lg,
+          borderWidth: 1.5,
+          borderColor: colors.border,
+          backgroundColor: colors.surface,
+        },
+        cardOn: {
+          backgroundColor: colors.primarySoft,
+          borderColor: colors.primary,
+        },
+        cardFlag: {
+          fontSize: 28,
+        },
+        cardLabel: {
+          ...rtlText,
+          fontFamily: fonts.bold,
+          fontWeight: "700",
+          color: colors.text,
+          fontSize: 14,
+        },
+        cardLabelOn: {
+          color: colors.primaryDark,
+        },
+      }),
+    [colors]
+  );
 
   useEffect(() => {
     Animated.spring(thumbX, {
@@ -167,81 +251,3 @@ export function LanguageSwitcher(props: Props) {
     </Animated.View>
   );
 }
-
-const styles = StyleSheet.create({
-  pill: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.92)",
-    borderRadius: 999,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    padding: PILL_PAD,
-    gap: PILL_GAP,
-    shadowColor: "#0F172A",
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
-    position: "relative",
-    overflow: "hidden",
-  },
-  pillThumb: {
-    position: "absolute",
-    top: PILL_PAD,
-    bottom: PILL_PAD,
-    left: PILL_PAD,
-    width: PILL_SLOT,
-    borderRadius: 999,
-    backgroundColor: colors.primarySoft,
-    borderWidth: 1,
-    borderColor: colors.primary,
-  },
-  pillHit: {
-    width: PILL_SLOT,
-    height: PILL_SLOT,
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 1,
-  },
-  pillFlag: {
-    fontSize: 18,
-    opacity: 0.55,
-  },
-  pillFlagOn: {
-    opacity: 1,
-  },
-  cardsRow: {
-    ...rtlChipRow(),
-    gap: spacing.sm,
-  },
-  card: {
-    minWidth: 120,
-    flexGrow: 1,
-    alignItems: "center",
-    gap: 6,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: radii.lg,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  cardOn: {
-    backgroundColor: colors.primarySoft,
-    borderColor: colors.primary,
-  },
-  cardFlag: {
-    fontSize: 28,
-  },
-  cardLabel: {
-    ...rtlText,
-    fontFamily: fonts.bold,
-    fontWeight: "700",
-    color: colors.text,
-    fontSize: 14,
-  },
-  cardLabelOn: {
-    color: colors.primaryDark,
-  },
-});

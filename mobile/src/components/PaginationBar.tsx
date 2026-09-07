@@ -1,7 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { t } from "@/src/i18n/ar";
-import { colors, radii, spacing } from "@/src/theme/colors";
+import { radii, spacing } from "@/src/theme/colors";
+import { useColors } from "@/src/theme/ThemeContext";
 import { fonts } from "@/src/theme/typography";
 import { rtlRow, rtlText } from "@/src/theme/rtl";
 /** Shared shape from useClientPagination / useServerPagination. */
@@ -59,6 +60,7 @@ export function PaginationBar({
   onNext,
   hideWhenSinglePage = true,
 }: Props) {
+  const colors = useColors();
   if (hideWhenSinglePage && totalPages <= 1) return null;
 
   const from = totalItems === 0 ? 0 : (page - 1) * pageSize + 1;
@@ -66,7 +68,7 @@ export function PaginationBar({
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.meta}>
+      <Text style={[styles.meta, { color: colors.textMuted }]}>
         {t("paginationRange", { from, to, total: totalItems })}
       </Text>
       <View style={styles.row}>
@@ -74,7 +76,18 @@ export function PaginationBar({
         <Pressable
           onPress={onNext}
           disabled={!hasNext}
-          style={[styles.btn, !hasNext && styles.btnDisabled]}
+          style={[
+            styles.btn,
+            hasNext
+              ? {
+                  borderColor: colors.primary,
+                  backgroundColor: colors.primarySoft,
+                }
+              : {
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                },
+          ]}
           accessibilityLabel={t("paginationNext")}
         >
           <FontAwesome
@@ -82,22 +95,43 @@ export function PaginationBar({
             size={14}
             color={hasNext ? colors.primary : colors.textMuted}
           />
-          <Text style={[styles.btnText, !hasNext && styles.btnTextDisabled]}>
+          <Text
+            style={[
+              styles.btnText,
+              { color: hasNext ? colors.primary : colors.textMuted },
+            ]}
+          >
             {t("paginationNext")}
           </Text>
         </Pressable>
 
-        <Text style={styles.pageLabel}>
+        <Text style={[styles.pageLabel, { color: colors.text }]}>
           {t("paginationPageOf", { page, totalPages })}
         </Text>
 
         <Pressable
           onPress={onPrev}
           disabled={!hasPrev}
-          style={[styles.btn, !hasPrev && styles.btnDisabled]}
+          style={[
+            styles.btn,
+            hasPrev
+              ? {
+                  borderColor: colors.primary,
+                  backgroundColor: colors.primarySoft,
+                }
+              : {
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                },
+          ]}
           accessibilityLabel={t("paginationPrev")}
         >
-          <Text style={[styles.btnText, !hasPrev && styles.btnTextDisabled]}>
+          <Text
+            style={[
+              styles.btnText,
+              { color: hasPrev ? colors.primary : colors.textMuted },
+            ]}
+          >
             {t("paginationPrev")}
           </Text>
           <FontAwesome
@@ -120,7 +154,6 @@ const styles = StyleSheet.create({
   meta: {
     ...rtlText,
     width: "100%",
-    color: colors.textMuted,
     fontFamily: fonts.semiBold,
     fontSize: 12,
   },
@@ -133,7 +166,6 @@ const styles = StyleSheet.create({
   pageLabel: {
     ...rtlText,
     fontFamily: fonts.bold,
-    color: colors.text,
     fontSize: 13,
   },
   btn: {
@@ -144,20 +176,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: radii.md,
     borderWidth: 1.5,
-    borderColor: colors.primary,
-    backgroundColor: colors.primarySoft,
-  },
-  btnDisabled: {
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
   },
   btnText: {
     ...rtlText,
     fontFamily: fonts.bold,
-    color: colors.primary,
     fontSize: 13,
-  },
-  btnTextDisabled: {
-    color: colors.textMuted,
   },
 });

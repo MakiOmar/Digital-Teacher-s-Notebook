@@ -36,7 +36,8 @@ import {
   formatRoundTitle,
   todayDateOnly,
 } from "@/src/utils/date";
-import { colors, radii, spacing } from "@/src/theme/colors";
+import { radii, spacing, type AppColors } from "@/src/theme/colors";
+import { useColors } from "@/src/theme/ThemeContext";
 import { rtlBlock, rtlRow, rtlText } from "@/src/theme/rtl";
 import { fonts } from "@/src/theme/typography";
 import { useAppData } from "@/src/contexts/AppDataContext";
@@ -53,6 +54,9 @@ const METHODS: { key: PaymentMethod; label: string }[] = [
 ];
 
 export default function GroupRoundPaymentsScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const { groupId: groupIdParam } = useLocalSearchParams<{ groupId: string }>();
   const groupId = Number(groupIdParam);
   const navigation = useNavigation();
@@ -480,7 +484,8 @@ export default function GroupRoundPaymentsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   listHeader: {
     paddingTop: spacing.md,
     paddingBottom: spacing.sm,
@@ -572,3 +577,4 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
 });
+}

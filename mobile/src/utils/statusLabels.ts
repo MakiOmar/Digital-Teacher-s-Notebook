@@ -1,5 +1,5 @@
 import type { AttendanceStatus, PaymentStatus, SessionStatus } from "../db/types";
-import { colors } from "../theme/colors";
+import { lightColors, type AppColors } from "../theme/colors";
 import { t } from "../i18n/ar";
 
 /** Shared session status filter options for Today / Group Sessions. */
@@ -40,11 +40,12 @@ export function attendanceStatusLabel(status: AttendanceStatus | string): string
 }
 
 export function paymentStatusBorderColor(
-  status: PaymentStatus | string
+  status: PaymentStatus | string,
+  palette: AppColors = lightColors
 ): string {
-  if (status === "paid") return colors.paidBorder;
-  if (status === "partial") return colors.partialBorder;
-  return colors.unpaidBorder;
+  if (status === "paid") return palette.paidBorder;
+  if (status === "partial") return palette.partialBorder;
+  return palette.unpaidBorder;
 }
 
 export function enrollmentStatusLabel(status: string): string {

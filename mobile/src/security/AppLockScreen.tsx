@@ -4,9 +4,11 @@ import { Muted, PrimaryButton, Screen, Title } from "@/src/components/ui";
 import { useAppLock } from "@/src/security/AppLockContext";
 import { t } from "@/src/i18n/ar";
 import { spacing } from "@/src/theme/colors";
+import { useColors } from "@/src/theme/ThemeContext";
 
 /** Full-screen gate when app lock is enabled and the session is locked. */
 export function AppLockScreen() {
+  const colors = useColors();
   const { unlock } = useAppLock();
   const [busy, setBusy] = useState(false);
 
@@ -29,7 +31,11 @@ export function AppLockScreen() {
   }, []);
 
   return (
-    <Screen safeTop padded={false} style={styles.root}>
+    <Screen
+      safeTop
+      padded={false}
+      style={[styles.root, { backgroundColor: colors.background }]}
+    >
       <View style={styles.content}>
         <Title>{t("appLockTitle")}</Title>
         <Muted style={{ marginBottom: spacing.lg }}>{t("appLockHint")}</Muted>
@@ -44,7 +50,7 @@ export function AppLockScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#FFFFFF" },
+  root: { flex: 1 },
   content: {
     flex: 1,
     justifyContent: "center",

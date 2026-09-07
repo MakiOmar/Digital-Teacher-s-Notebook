@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import {
+  I18nManager,
   Image,
   Pressable,
   RefreshControl,
@@ -8,7 +9,9 @@ import {
   Text,
   View,
 } from "react-native";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useFocusEffect, useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   EmptyState,
   Muted,
@@ -27,12 +30,18 @@ import {
 } from "@/src/repositories";
 import { formatDateTimeAr } from "@/src/utils/date";
 import type { GroupSession } from "@/src/db/types";
-import { colors, groupAccentColor, radii, spacing } from "@/src/theme/colors";
+import {
+  groupAccentColor,
+  radii,
+  spacing,
+  type AppColors,
+} from "@/src/theme/colors";
 import { fonts } from "@/src/theme/typography";
 import { ICONS } from "@/src/theme/icons";
 import { rtlRow, rtlText } from "@/src/theme/rtl";
 import { useTutorProfile } from "@/src/profile/TutorProfileContext";
 import { TourAnchor } from "@/src/tour/TourAnchor";
+import { useTheme } from "@/src/theme/ThemeContext";
 
 /** Soft cap so the home header stays compact next to the language switcher. */
 const HOME_NAME_MAX = 18;
@@ -58,6 +67,7 @@ function ProfileWelcome({
   /** Arabic → avatar on the trailing / physical right of the cluster. */
   arabic: boolean;
 }) {
+  const { colors } = useTheme();
   const shownName = displayHomeName(name);
 
   const avatar = (
@@ -82,9 +92,8 @@ function ProfileWelcome({
       ]}
     >
       {shownName ? (
-        // One text run so 👋 always sits immediately before the name
         <Text
-          style={styles.welcomeText}
+          style={[styles.welcomeText, { color: colors.text }]}
           numberOfLines={2}
           ellipsizeMode="tail"
         >
@@ -92,7 +101,7 @@ function ProfileWelcome({
         </Text>
       ) : null}
       {yearName ? (
-        <View style={styles.yearChip}>
+        <View style={[styles.yearChip, { backgroundColor: colors.primary }]}>
           <Text style={styles.yearChipText} numberOfLines={1}>
             {yearName}
           </Text>
@@ -108,11 +117,6 @@ function ProfileWelcome({
         arabic ? styles.profileWelcomeAr : styles.profileWelcomeEn,
       ]}
     >
-      {/*
-        Header cluster is direction:ltr (physical left→right).
-        Arabic: text then avatar → avatar on the trailing right.
-        English: avatar then text.
-      */}
       {arabic ? (
         <>
           {welcome}
@@ -155,11 +159,6 @@ function HomeHeader({
 
   return (
     <View style={styles.header}>
-      {/*
-        Header uses direction:ltr so child order maps to physical sides
-        even when I18nManager.forceRTL is on (Yoga would otherwise pack row from the right).
-        Arabic: switcher left, profile right. English: profile left, switcher right.
-      */}
       {arabic ? (
         <>
           {switcher}
@@ -179,6 +178,8 @@ export default function HomeScreen() {
   const router = useRouter();
   const { activeYear } = useAppData();
   const { name: tutorName, profileSource } = useTutorProfile();
+  const { colors, isDark, toggleMode } = useTheme();
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [nextSession, setNextSession] = useState<
     (GroupSession & { group_name: string; accent_color?: string | null }) | null
@@ -225,6 +226,12 @@ export default function HomeScreen() {
           onAction={() => router.push("/years/form")}
           tourAnchorId="homeYearCta"
         />
+        <ThemeFab
+          isDark={isDark}
+          onPress={() => void toggleMode()}
+          bottom={Math.max(insets.bottom, 12) + 72}
+          colors={colors}
+        />
       </Screen>
     );
   }
@@ -233,14 +240,24 @@ export default function HomeScreen() {
     return (
       <Screen safeTop padded={false} style={{ flex: 1 }}>
         <SkeletonList rows={6} />
+        <ThemeFab
+          isDark={isDark}
+          onPress={() => void toggleMode()}
+          bottom={Math.max(insets.bottom, 12) + 72}
+          colors={colors}
+        />
       </Screen>
     );
   }
 
+  const themed = makeHomeStyles(colors);
+  // FAB sits above the tab bar on the physical end side (LTR right / RTL left).
+  const fabBottom = Math.max(insets.bottom, 12) + 72;
+
   return (
     <Screen safeTop padded={false} style={{ flex: 1 }}>
       <ScrollView
-        contentContainerStyle={{ padding: spacing.lg, paddingBottom: 48 }}
+        contentContainerStyle={{ padding: spacing.lg, paddingBottom: 96 }}
         refreshControl={
           <RefreshControl refreshing={loading} onRefresh={() => void load()} />
         }
@@ -269,7 +286,7 @@ export default function HomeScreen() {
           />
         ) : (
           <>
-            <Text style={styles.section}>{t("nextSession")}</Text>
+            <Text style={themed.section}>{t("nextSession")}</Text>
             {!nextSession ? (
               <Muted>{t("noSessions")}</Muted>
             ) : (
@@ -279,10 +296,11 @@ export default function HomeScreen() {
                 <BorderedCard
                   borderColor={groupAccentColor(
                     nextSession.group_id,
-                    nextSession.accent_color
+                    nextSession.accent_color,
+                    colors
                   )}
                 >
-                  <Text style={styles.sessionTitle}>
+                  <Text style={themed.sessionTitle}>
                     {nextSession.group_name}
                   </Text>
                   <Muted>{formatDateTimeAr(nextSession.starts_at)}</Muted>
@@ -290,8 +308,8 @@ export default function HomeScreen() {
               </Pressable>
             )}
 
-            <Text style={styles.section}>{t("quickActions")}</Text>
-            <View style={styles.qaGrid}>
+            <Text style={themed.section}>{t("quickActions")}</Text>
+            <View style={themed.qaGrid}>
               {(
                 [
                   {
@@ -328,13 +346,13 @@ export default function HomeScreen() {
                   key={a.key}
                   onPress={a.onPress}
                   style={({ pressed }) => [
-                    styles.qaCard,
+                    themed.qaCard,
                     { borderColor: a.border },
                     pressed && { opacity: 0.85 },
                   ]}
                 >
-                  <Image source={a.icon} style={styles.qaIcon} />
-                  <Text style={styles.qaLabel} numberOfLines={2}>
+                  <Image source={a.icon} style={themed.qaIcon} />
+                  <Text style={themed.qaLabel} numberOfLines={2}>
                     {a.title}
                   </Text>
                 </Pressable>
@@ -343,12 +361,130 @@ export default function HomeScreen() {
           </>
         )}
       </ScrollView>
+      <ThemeFab
+        isDark={isDark}
+        onPress={() => void toggleMode()}
+        bottom={fabBottom}
+        colors={colors}
+      />
     </Screen>
   );
 }
 
+/** Sun (go light) / moon (go dark) floating control on Home. */
+function ThemeFab({
+  isDark,
+  onPress,
+  bottom,
+  colors,
+}: {
+  isDark: boolean;
+  onPress: () => void;
+  bottom: number;
+  colors: AppColors;
+}) {
+  // Physical end corner: right in LTR, left when Yoga RTL packs from the right.
+  const endSide = I18nManager.isRTL ? { left: 18 } : { right: 18 };
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={
+        isDark ? t("themeSwitchToLight") : t("themeSwitchToDark")
+      }
+      style={({ pressed }) => [
+        fabStyles.fab,
+        endSide,
+        {
+          bottom,
+          backgroundColor: colors.fab,
+          opacity: pressed ? 0.85 : 1,
+        },
+      ]}
+    >
+      <FontAwesome
+        name={isDark ? "sun-o" : "moon-o"}
+        size={22}
+        color={colors.fabIcon}
+      />
+    </Pressable>
+  );
+}
+
+const fabStyles = StyleSheet.create({
+  fab: {
+    position: "absolute",
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 50,
+    elevation: 6,
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+  },
+});
+
+function makeHomeStyles(colors: AppColors) {
+  return StyleSheet.create({
+    section: {
+      ...rtlText,
+      width: "100%",
+      fontSize: 16,
+      fontFamily: fonts.extraBold,
+      fontWeight: "800",
+      color: colors.text,
+      marginBottom: spacing.sm,
+      marginTop: spacing.sm,
+    },
+    sessionTitle: {
+      ...rtlText,
+      width: "100%",
+      fontFamily: fonts.extraBold,
+      fontWeight: "800",
+      fontSize: 18,
+      color: colors.text,
+      marginBottom: 4,
+    },
+    qaGrid: {
+      ...rtlRow(),
+      flexWrap: "wrap",
+      gap: 10,
+    },
+    qaCard: {
+      width: "47%",
+      flexGrow: 1,
+      minWidth: "42%",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      backgroundColor: colors.surface,
+      borderRadius: radii.xl,
+      borderWidth: 2,
+      paddingVertical: 16,
+      paddingHorizontal: 10,
+    },
+    qaIcon: {
+      width: 40,
+      height: 40,
+      resizeMode: "contain",
+    },
+    qaLabel: {
+      ...rtlText,
+      textAlign: "center",
+      fontFamily: fonts.bold,
+      fontWeight: "700",
+      fontSize: 12,
+      color: colors.text,
+      lineHeight: 18,
+    },
+  });
+}
+
 const styles = StyleSheet.create({
-  // Physical LTR: under forceRTL, plain `row` still packs from the right.
   header: {
     direction: "ltr",
     flexDirection: "row",
@@ -410,10 +546,8 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     fontFamily: fonts.extraBold,
     fontWeight: "800",
-    color: colors.text,
   },
   yearChip: {
-    backgroundColor: colors.primary,
     borderRadius: radii.md,
     paddingVertical: 5,
     paddingHorizontal: 12,
@@ -424,56 +558,5 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 12,
     color: "#FFFFFF",
-  },
-  section: {
-    ...rtlText,
-    width: "100%",
-    fontSize: 16,
-    fontFamily: fonts.extraBold,
-    fontWeight: "800",
-    color: colors.text,
-    marginBottom: spacing.sm,
-    marginTop: spacing.sm,
-  },
-  sessionTitle: {
-    ...rtlText,
-    width: "100%",
-    fontFamily: fonts.extraBold,
-    fontWeight: "800",
-    fontSize: 18,
-    color: colors.text,
-    marginBottom: 4,
-  },
-  qaGrid: {
-    ...rtlRow(),
-    flexWrap: "wrap",
-    gap: 10,
-  },
-  qaCard: {
-    width: "47%",
-    flexGrow: 1,
-    minWidth: "42%",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: colors.surface,
-    borderRadius: radii.xl,
-    borderWidth: 2,
-    paddingVertical: 16,
-    paddingHorizontal: 10,
-  },
-  qaIcon: {
-    width: 40,
-    height: 40,
-    resizeMode: "contain",
-  },
-  qaLabel: {
-    ...rtlText,
-    textAlign: "center",
-    fontFamily: fonts.bold,
-    fontWeight: "700",
-    fontSize: 12,
-    color: colors.text,
-    lineHeight: 18,
   },
 });

@@ -11,7 +11,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MenuCard, Screen, Title } from "@/src/components/ui";
 import { SUPPORT_WHATSAPP } from "@/src/config/support";
 import { t } from "@/src/i18n/ar";
-import { colors, spacing } from "@/src/theme/colors";
+import { spacing } from "@/src/theme/colors";
+import { useColors } from "@/src/theme/ThemeContext";
 import { ICONS } from "@/src/theme/icons";
 import { rtlText } from "@/src/theme/rtl";
 import { useAppData } from "@/src/contexts/AppDataContext";
@@ -36,6 +37,7 @@ const MORE_SCROLL_Y: Record<string, number> = {
 
 export default function MoreTab() {
   const router = useRouter();
+  const colors = useColors();
   const { activeYear } = useAppData();
   const { start, active, stepId } = useTour();
   const dialog = useDialog();
@@ -84,7 +86,7 @@ export default function MoreTab() {
       >
         <Title>{t("more")}</Title>
         {activeYear ? (
-          <Text style={styles.meta}>
+          <Text style={[styles.meta, { color: colors.textMuted }]}>
             {t("activeYear")}: {activeYear.name}
           </Text>
         ) : null}
@@ -173,7 +175,6 @@ const styles = StyleSheet.create({
   meta: {
     ...rtlText,
     width: "100%",
-    color: colors.textMuted,
     marginBottom: spacing.sm,
   },
 });

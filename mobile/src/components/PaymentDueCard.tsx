@@ -4,7 +4,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { DetailCard } from "@/src/components/DetailCard";
 import type { StudentDueRow } from "@/src/db/types";
 import { t } from "@/src/i18n/ar";
-import { colors } from "@/src/theme/colors";
+import { useColors } from "@/src/theme/ThemeContext";
 import { formatMoney, formatRoundTitle } from "@/src/utils/date";
 import {
   paymentStatusBorderColor,
@@ -21,7 +21,8 @@ export const PaymentDueCard = memo(function PaymentDueCard({
   onPress: () => void;
   onPayPress?: () => void;
 }) {
-  const border = paymentStatusBorderColor(item.status);
+  const colors = useColors();
+  const border = paymentStatusBorderColor(item.status, colors);
   const roundLabel =
     item.round_number != null
       ? formatRoundTitle(

@@ -20,7 +20,8 @@ import {
   toDateOnly,
   weekDatesFromSaturday,
 } from "@/src/utils/date";
-import { colors, groupAccentColor, radii, spacing } from "@/src/theme/colors";
+import { groupAccentColor, radii, spacing } from "@/src/theme/colors";
+import { useColors } from "@/src/theme/ThemeContext";
 import { fonts } from "@/src/theme/typography";
 import { rtlRow, rtlText } from "@/src/theme/rtl";
 
@@ -58,10 +59,143 @@ function dateKeyOf(iso: string): string {
 
 export default function WeeklyScheduleScreen() {
   const router = useRouter();
+  const colors = useColors();
   const [weekOffset, setWeekOffset] = useState(0);
   const [selectedYmd, setSelectedYmd] = useState(() => toDateOnly(new Date()));
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<Row[]>([]);
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        weekNav: {
+          ...rtlRow(),
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: spacing.md,
+          marginTop: spacing.sm,
+        },
+        navBtn: {
+          width: 40,
+          height: 40,
+          borderRadius: 20,
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: colors.primarySoft,
+        },
+        weekRange: {
+          ...rtlText,
+          fontFamily: fonts.bold,
+          fontWeight: "700",
+          fontSize: 15,
+          color: colors.text,
+        },
+        dayStrip: {
+          ...rtlRow(),
+          justifyContent: "space-between",
+          marginBottom: spacing.lg,
+          paddingHorizontal: 2,
+        },
+        dayCol: {
+          alignItems: "center",
+          flex: 1,
+          gap: 6,
+        },
+        dayLetter: {
+          fontSize: 13,
+          fontFamily: fonts.semiBold,
+          color: colors.textMuted,
+        },
+        dayLetterOn: {
+          color: colors.primary,
+          fontFamily: fonts.bold,
+          fontWeight: "700",
+        },
+        dayLetterToday: {
+          color: colors.primary,
+        },
+        dayNumWrap: {
+          width: 36,
+          height: 36,
+          borderRadius: 18,
+          alignItems: "center",
+          justifyContent: "center",
+        },
+        dayNumWrapOn: {
+          backgroundColor: colors.primary,
+        },
+        dayNum: {
+          fontSize: 14,
+          fontFamily: fonts.bold,
+          fontWeight: "700",
+          color: colors.text,
+        },
+        dayNumOn: {
+          color: "#fff",
+        },
+        dot: {
+          width: 5,
+          height: 5,
+          borderRadius: 2.5,
+          backgroundColor: colors.primary,
+        },
+        dotOn: {
+          backgroundColor: colors.accent,
+        },
+        dotSpacer: {
+          width: 5,
+          height: 5,
+        },
+        sectionLabel: {
+          ...rtlText,
+          width: "100%",
+          fontFamily: fonts.bold,
+          fontWeight: "700",
+          fontSize: 16,
+          color: colors.text,
+          marginBottom: spacing.sm,
+        },
+        sessionList: {
+          gap: spacing.sm,
+        },
+        sessionCard: {
+          ...rtlRow(),
+          alignItems: "center",
+          gap: spacing.md,
+          backgroundColor: colors.surface,
+          borderRadius: radii.lg,
+          borderWidth: 2,
+          borderLeftWidth: 4,
+          paddingVertical: 12,
+          paddingHorizontal: spacing.md,
+        },
+        sessionTime: {
+          fontFamily: fonts.bold,
+          fontWeight: "700",
+          fontSize: 14,
+          color: colors.primary,
+          minWidth: 52,
+          textAlign: "center",
+        },
+        sessionBody: {
+          flex: 1,
+        },
+        sessionTitle: {
+          ...rtlText,
+          fontFamily: fonts.bold,
+          fontWeight: "700",
+          fontSize: 15,
+          color: colors.text,
+        },
+        sessionMeta: {
+          ...rtlText,
+          fontSize: 12,
+          color: colors.textMuted,
+          marginTop: 2,
+        },
+      }),
+    [colors]
+  );
 
   const weekStart = useMemo(
     () => saturdayOfWeek(weekOffset),
@@ -229,7 +363,11 @@ export default function WeeklyScheduleScreen() {
         ) : (
           <View style={styles.sessionList}>
             {selectedSessions.map((s) => {
-              const accent = groupAccentColor(s.group_id, s.accent_color);
+              const accent = groupAccentColor(
+                s.group_id,
+                s.accent_color,
+                colors
+              );
               return (
                 <Pressable
                   key={s.id}
@@ -254,131 +392,3 @@ export default function WeeklyScheduleScreen() {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  weekNav: {
-    ...rtlRow(),
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: spacing.md,
-    marginTop: spacing.sm,
-  },
-  navBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.primarySoft,
-  },
-  weekRange: {
-    ...rtlText,
-    fontFamily: fonts.bold,
-    fontWeight: "700",
-    fontSize: 15,
-    color: colors.text,
-  },
-  dayStrip: {
-    ...rtlRow(),
-    justifyContent: "space-between",
-    marginBottom: spacing.lg,
-    paddingHorizontal: 2,
-  },
-  dayCol: {
-    alignItems: "center",
-    flex: 1,
-    gap: 6,
-  },
-  dayLetter: {
-    fontSize: 13,
-    fontFamily: fonts.semiBold,
-    color: colors.textMuted,
-  },
-  dayLetterOn: {
-    color: colors.primary,
-    fontFamily: fonts.bold,
-    fontWeight: "700",
-  },
-  dayLetterToday: {
-    color: colors.primary,
-  },
-  dayNumWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  dayNumWrapOn: {
-    backgroundColor: colors.primary,
-  },
-  dayNum: {
-    fontSize: 14,
-    fontFamily: fonts.bold,
-    fontWeight: "700",
-    color: colors.text,
-  },
-  dayNumOn: {
-    color: "#fff",
-  },
-  dot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: colors.primary,
-  },
-  dotOn: {
-    backgroundColor: colors.accent,
-  },
-  dotSpacer: {
-    width: 5,
-    height: 5,
-  },
-  sectionLabel: {
-    ...rtlText,
-    width: "100%",
-    fontFamily: fonts.bold,
-    fontWeight: "700",
-    fontSize: 16,
-    color: colors.text,
-    marginBottom: spacing.sm,
-  },
-  sessionList: {
-    gap: spacing.sm,
-  },
-  sessionCard: {
-    ...rtlRow(),
-    alignItems: "center",
-    gap: spacing.md,
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    borderWidth: 2,
-    borderLeftWidth: 4,
-    paddingVertical: 12,
-    paddingHorizontal: spacing.md,
-  },
-  sessionTime: {
-    fontFamily: fonts.bold,
-    fontWeight: "700",
-    fontSize: 14,
-    color: colors.primary,
-    minWidth: 52,
-    textAlign: "center",
-  },
-  sessionBody: {
-    flex: 1,
-  },
-  sessionTitle: {
-    ...rtlText,
-    fontFamily: fonts.bold,
-    fontWeight: "700",
-    fontSize: 15,
-    color: colors.text,
-  },
-  sessionMeta: {
-    ...rtlText,
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-});

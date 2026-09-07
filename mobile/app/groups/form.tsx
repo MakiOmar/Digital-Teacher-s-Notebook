@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -25,7 +25,8 @@ import {
 } from "@/src/repositories";
 import type { Weekday } from "@/src/db/types";
 import { WEEKDAY_LABELS, resolveGroupScheduleEnd, todayDateOnly } from "@/src/utils/date";
-import { colors, spacing } from "@/src/theme/colors";
+import { spacing, type AppColors } from "@/src/theme/colors";
+import { useColors } from "@/src/theme/ThemeContext";
 import { rtlChipRow, rtlText } from "@/src/theme/rtl";
 import { useAppData } from "@/src/contexts/AppDataContext";
 import { useDialog } from "@/src/components/DialogProvider";
@@ -35,6 +36,9 @@ import { userFacingErrorMessage } from "@/src/utils/errors";
 const WEEKDAYS: Weekday[] = [6, 0, 1, 2, 3, 4, 5]; // Sat first for Arabic week
 
 export default function GroupFormScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const { id } = useLocalSearchParams<{ id?: string }>();
   const editId = id ? Number(id) : null;
   const router = useRouter();
@@ -274,7 +278,8 @@ export default function GroupFormScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   label: {
     ...rtlText,
     width: "100%",
@@ -303,3 +308,4 @@ const styles = StyleSheet.create({
   dayText: { color: colors.text, fontWeight: "600", ...rtlText },
   dayTextSelected: { color: "#fff" },
 });
+}

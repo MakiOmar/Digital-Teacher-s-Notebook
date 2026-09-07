@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Switch, Text, View } from "react-native";
 import { DetailCard } from "@/src/components/DetailCard";
 import type { PaymentMethod, StudentDueRow } from "@/src/db/types";
 import { t } from "@/src/i18n/ar";
-import { colors } from "@/src/theme/colors";
+import { useColors } from "@/src/theme/ThemeContext";
 import { fonts } from "@/src/theme/typography";
 import { rtlChipRow, rtlText } from "@/src/theme/rtl";
 import { formatMoney } from "@/src/utils/date";
@@ -32,8 +32,9 @@ export const RoundPaymentCard = memo(function RoundPaymentCard({
   onTogglePaid: (paid: boolean) => void;
   onChangeMethod: (method: PaymentMethod) => void;
 }) {
+  const colors = useColors();
   const isPaid = item.status === "paid";
-  const border = paymentStatusBorderColor(item.status);
+  const border = paymentStatusBorderColor(item.status, colors);
 
   return (
     <DetailCard
@@ -87,7 +88,9 @@ export const RoundPaymentCard = memo(function RoundPaymentCard({
         !isPaid ? (
           // Keep payment-method controls beneath the structured details.
           <View style={styles.methodBlock}>
-            <Text style={styles.methodLabel}>{t("method")}</Text>
+            <Text style={[styles.methodLabel, { color: colors.textMuted }]}>
+              {t("method")}
+            </Text>
             <View style={styles.methodRow}>
               {METHODS.map((m) => {
                 const on = method === m.key;
@@ -96,9 +99,25 @@ export const RoundPaymentCard = memo(function RoundPaymentCard({
                     key={m.key}
                     onPress={() => onChangeMethod(m.key)}
                     disabled={busy}
-                    style={[styles.methodChip, on && styles.methodChipOn]}
+                    style={[
+                      styles.methodChip,
+                      {
+                        borderColor: on ? colors.primary : colors.border,
+                        backgroundColor: on
+                          ? colors.primarySoft
+                          : colors.backgroundAlt,
+                      },
+                    ]}
                   >
-                    <Text style={[styles.methodText, on && styles.methodTextOn]}>
+                    <Text
+                      style={[
+                        styles.methodText,
+                        {
+                          color: on ? colors.primary : colors.textMuted,
+                          fontFamily: on ? fonts.bold : fonts.semiBold,
+                        },
+                      ]}
+                    >
                       {m.label}
                     </Text>
                   </Pressable>
@@ -120,7 +139,6 @@ const styles = StyleSheet.create({
     ...rtlText,
     fontSize: 12,
     fontFamily: fonts.semiBold,
-    color: colors.textMuted,
   },
   methodRow: {
     ...rtlChipRow(),
@@ -132,21 +150,9 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.backgroundAlt,
-  },
-  methodChipOn: {
-    backgroundColor: colors.primarySoft,
-    borderColor: colors.primary,
   },
   methodText: {
     ...rtlText,
     fontSize: 12,
-    fontFamily: fonts.semiBold,
-    color: colors.textMuted,
-  },
-  methodTextOn: {
-    color: colors.primary,
-    fontFamily: fonts.bold,
   },
 });

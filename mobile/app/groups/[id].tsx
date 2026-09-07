@@ -51,7 +51,8 @@ import { SessionClassButton } from "@/src/components/SessionClassButton";
 import { MonthStarTitle } from "@/src/components/MonthStarTitle";
 import { useDialog } from "@/src/components/DialogProvider";
 import { useAppData } from "@/src/contexts/AppDataContext";
-import { colors, radii, spacing } from "@/src/theme/colors";
+import { radii, spacing, type AppColors } from "@/src/theme/colors";
+import { useColors } from "@/src/theme/ThemeContext";
 import { rtlBlock, rtlRow, rtlText } from "@/src/theme/rtl";
 import {
   paymentStatusBorderColor,
@@ -97,7 +98,8 @@ const StudentDueRowItem = memo(function StudentDueRowItem({
   due: StudentDueRow;
   onPress: (id: number) => void;
 }) {
-  const borderColor = paymentStatusBorderColor(due.status);
+  const colors = useColors();
+  const borderColor = paymentStatusBorderColor(due.status, colors);
   const roundTitle =
     due.round_number != null
       ? formatRoundTitle(
@@ -146,6 +148,9 @@ const StudentDueRowItem = memo(function StudentDueRowItem({
 });
 
 export default function GroupDetailsScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const { id } = useLocalSearchParams<{ id: string }>();
   const groupId = Number(id);
   const router = useRouter();
@@ -573,7 +578,8 @@ export default function GroupDetailsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   roundBlock: {
     marginBottom: spacing.sm,
   },
@@ -633,3 +639,4 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
 });
+}

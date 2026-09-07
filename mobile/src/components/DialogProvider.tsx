@@ -14,7 +14,8 @@ import {
   Text,
   View,
 } from "react-native";
-import { colors, radii, spacing } from "../theme/colors";
+import { radii, spacing } from "../theme/colors";
+import { useColors } from "../theme/ThemeContext";
 import { rtlText } from "../theme/rtl";
 import { t } from "../i18n/ar";
 
@@ -86,6 +87,7 @@ const DialogContext = createContext<DialogApi | null>(null);
 
 /** App-wide modern dialogs / toasts — never use React Native Alert. */
 export function DialogProvider({ children }: { children: React.ReactNode }) {
+  const colors = useColors();
   const [request, setRequest] = useState<DialogRequest | null>(null);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const toastId = useRef(0);
@@ -161,12 +163,24 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
               else dismissPick(null);
             }}
           />
-          <View style={styles.card}>
+          <View
+            style={[
+              styles.card,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+              },
+            ]}
+          >
             {request ? (
               <>
-                <Text style={styles.title}>{request.title}</Text>
+                <Text style={[styles.title, { color: colors.text }]}>
+                  {request.title}
+                </Text>
                 {request.message ? (
-                  <Text style={styles.message}>{request.message}</Text>
+                  <Text style={[styles.message, { color: colors.textMuted }]}>
+                    {request.message}
+                  </Text>
                 ) : null}
 
                 {request.kind === "pick" ? (
@@ -180,14 +194,25 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
                         onPress={() => dismissPick(opt.id)}
                         style={({ pressed }) => [
                           styles.pickRow,
-                          opt.destructive && styles.pickRowDanger,
+                          {
+                            borderColor: opt.destructive
+                              ? colors.unpaidBorder
+                              : colors.border,
+                            backgroundColor: opt.destructive
+                              ? colors.unpaid
+                              : colors.backgroundAlt,
+                          },
                           pressed && { opacity: 0.75 },
                         ]}
                       >
                         <Text
                           style={[
                             styles.pickLabel,
-                            opt.destructive && styles.pickLabelDanger,
+                            {
+                              color: opt.destructive
+                                ? colors.danger
+                                : colors.text,
+                            },
                           ]}
                         >
                           {opt.label}
@@ -204,11 +229,15 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
                         onPress={() => dismissConfirm(false)}
                         style={({ pressed }) => [
                           styles.btn,
-                          styles.btnGhost,
+                          {
+                            backgroundColor: colors.backgroundAlt,
+                            borderWidth: 1,
+                            borderColor: colors.border,
+                          },
                           pressed && { opacity: 0.75 },
                         ]}
                       >
-                        <Text style={styles.btnGhostText}>
+                        <Text style={[styles.btnGhostText, { color: colors.text }]}>
                           {request.cancelLabel ?? t("cancel")}
                         </Text>
                       </Pressable>
@@ -216,7 +245,11 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
                         onPress={() => dismissConfirm(true)}
                         style={({ pressed }) => [
                           styles.btn,
-                          request.danger ? styles.btnDanger : styles.btnPrimary,
+                          {
+                            backgroundColor: request.danger
+                              ? colors.danger
+                              : colors.primary,
+                          },
                           pressed && { opacity: 0.75 },
                         ]}
                       >
@@ -232,7 +265,7 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
                       onPress={dismissAlert}
                       style={({ pressed }) => [
                         styles.btn,
-                        styles.btnPrimary,
+                        { backgroundColor: colors.primary },
                         pressed && { opacity: 0.75 },
                       ]}
                     >
@@ -247,11 +280,17 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
                       onPress={() => dismissPick(null)}
                       style={({ pressed }) => [
                         styles.btn,
-                        styles.btnGhost,
+                        {
+                          backgroundColor: colors.backgroundAlt,
+                          borderWidth: 1,
+                          borderColor: colors.border,
+                        },
                         pressed && { opacity: 0.75 },
                       ]}
                     >
-                      <Text style={styles.btnGhostText}>{t("cancel")}</Text>
+                      <Text style={[styles.btnGhostText, { color: colors.text }]}>
+                        {t("cancel")}
+                      </Text>
                     </Pressable>
                   ) : null}
                 </View>
@@ -267,11 +306,21 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
             key={toast.id}
             style={[
               styles.toast,
-              toast.type === "success" && styles.toastSuccess,
-              toast.type === "error" && styles.toastError,
+              toast.type === "success"
+                ? { backgroundColor: colors.success }
+                : toast.type === "error"
+                  ? { backgroundColor: colors.danger }
+                  : { backgroundColor: colors.surface },
             ]}
           >
-            <Text style={styles.toastText}>{toast.message}</Text>
+            <Text
+              style={[
+                styles.toastText,
+                toast.type === "info" ? { color: colors.text } : null,
+              ]}
+            >
+              {toast.message}
+            </Text>
           </View>
         ))}
       </View>
@@ -295,11 +344,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
   },
   card: {
-    backgroundColor: colors.surface,
     borderRadius: radii.xl,
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.border,
     maxHeight: "78%",
     shadowColor: "#0F172A",
     shadowOpacity: 0.18,
@@ -312,7 +359,6 @@ const styles = StyleSheet.create({
     width: "100%",
     fontSize: 18,
     fontWeight: "800",
-    color: colors.text,
     marginBottom: spacing.sm,
   },
   message: {
@@ -320,7 +366,6 @@ const styles = StyleSheet.create({
     width: "100%",
     fontSize: 14,
     lineHeight: 22,
-    color: colors.textMuted,
     marginBottom: spacing.md,
   },
   pickList: {
@@ -329,25 +374,15 @@ const styles = StyleSheet.create({
   },
   pickRow: {
     borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.backgroundAlt,
     borderRadius: radii.md,
     paddingVertical: 12,
     paddingHorizontal: spacing.md,
-  },
-  pickRowDanger: {
-    borderColor: "#FECACA",
-    backgroundColor: "#FEF2F2",
   },
   pickLabel: {
     ...rtlText,
     width: "100%",
     fontSize: 15,
     fontWeight: "700",
-    color: colors.text,
-  },
-  pickLabelDanger: {
-    color: colors.danger,
   },
   actions: {
     flexDirection: "row-reverse",
@@ -362,17 +397,6 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     alignItems: "center",
   },
-  btnPrimary: {
-    backgroundColor: colors.primary,
-  },
-  btnDanger: {
-    backgroundColor: colors.danger,
-  },
-  btnGhost: {
-    backgroundColor: colors.backgroundAlt,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
   btnPrimaryText: {
     ...rtlText,
     color: "#fff",
@@ -381,7 +405,6 @@ const styles = StyleSheet.create({
   },
   btnGhostText: {
     ...rtlText,
-    color: colors.text,
     fontWeight: "700",
     fontSize: 14,
   },
@@ -394,16 +417,9 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
   toast: {
-    backgroundColor: "#1E293B",
     borderRadius: radii.md,
     paddingVertical: 12,
     paddingHorizontal: spacing.md,
-  },
-  toastSuccess: {
-    backgroundColor: colors.success,
-  },
-  toastError: {
-    backgroundColor: colors.danger,
   },
   toastText: {
     ...rtlText,

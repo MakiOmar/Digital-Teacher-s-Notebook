@@ -9,7 +9,8 @@ import {
   View,
 } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { colors, radii, spacing } from "@/src/theme/colors";
+import { radii, spacing } from "@/src/theme/colors";
+import { useColors } from "@/src/theme/ThemeContext";
 import { fonts } from "@/src/theme/typography";
 import { rtlBlock, rtlRow, rtlText } from "@/src/theme/rtl";
 import { t } from "@/src/i18n/ar";
@@ -49,6 +50,7 @@ export function FiltersSheet({
   /** Hide the numeric badge (useful for single required selects like month). */
   showBadge?: boolean;
 }) {
+  const colors = useColors();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<Record<string, string>>({});
   const buttonLabel = triggerLabel ?? t("filter");
@@ -93,19 +95,25 @@ export function FiltersSheet({
         style={({ pressed }) => [
           styles.trigger,
           rtlRow(),
+          {
+            borderColor: colors.primary,
+            backgroundColor: colors.primarySoft,
+          },
           pressed && { opacity: 0.75 },
         ]}
       >
         <FontAwesome name={icon} size={14} color={colors.primary} />
-        <Text style={styles.triggerText}>{buttonLabel}</Text>
+        <Text style={[styles.triggerText, { color: colors.primary }]}>
+          {buttonLabel}
+        </Text>
         {showBadge && activeCount > 0 ? (
-          <View style={styles.badge}>
+          <View style={[styles.badge, { backgroundColor: colors.primary }]}>
             <Text style={styles.badgeText}>{activeCount}</Text>
           </View>
         ) : null}
       </Pressable>
       {appliedSummary ? (
-        <Text style={styles.summary} numberOfLines={2}>
+        <Text style={[styles.summary, { color: colors.textMuted }]} numberOfLines={2}>
           {appliedSummary}
         </Text>
       ) : null}
@@ -118,8 +126,16 @@ export function FiltersSheet({
       >
         <View style={styles.backdrop}>
           <Pressable style={StyleSheet.absoluteFill} onPress={close} />
-          <View style={styles.card}>
-            <Text style={styles.title}>{sheetTitle}</Text>
+          <View
+            style={[
+              styles.card,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <Text style={[styles.title, { color: colors.text }]}>{sheetTitle}</Text>
             <ScrollView
               style={styles.body}
               contentContainerStyle={{
@@ -130,7 +146,9 @@ export function FiltersSheet({
             >
               {fields.map((field) => (
                 <View key={field.key} style={rtlBlock}>
-                  <Text style={styles.fieldLabel}>{field.label}</Text>
+                  <Text style={[styles.fieldLabel, { color: colors.text }]}>
+                    {field.label}
+                  </Text>
                   <View style={styles.options}>
                     {field.options.map((opt) => {
                       const on =
@@ -146,14 +164,19 @@ export function FiltersSheet({
                           }
                           style={({ pressed }) => [
                             styles.option,
-                            on && styles.optionOn,
+                            {
+                              borderColor: on ? colors.primary : colors.border,
+                              backgroundColor: on
+                                ? colors.primarySoft
+                                : colors.backgroundAlt,
+                            },
                             pressed && { opacity: 0.75 },
                           ]}
                         >
                           <Text
                             style={[
                               styles.optionText,
-                              on && styles.optionTextOn,
+                              { color: on ? colors.primary : colors.text },
                             ]}
                             numberOfLines={2}
                           >
@@ -180,15 +203,19 @@ export function FiltersSheet({
                 onPress={close}
                 style={({ pressed }) => [
                   styles.cancelBtn,
+                  { borderColor: colors.border },
                   pressed && { opacity: 0.75 },
                 ]}
               >
-                <Text style={styles.cancelText}>{t("cancel")}</Text>
+                <Text style={[styles.cancelText, { color: colors.textMuted }]}>
+                  {t("cancel")}
+                </Text>
               </Pressable>
               <Pressable
                 onPress={apply}
                 style={({ pressed }) => [
                   styles.applyBtn,
+                  { backgroundColor: colors.primary },
                   pressed && { opacity: 0.85 },
                 ]}
               >
@@ -219,6 +246,7 @@ export function SelectField({
   /** Show a search box when the list can get long (e.g. groups). */
   searchable?: boolean;
 }) {
+  const colors = useColors();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const selected = options.find((o) => o.value === value);
@@ -237,7 +265,9 @@ export function SelectField({
 
   return (
     <View style={[styles.fieldWrap, rtlBlock]}>
-      <Text style={styles.fieldLabelOutside}>{label}</Text>
+      <Text style={[styles.fieldLabelOutside, { color: colors.text }]}>
+        {label}
+      </Text>
       <Pressable
         onPress={() => {
           setQuery("");
@@ -248,10 +278,14 @@ export function SelectField({
         style={({ pressed }) => [
           styles.selectTrigger,
           rtlRow(),
+          {
+            borderColor: colors.border,
+            backgroundColor: colors.surface,
+          },
           pressed && { opacity: 0.85 },
         ]}
       >
-        <Text style={styles.selectValue} numberOfLines={1}>
+        <Text style={[styles.selectValue, { color: colors.text }]} numberOfLines={1}>
           {display}
         </Text>
         <FontAwesome name="chevron-down" size={14} color={colors.primary} />
@@ -268,17 +302,33 @@ export function SelectField({
             style={StyleSheet.absoluteFill}
             onPress={close}
           />
-          <View style={styles.card}>
-            <Text style={styles.title}>{label}</Text>
+          <View
+            style={[
+              styles.card,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <Text style={[styles.title, { color: colors.text }]}>{label}</Text>
             {searchable ? (
-              <View style={styles.searchShell}>
+              <View
+                style={[
+                  styles.searchShell,
+                  {
+                    borderColor: colors.border,
+                    backgroundColor: colors.background,
+                  },
+                ]}
+              >
                 <FontAwesome name="search" size={14} color={colors.textMuted} />
                 <TextInput
                   value={query}
                   onChangeText={setQuery}
                   placeholder={t("searchPlaceholder")}
                   placeholderTextColor={colors.textMuted}
-                  style={styles.searchInput}
+                  style={[styles.searchInput, { color: colors.text }]}
                   autoCorrect={false}
                 />
               </View>
@@ -292,7 +342,9 @@ export function SelectField({
               keyboardShouldPersistTaps="handled"
             >
               {filtered.length === 0 ? (
-                <Text style={styles.emptySearch}>{t("empty")}</Text>
+                <Text style={[styles.emptySearch, { color: colors.textMuted }]}>
+                  {t("empty")}
+                </Text>
               ) : (
                 filtered.map((opt) => {
                   const on = opt.value === value;
@@ -305,12 +357,20 @@ export function SelectField({
                       }}
                       style={({ pressed }) => [
                         styles.option,
-                        on && styles.optionOn,
+                        {
+                          borderColor: on ? colors.primary : colors.border,
+                          backgroundColor: on
+                            ? colors.primarySoft
+                            : colors.backgroundAlt,
+                        },
                         pressed && { opacity: 0.75 },
                       ]}
                     >
                       <Text
-                        style={[styles.optionText, on && styles.optionTextOn]}
+                        style={[
+                          styles.optionText,
+                          { color: on ? colors.primary : colors.text },
+                        ]}
                         numberOfLines={2}
                       >
                         {opt.label}
@@ -331,10 +391,13 @@ export function SelectField({
               onPress={close}
               style={({ pressed }) => [
                 styles.cancelBtn,
+                { borderColor: colors.border },
                 pressed && { opacity: 0.75 },
               ]}
             >
-              <Text style={styles.cancelText}>{t("cancel")}</Text>
+              <Text style={[styles.cancelText, { color: colors.textMuted }]}>
+                {t("cancel")}
+              </Text>
             </Pressable>
           </View>
         </View>
@@ -354,15 +417,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
     borderWidth: 1.5,
-    borderColor: colors.primary,
-    backgroundColor: colors.primarySoft,
     borderRadius: radii.md,
     paddingVertical: 10,
     paddingHorizontal: spacing.md,
   },
   triggerText: {
     ...rtlText,
-    color: colors.primary,
     fontFamily: fonts.bold,
     fontSize: 15,
   },
@@ -371,7 +431,6 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 10,
     paddingHorizontal: 6,
-    backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -383,7 +442,6 @@ const styles = StyleSheet.create({
   summary: {
     ...rtlText,
     marginTop: 6,
-    color: colors.textMuted,
     fontSize: 12,
     fontFamily: fonts.semiBold,
   },
@@ -394,11 +452,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
   },
   card: {
-    backgroundColor: colors.surface,
     borderRadius: radii.xl,
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.border,
     maxHeight: "82%",
     shadowColor: "#0F172A",
     shadowOpacity: 0.18,
@@ -412,7 +468,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: fonts.extraBold,
     fontWeight: "800",
-    color: colors.text,
     marginBottom: spacing.md,
   },
   body: {
@@ -423,7 +478,6 @@ const styles = StyleSheet.create({
     ...rtlText,
     width: "100%",
     marginBottom: spacing.sm,
-    color: colors.text,
     fontFamily: fonts.semiBold,
     fontSize: 14,
   },
@@ -435,7 +489,6 @@ const styles = StyleSheet.create({
     ...rtlText,
     width: "100%",
     marginBottom: 6,
-    color: colors.text,
     fontFamily: fonts.semiBold,
     fontSize: 14,
   },
@@ -444,8 +497,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: spacing.sm,
     borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
     borderRadius: radii.md,
     paddingVertical: 12,
     paddingHorizontal: spacing.md,
@@ -455,8 +506,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.sm,
     borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
     borderRadius: radii.md,
     paddingHorizontal: spacing.md,
     marginBottom: spacing.md,
@@ -468,11 +517,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 15,
     fontFamily: fonts.regular,
-    color: colors.text,
   },
   emptySearch: {
     ...rtlText,
-    color: colors.textMuted,
     fontFamily: fonts.regular,
     paddingVertical: spacing.md,
   },
@@ -482,7 +529,6 @@ const styles = StyleSheet.create({
     minWidth: 0,
     fontSize: 16,
     fontFamily: fonts.semiBold,
-    color: colors.text,
   },
   options: {
     gap: spacing.sm,
@@ -493,15 +539,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: spacing.sm,
     borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.backgroundAlt,
     borderRadius: radii.md,
     paddingVertical: 12,
     paddingHorizontal: spacing.md,
-  },
-  optionOn: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primarySoft,
   },
   optionText: {
     ...rtlText,
@@ -509,10 +549,6 @@ const styles = StyleSheet.create({
     minWidth: 0,
     fontSize: 15,
     fontFamily: fonts.semiBold,
-    color: colors.text,
-  },
-  optionTextOn: {
-    color: colors.primary,
   },
   actions: {
     width: "100%",
@@ -522,7 +558,6 @@ const styles = StyleSheet.create({
   cancelBtn: {
     flex: 1,
     borderWidth: 1.5,
-    borderColor: colors.border,
     borderRadius: radii.md,
     paddingVertical: 12,
     alignItems: "center",
@@ -530,14 +565,12 @@ const styles = StyleSheet.create({
   cancelText: {
     ...rtlText,
     fontFamily: fonts.bold,
-    color: colors.textMuted,
   },
   applyBtn: {
     flex: 1,
     borderRadius: radii.md,
     paddingVertical: 12,
     alignItems: "center",
-    backgroundColor: colors.primary,
   },
   applyText: {
     ...rtlText,

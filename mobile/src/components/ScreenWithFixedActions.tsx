@@ -2,7 +2,8 @@ import React from "react";
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { Screen } from "./ui";
 import { IconActionBar, type IconAction } from "./IconActionBar";
-import { colors, spacing } from "../theme/colors";
+import { spacing } from "../theme/colors";
+import { useColors } from "../theme/ThemeContext";
 
 /**
  * Detail/session shell: fixed top IconActionBar + flex body.
@@ -20,10 +21,20 @@ export function ScreenWithFixedActions({
   floating?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
+  const colors = useColors();
+
   return (
     <Screen padded={false} style={[{ flex: 1 }, style]} safeTop={false}>
       {actions.length ? (
-        <View style={styles.fixedActions}>
+        <View
+          style={[
+            styles.fixedActions,
+            {
+              backgroundColor: colors.background,
+              borderBottomColor: colors.border,
+            },
+          ]}
+        >
           <IconActionBar actions={actions} />
         </View>
       ) : null}
@@ -38,9 +49,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
     paddingBottom: 0,
-    backgroundColor: colors.background,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
     zIndex: 2,
   },
 });

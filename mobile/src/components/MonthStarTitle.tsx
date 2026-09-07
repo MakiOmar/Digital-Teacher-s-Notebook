@@ -1,5 +1,6 @@
 import { Image, StyleSheet, Text, View } from "react-native";
-import { colors, spacing } from "../theme/colors";
+import { spacing } from "../theme/colors";
+import { useColors } from "../theme/ThemeContext";
 import { rtlRow, rtlText } from "../theme/rtl";
 import { t } from "../i18n/ar";
 
@@ -13,13 +14,26 @@ export function MonthStarTitle({
   title: string;
   starName?: string | null;
 }) {
+  const colors = useColors();
+
   return (
     <View style={styles.wrap}>
       {/* Round / month heading */}
-      <Text style={styles.title}>{title}</Text>
-      <View style={styles.starRow}>
+      <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+      <View
+        style={[
+          styles.starRow,
+          {
+            backgroundColor: colors.partial,
+            borderColor: colors.star,
+          },
+        ]}
+      >
         <Image source={STAR_ICON} style={styles.starIcon} />
-        <Text style={styles.starText} numberOfLines={1}>
+        <Text
+          style={[styles.starText, { color: colors.text }]}
+          numberOfLines={1}
+        >
           {starName ? starName : t("monthStarNone")}
         </Text>
       </View>
@@ -41,17 +55,14 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     fontWeight: "800",
-    color: colors.text,
   },
   starRow: {
     ...rtlRow(),
     alignItems: "center",
     gap: 6,
     maxWidth: "48%",
-    backgroundColor: "#FFFBEB",
     borderRadius: 20,
     borderWidth: 1.5,
-    borderColor: colors.star,
     paddingVertical: 4,
     paddingHorizontal: 10,
   },
@@ -64,7 +75,6 @@ const styles = StyleSheet.create({
     ...rtlText,
     fontSize: 12,
     fontWeight: "700",
-    color: colors.text,
     flexShrink: 1,
   },
 });

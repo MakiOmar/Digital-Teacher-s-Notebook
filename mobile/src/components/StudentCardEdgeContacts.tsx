@@ -1,6 +1,7 @@
 import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { colors, radii, spacing } from "@/src/theme/colors";
+import { radii, spacing } from "@/src/theme/colors";
+import { useColors } from "@/src/theme/ThemeContext";
 import { fonts } from "@/src/theme/typography";
 import { appIsRtl, physicalAbsEdge, rtlText } from "@/src/theme/rtl";
 import { telUrl, whatsappUrl } from "@/src/utils/phone";
@@ -35,6 +36,7 @@ export function StudentCardEdgeContacts({
   studentPhone,
   guardianPhone,
 }: Props) {
+  const colors = useColors();
   const wantRtl = appIsRtl();
   const student = studentPhone?.trim() || null;
   const guardian = guardianPhone?.trim() || null;
@@ -66,10 +68,7 @@ export function StudentCardEdgeContacts({
   const edgeStyle = physicalAbsEdge(wantRtl ? "left" : "right", EDGE_INSET);
 
   return (
-    <View
-      pointerEvents="box-none"
-      style={[styles.rail, edgeStyle]}
-    >
+    <View pointerEvents="box-none" style={[styles.rail, edgeStyle]}>
       {groups.map((group) => (
         <View key={group.key} style={styles.group}>
           <View style={styles.pair}>
@@ -83,7 +82,10 @@ export function StudentCardEdgeContacts({
               }}
               style={({ pressed }) => [
                 styles.fab,
-                { backgroundColor: group.callColor },
+                {
+                  backgroundColor: group.callColor,
+                  borderColor: colors.surface,
+                },
                 pressed && { opacity: 0.85 },
               ]}
             >
@@ -99,7 +101,10 @@ export function StudentCardEdgeContacts({
               }}
               style={({ pressed }) => [
                 styles.fab,
-                { backgroundColor: WHATSAPP_GREEN },
+                {
+                  backgroundColor: WHATSAPP_GREEN,
+                  borderColor: colors.surface,
+                },
                 pressed && { opacity: 0.85 },
               ]}
             >
@@ -107,7 +112,16 @@ export function StudentCardEdgeContacts({
             </Pressable>
           </View>
           {/* Label under icons — short role name */}
-          <Text style={styles.groupLabel} numberOfLines={1}>
+          <Text
+            style={[
+              styles.groupLabel,
+              {
+                color: colors.textMuted,
+                backgroundColor: colors.surface,
+              },
+            ]}
+            numberOfLines={1}
+          >
             {group.title}
           </Text>
         </View>
@@ -138,8 +152,6 @@ const styles = StyleSheet.create({
     fontSize: 9,
     lineHeight: 11,
     fontFamily: fonts.bold,
-    color: colors.textMuted,
-    backgroundColor: "rgba(255,255,255,0.95)",
     paddingHorizontal: 5,
     paddingVertical: 1,
     borderRadius: radii.sm,
@@ -154,7 +166,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
-    borderColor: "#fff",
     elevation: 3,
     shadowColor: "#0F172A",
     shadowOpacity: 0.18,

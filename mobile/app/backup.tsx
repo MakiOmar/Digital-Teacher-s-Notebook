@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useState, useMemo } from "react";
 import {
   ActivityIndicator,
   Modal,
@@ -38,7 +38,8 @@ import {
   pickBackupFolder,
   type BackupFileMode,
 } from "@/src/backup/backupLocation";
-import { colors, radii, spacing } from "@/src/theme/colors";
+import { radii, spacing, type AppColors } from "@/src/theme/colors";
+import { useColors } from "@/src/theme/ThemeContext";
 import { fonts } from "@/src/theme/typography";
 import { rtlChipRow, rtlRow, rtlText } from "@/src/theme/rtl";
 import { formatDateTimeAr } from "@/src/utils/date";
@@ -70,6 +71,9 @@ function phaseLabel(phase: BackupProgress["phase"], mode: "import" | "export") {
 }
 
 export default function BackupScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const { bump } = useAppData();
   const dialog = useDialog();
   const [busy, setBusy] = useState(false);
@@ -416,7 +420,8 @@ export default function BackupScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   section: {
     ...rtlText,
     width: "100%",
@@ -529,3 +534,4 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
 });
+}

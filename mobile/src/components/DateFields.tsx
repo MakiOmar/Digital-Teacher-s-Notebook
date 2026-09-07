@@ -9,7 +9,8 @@ import {
 import DateTimePicker, {
   DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
-import { colors, spacing } from "../theme/colors";
+import { spacing } from "../theme/colors";
+import { useColors } from "../theme/ThemeContext";
 import { rtlBlock, rtlRow, rtlText } from "../theme/rtl";
 import {
   dateToTimeHm,
@@ -28,15 +29,24 @@ function PickerBox({
   valueLabel: string;
   onPress: () => void;
 }) {
+  const colors = useColors();
+
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.box, pressed && { opacity: 0.75 }]}
+      style={({ pressed }) => [
+        styles.box,
+        {
+          borderColor: colors.border,
+          backgroundColor: colors.surface,
+        },
+        pressed && { opacity: 0.75 },
+      ]}
     >
       {/* Cluster value + hint on the visual right (rtlRow starts from the right). */}
       <View style={[styles.boxInner, rtlRow()]}>
-        <Text style={styles.value}>{valueLabel}</Text>
-        <Text style={styles.hint}>{PICK}</Text>
+        <Text style={[styles.value, { color: colors.text }]}>{valueLabel}</Text>
+        <Text style={[styles.hint, { color: colors.primary }]}>{PICK}</Text>
       </View>
     </Pressable>
   );
@@ -57,6 +67,7 @@ export function DateField({
   minimumDate,
   maximumDate,
 }: DateFieldProps) {
+  const colors = useColors();
   const [open, setOpen] = useState(false);
 
   function onPick(event: DateTimePickerEvent, selected?: Date) {
@@ -69,7 +80,7 @@ export function DateField({
 
   return (
     <View style={[styles.field, rtlBlock]}>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={[styles.label, { color: colors.text }]}>{label}</Text>
       <PickerBox
         valueLabel={formatDateAr(value)}
         onPress={() => setOpen(true)}
@@ -86,7 +97,9 @@ export function DateField({
       ) : null}
       {Platform.OS === "ios" && open ? (
         <Pressable onPress={() => setOpen(false)} style={styles.iosDone}>
-          <Text style={styles.iosDoneText}>تم</Text>
+          <Text style={[styles.iosDoneText, { color: colors.primary }]}>
+            تم
+          </Text>
         </Pressable>
       ) : null}
     </View>
@@ -100,6 +113,7 @@ type TimeFieldProps = {
 };
 
 export function TimeField({ label, value, onChange }: TimeFieldProps) {
+  const colors = useColors();
   const [open, setOpen] = useState(false);
 
   function onPick(event: DateTimePickerEvent, selected?: Date) {
@@ -112,7 +126,7 @@ export function TimeField({ label, value, onChange }: TimeFieldProps) {
 
   return (
     <View style={[styles.field, rtlBlock]}>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={[styles.label, { color: colors.text }]}>{label}</Text>
       <PickerBox valueLabel={value} onPress={() => setOpen(true)} />
       {open ? (
         <DateTimePicker
@@ -125,7 +139,9 @@ export function TimeField({ label, value, onChange }: TimeFieldProps) {
       ) : null}
       {Platform.OS === "ios" && open ? (
         <Pressable onPress={() => setOpen(false)} style={styles.iosDone}>
-          <Text style={styles.iosDoneText}>تم</Text>
+          <Text style={[styles.iosDoneText, { color: colors.primary }]}>
+            تم
+          </Text>
         </Pressable>
       ) : null}
     </View>
@@ -138,13 +154,10 @@ const styles = StyleSheet.create({
     ...rtlText,
     width: "100%",
     marginBottom: 6,
-    color: colors.text,
     fontWeight: "600",
   },
   box: {
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 12,
@@ -155,13 +168,11 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   value: {
-    color: colors.text,
     fontSize: 16,
     ...rtlText,
   },
   hint: {
     fontSize: 13,
-    color: colors.primary,
     fontWeight: "700",
     ...rtlText,
   },
@@ -172,7 +183,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   iosDoneText: {
-    color: colors.primary,
     fontWeight: "700",
     ...rtlText,
   },

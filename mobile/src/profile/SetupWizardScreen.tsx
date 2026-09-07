@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import {
   Image,
   KeyboardAvoidingView,
@@ -31,7 +31,8 @@ import { useKeyboardBottomInset } from "@/src/hooks/useKeyboardBottomInset";
 import { t } from "@/src/i18n/ar";
 import { useLanguage } from "@/src/i18n/LanguageContext";
 import type { AppLanguage } from "@/src/i18n/language";
-import { colors, radii, spacing } from "@/src/theme/colors";
+import { radii, spacing, type AppColors } from "@/src/theme/colors";
+import { useColors } from "@/src/theme/ThemeContext";
 import { rtlChipRow, rtlRow, rtlText } from "@/src/theme/rtl";
 import { userFacingErrorMessage } from "@/src/utils/errors";
 
@@ -43,6 +44,9 @@ type Step = "language" | "profile" | "backup";
 
 /** First-run wizard: preferred language, tutor profile, then auto-backup prefs. */
 export function SetupWizardScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const { name: savedName, profileUri: savedUri, saveProfile, pickImage } =
     useTutorProfile();
   const { language, setLanguage } = useLanguage();
@@ -211,14 +215,14 @@ export function SetupWizardScreen() {
 
   if (!stepReady) {
     return (
-      <Screen safeTop padded={false} style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
+      <Screen safeTop padded={false} style={{ flex: 1, backgroundColor: colors.background }}>
         <View />
       </Screen>
     );
   }
 
   return (
-    <Screen safeTop padded={false} style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
+    <Screen safeTop padded={false} style={{ flex: 1, backgroundColor: colors.background }}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -378,7 +382,8 @@ export function SetupWizardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   content: {
     flexGrow: 1,
     justifyContent: "flex-start",
@@ -466,3 +471,4 @@ const styles = StyleSheet.create({
   },
   chipTextOn: { color: "#fff" },
 });
+}

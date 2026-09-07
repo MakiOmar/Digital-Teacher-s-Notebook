@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useColors } from "@/src/theme/ThemeContext";
 import {
   Pressable,
   StyleSheet,
@@ -9,7 +10,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { t } from "@/src/i18n/ar";
-import { colors, radii, spacing } from "@/src/theme/colors";
+import { radii, spacing, type AppColors } from "@/src/theme/colors";
 import { fonts } from "@/src/theme/typography";
 import { rtlText } from "@/src/theme/rtl";
 import { getTourStep, TOUR_STEPS } from "./tourSteps";
@@ -51,6 +52,9 @@ function physicalRect(
  * Root uses LTR so dim edges + hole match measureInWindow (physical coords).
  */
 export function TourSpotlight() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const {
     active,
     stepId,
@@ -262,7 +266,8 @@ export function TourSpotlight() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   overlay: {
     position: "absolute",
     top: 0,
@@ -396,3 +401,4 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
 });
+}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -26,7 +26,8 @@ import {
 import type { StudyGroup } from "@/src/db/types";
 import { todayDateOnly } from "@/src/utils/date";
 import { pickContactPhone } from "@/src/utils/contacts";
-import { colors, radii, spacing } from "@/src/theme/colors";
+import { radii, spacing, type AppColors } from "@/src/theme/colors";
+import { useColors } from "@/src/theme/ThemeContext";
 import { rtlChipRow, rtlRow, rtlText } from "@/src/theme/rtl";
 import { useAppData } from "@/src/contexts/AppDataContext";
 import { useDialog } from "@/src/components/DialogProvider";
@@ -44,6 +45,9 @@ function ContactsPickButton({
   disabled: boolean;
   onPress: () => void;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <Pressable
       onPress={onPress}
@@ -64,6 +68,9 @@ function ContactsPickButton({
 }
 
 export default function StudentFormScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const { id, groupId: groupIdParam } = useLocalSearchParams<{
     id?: string;
     groupId?: string;
@@ -405,7 +412,8 @@ export default function StudentFormScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   label: {
     ...rtlText,
     width: "100%",
@@ -486,3 +494,4 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
 });
+}

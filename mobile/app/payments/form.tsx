@@ -29,7 +29,8 @@ import {
 import { listPayableRoundsForStudent } from "@/src/services/rounds";
 import type { PaymentMethod, Student, StudyGroup } from "@/src/db/types";
 import { formatMoney, formatRoundTitle, todayDateOnly } from "@/src/utils/date";
-import { colors, spacing } from "@/src/theme/colors";
+import { spacing, type AppColors } from "@/src/theme/colors";
+import { useColors } from "@/src/theme/ThemeContext";
 import { rtlChipRow, rtlText } from "@/src/theme/rtl";
 import { useAppData } from "@/src/contexts/AppDataContext";
 import { useDialog } from "@/src/components/DialogProvider";
@@ -46,6 +47,9 @@ type PayableRound = Awaited<
 >[number];
 
 export default function PaymentFormScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const {
     id,
     studentId: studentIdParam,
@@ -394,7 +398,8 @@ export default function PaymentFormScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   label: {
     ...rtlText,
     width: "100%",
@@ -430,3 +435,4 @@ const styles = StyleSheet.create({
   },
   chipTextOn: { color: "#fff" },
 });
+}

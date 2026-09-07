@@ -26,7 +26,8 @@ import { exportStudentsSheet } from "@/src/services/studentImport";
 import { useRefreshableList } from "@/src/hooks/useRefreshableList";
 import { useServerPagination } from "@/src/hooks/useServerPagination";
 import { useGeneralSettings } from "@/src/settings/GeneralSettingsContext";
-import { spacing, colors } from "@/src/theme/colors";
+import { spacing } from "@/src/theme/colors";
+import { useColors } from "@/src/theme/ThemeContext";
 import { fonts } from "@/src/theme/typography";
 import { appIsRtl, rtlText } from "@/src/theme/rtl";
 import { enrollmentStatusLabel } from "@/src/utils/statusLabels";
@@ -34,6 +35,7 @@ import { userFacingErrorMessage } from "@/src/utils/errors";
 
 export default function StudentsTab() {
   const router = useRouter();
+  const colors = useColors();
   const dialog = useDialog();
   const { bump } = useAppData();
   const { pageSize } = useGeneralSettings();
@@ -251,7 +253,7 @@ export default function StudentsTab() {
         />
         {/* How many students are checked across pages */}
         {selectMode && selectedIds.size > 0 ? (
-          <Text style={styles.selectedCount}>
+          <Text style={[styles.selectedCount, { color: colors.primary }]}>
             {t("selectedStudentsCount", { count: selectedIds.size })}
           </Text>
         ) : null}
@@ -367,7 +369,6 @@ const styles = StyleSheet.create({
   selectedCount: {
     ...rtlText,
     fontFamily: fonts.bold,
-    color: colors.primary,
     marginBottom: spacing.sm,
   },
 });

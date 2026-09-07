@@ -12,7 +12,6 @@ import {
   Cairo_600SemiBold,
   Cairo_700Bold,
 } from "@expo-google-fonts/cairo";
-import { colors } from "@/src/theme/colors";
 import { fonts } from "@/src/theme/typography";
 import { AppDataProvider, useAppData } from "@/src/contexts/AppDataContext";
 import { AppShell, SplashBackground } from "@/src/components/AppBackground";
@@ -40,6 +39,7 @@ import { TourProvider } from "@/src/tour/TourContext";
 import { TourSpotlight } from "@/src/tour/TourSpotlight";
 import { LanguageProvider } from "@/src/i18n/LanguageContext";
 import { bootstrapLanguageLayout } from "@/src/i18n/language";
+import { ThemeProvider, useColors, useTheme } from "@/src/theme/ThemeContext";
 
 /**
  * Prefer reading-start alignment helpers in src/theme/rtl.ts.
@@ -213,79 +213,27 @@ export default function RootLayout() {
   return (
     <View style={styles.root}>
       <SafeAreaProvider style={styles.root}>
-        <StatusBar style="dark" />
-        <LanguageProvider>
-          <AppDataProvider>
-            <LicenseProvider>
-              <TutorProfileProvider>
-                <AppLockProvider>
-                  <GeneralSettingsProvider>
-                    <CurrencyProvider>
-                    <TourProvider>
-                      <DialogProvider>
-                        <Bootstrap onAppReady={onAppReady}>
-                          <AppShell>
-                            <Stack
-                              screenOptions={{
-                                // No page titles — back button only on stack screens
-                                headerShown: true,
-                                headerTitle: "",
-                                headerTitleStyle: { fontFamily: fonts.bold },
-                                headerShadowVisible: false,
-                                // Opaque scenes — transparent content lets both pages'
-                                // text paint during the slide, which looks like overlap.
-                                headerStyle: { backgroundColor: colors.background },
-                                headerTintColor: colors.text,
-                                contentStyle: {
-                                  flex: 1,
-                                  backgroundColor: colors.background,
-                                },
-                                animation: "slide_from_right",
-                              }}
-                            >
-                              <Stack.Screen
-                                name="(tabs)"
-                                options={{
-                                  headerShown: false,
-                                  contentStyle: {
-                                    flex: 1,
-                                    backgroundColor: colors.background,
-                                  },
-                                  animation: "fade",
-                                }}
-                              />
-                              <Stack.Screen name="groups/form" />
-                              <Stack.Screen name="groups/[id]" />
-                              <Stack.Screen name="groups/add-students" />
-                              <Stack.Screen name="groups/round-payments" />
-                              <Stack.Screen name="groups/sessions" />
-                              <Stack.Screen name="attendance/[sessionId]" />
-                              <Stack.Screen name="students/form" />
-                              <Stack.Screen name="students/[id]" />
-                              <Stack.Screen name="payments/form" />
-                              <Stack.Screen name="years/index" />
-                              <Stack.Screen name="years/form" />
-                              <Stack.Screen name="backup" />
-                              <Stack.Screen name="about" />
-                              <Stack.Screen name="license-manage" />
-                              <Stack.Screen name="profile-edit" />
-                              <Stack.Screen name="app-lock" />
-                              <Stack.Screen name="reminders" />
-                              <Stack.Screen name="general-settings" />
-                              <Stack.Screen name="reports" />
-                            </Stack>
-                            <TourSpotlight />
-                          </AppShell>
-                        </Bootstrap>
-                      </DialogProvider>
-                    </TourProvider>
-                    </CurrencyProvider>
-                  </GeneralSettingsProvider>
-                </AppLockProvider>
-              </TutorProfileProvider>
-            </LicenseProvider>
-          </AppDataProvider>
-        </LanguageProvider>
+        <ThemeProvider>
+          <LanguageProvider>
+            <AppDataProvider>
+              <LicenseProvider>
+                <TutorProfileProvider>
+                  <AppLockProvider>
+                    <GeneralSettingsProvider>
+                      <CurrencyProvider>
+                        <TourProvider>
+                          <DialogProvider>
+                            <ThemedAppShell onAppReady={onAppReady} />
+                          </DialogProvider>
+                        </TourProvider>
+                      </CurrencyProvider>
+                    </GeneralSettingsProvider>
+                  </AppLockProvider>
+                </TutorProfileProvider>
+              </LicenseProvider>
+            </AppDataProvider>
+          </LanguageProvider>
+        </ThemeProvider>
       </SafeAreaProvider>
       {/* Single JS splash. Hide native only after this logo is on screen. */}
       {showBrandSplash ? (
@@ -298,6 +246,69 @@ export default function RootLayout() {
         </View>
       ) : null}
     </View>
+  );
+}
+
+/** Stack + shell chrome that follows the active light/dark palette. */
+function ThemedAppShell({ onAppReady }: { onAppReady: () => void }) {
+  const colors = useColors();
+  const { isDark } = useTheme();
+
+  return (
+    <>
+      <StatusBar style={isDark ? "light" : "dark"} />
+      <Bootstrap onAppReady={onAppReady}>
+        <AppShell>
+          <Stack
+            screenOptions={{
+              headerShown: true,
+              headerTitle: "",
+              headerTitleStyle: { fontFamily: fonts.bold },
+              headerShadowVisible: false,
+              headerStyle: { backgroundColor: colors.background },
+              headerTintColor: colors.text,
+              contentStyle: {
+                flex: 1,
+                backgroundColor: colors.background,
+              },
+              animation: "slide_from_right",
+            }}
+          >
+            <Stack.Screen
+              name="(tabs)"
+              options={{
+                headerShown: false,
+                contentStyle: {
+                  flex: 1,
+                  backgroundColor: colors.background,
+                },
+                animation: "fade",
+              }}
+            />
+            <Stack.Screen name="groups/form" />
+            <Stack.Screen name="groups/[id]" />
+            <Stack.Screen name="groups/add-students" />
+            <Stack.Screen name="groups/round-payments" />
+            <Stack.Screen name="groups/sessions" />
+            <Stack.Screen name="attendance/[sessionId]" />
+            <Stack.Screen name="students/form" />
+            <Stack.Screen name="students/[id]" />
+            <Stack.Screen name="payments/form" />
+            <Stack.Screen name="years/index" />
+            <Stack.Screen name="years/form" />
+            <Stack.Screen name="backup" />
+            <Stack.Screen name="about" />
+            <Stack.Screen name="license-manage" />
+            <Stack.Screen name="profile-edit" />
+            <Stack.Screen name="app-lock" />
+            <Stack.Screen name="reminders" />
+            <Stack.Screen name="general-settings" />
+            <Stack.Screen name="reports" />
+          </Stack>
+          <TourSpotlight />
+        </AppShell>
+      </Bootstrap>
+    </>
   );
 }
 
@@ -321,7 +332,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
   errorText: {
-    color: colors.danger,
+    color: "#DC2626",
     textAlign: "center",
     writingDirection: I18nManager.isRTL ? "rtl" : "ltr",
     width: "100%",

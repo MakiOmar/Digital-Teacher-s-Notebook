@@ -16,6 +16,7 @@ import { listTodaysSessionsPage } from "@/src/repositories";
 import type { GroupSession, SessionStatus } from "@/src/db/types";
 import { formatDateTimeAr } from "@/src/utils/date";
 import { groupAccentColor, spacing } from "@/src/theme/colors";
+import { useColors } from "@/src/theme/ThemeContext";
 import { sessionStatusLabel } from "@/src/components/SessionClassButton";
 import { useServerPagination } from "@/src/hooks/useServerPagination";
 import { useGeneralSettings } from "@/src/settings/GeneralSettingsContext";
@@ -25,6 +26,7 @@ type Row = GroupSession & { group_name: string; accent_color: string | null };
 
 export default function TodayScreen() {
   const router = useRouter();
+  const colors = useColors();
   const { pageSize } = useGeneralSettings();
   const [statusFilter, setStatusFilter] = useState<"all" | string>("all");
 
@@ -106,7 +108,11 @@ export default function TodayScreen() {
                 value: sessionStatusLabel(item.status),
               },
             ]}
-            borderColor={groupAccentColor(item.group_id, item.accent_color)}
+            borderColor={groupAccentColor(
+              item.group_id,
+              item.accent_color,
+              colors
+            )}
             onPress={() => router.push(`/attendance/${item.id}`)}
           />
         )}

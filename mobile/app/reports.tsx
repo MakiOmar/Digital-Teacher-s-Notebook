@@ -1,4 +1,5 @@
-import { useCallback, useState } from "react";
+import { useCallback, useState, useMemo } from "react";
+import { useColors } from "@/src/theme/ThemeContext";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "expo-router";
 import * as Sharing from "expo-sharing";
@@ -18,13 +19,16 @@ import { t } from "@/src/i18n/ar";
 import { getAttendanceRatesByStudent } from "@/src/repositories";
 import { getOpenRoundsPaymentSummary } from "@/src/services/rounds";
 import { formatInteger, formatMoney } from "@/src/utils/date";
-import { colors, spacing } from "@/src/theme/colors";
+import { spacing, type AppColors } from "@/src/theme/colors";
 import { fonts } from "@/src/theme/typography";
 import { rtlText } from "@/src/theme/rtl";
 import { useClientPagination } from "@/src/hooks/useClientPagination";
 import { useGeneralSettings } from "@/src/settings/GeneralSettingsContext";
 
 export default function ReportsScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const dialog = useDialog();
   const { pageSize } = useGeneralSettings();
   const [loading, setLoading] = useState(true);
@@ -173,7 +177,8 @@ export default function ReportsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   section: {
     ...rtlText,
     width: "100%",
@@ -191,3 +196,4 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
 });
+}

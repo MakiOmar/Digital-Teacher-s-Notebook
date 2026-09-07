@@ -8,7 +8,7 @@ import {
   StyleProp,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { colors } from "@/src/theme/colors";
+import { useColors } from "@/src/theme/ThemeContext";
 
 /** Launch / boot splash: full brand (mark + title). */
 export const SPLASH_BRAND = require("../../assets/images/logo-full.webp");
@@ -121,10 +121,11 @@ export function SplashBackground({
  * In-app shell: soft blueprint wash. Children always paint above the image.
  */
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const colors = useColors();
   return (
     <ImageBackground
       source={BLUEPRINT_BG}
-      style={styles.shell}
+      style={[styles.shell, { backgroundColor: colors.background }]}
       imageStyle={styles.shellImage}
       resizeMode="cover"
     >
@@ -173,7 +174,6 @@ const styles = StyleSheet.create({
   shell: {
     flex: 1,
     width: "100%",
-    backgroundColor: "#E8F1F8",
   },
   shellImage: {
     opacity: 0.35,

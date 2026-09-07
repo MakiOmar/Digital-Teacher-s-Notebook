@@ -2,7 +2,8 @@ import { Pressable, StyleSheet, Text, View, ViewStyle } from "react-native";
 import { IconDetailRow } from "@/src/components/DetailCard";
 import type { GroupSession, SessionStatus } from "@/src/db/types";
 import { formatDateTimeAr } from "@/src/utils/date";
-import { colors, spacing } from "@/src/theme/colors";
+import { spacing } from "@/src/theme/colors";
+import { useColors } from "@/src/theme/ThemeContext";
 import { rtlText } from "@/src/theme/rtl";
 import { t } from "@/src/i18n/ar";
 
@@ -32,17 +33,31 @@ export function SessionClassButton({
   coverage?: AttendanceCoverage;
   onPress: () => void;
 }) {
+  const colors = useColors();
   const fill = attendanceFill(coverage);
   const cancelled = session.status === "cancelled";
   const completed = session.status === "completed";
 
   const toneStyle: ViewStyle = cancelled
-    ? styles.cancelled
+    ? {
+        backgroundColor: colors.unpaid,
+        borderColor: colors.danger,
+        opacity: 0.85,
+      }
     : completed || fill === "full"
-      ? styles.full
+      ? {
+          backgroundColor: colors.sessionFull,
+          borderColor: colors.sessionFullBorder,
+        }
       : fill === "partial"
-        ? styles.partial
-        : styles.idle;
+        ? {
+            backgroundColor: colors.sessionPartial,
+            borderColor: colors.sessionPartialBorder,
+          }
+        : {
+            backgroundColor: colors.surface,
+            borderColor: colors.border,
+          };
 
   return (
     <Pressable
@@ -53,8 +68,10 @@ export function SessionClassButton({
         pressed && { opacity: 0.85 },
       ]}
     >
-      <Text style={styles.title}>{formatDateTimeAr(session.starts_at)}</Text>
-      <View style={styles.details}>
+      <Text style={[styles.title, { color: colors.text }]}>
+        {formatDateTimeAr(session.starts_at)}
+      </Text>
+      <View style={[styles.details, { borderTopColor: colors.border }]}>
         <IconDetailRow
           icon={cancelled ? "flag" : "info-circle"}
           label={t("filterByStatus")}
@@ -80,33 +97,14 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     borderWidth: 1.5,
   },
-  idle: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-  },
-  partial: {
-    backgroundColor: colors.sessionPartial,
-    borderColor: colors.sessionPartialBorder,
-  },
-  full: {
-    backgroundColor: colors.sessionFull,
-    borderColor: colors.sessionFullBorder,
-  },
-  cancelled: {
-    backgroundColor: colors.unpaid,
-    borderColor: colors.danger,
-    opacity: 0.85,
-  },
   title: {
     ...rtlText,
     width: "100%",
     fontWeight: "700",
-    color: colors.text,
   },
   details: {
     gap: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
     paddingTop: spacing.sm,
     marginTop: spacing.sm,
   },

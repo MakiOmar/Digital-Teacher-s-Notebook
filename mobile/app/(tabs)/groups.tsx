@@ -24,13 +24,16 @@ import {
   formatInteger,
   formatMoney,
 } from "@/src/utils/date";
-import { colors, groupAccentColor, spacing } from "@/src/theme/colors";
+import { groupAccentColor, spacing } from "@/src/theme/colors";
+import { useColors } from "@/src/theme/ThemeContext";
 import { useAppData } from "@/src/contexts/AppDataContext";
 
 type GroupRow = StudyGroup & {
   scheduleLabel: string;
   student_count: number;
   total_fees: number;
+  month_session_total: number;
+  month_session_remaining: number;
   weekdays: Weekday[];
 };
 
@@ -38,6 +41,7 @@ const WEEKDAY_ORDER: Weekday[] = [6, 0, 1, 2, 3, 4, 5];
 
 export default function GroupsTab() {
   const router = useRouter();
+  const colors = useColors();
   const { bump, revision } = useAppData();
   const { pageSize } = useGeneralSettings();
   const [query, setQuery] = useState("");
@@ -71,6 +75,8 @@ export default function GroupsTab() {
           scheduleLabel,
           student_count: Number(g.student_count ?? 0),
           total_fees: Number(g.total_fees ?? 0),
+          month_session_total: Number(g.month_session_total ?? 0),
+          month_session_remaining: Number(g.month_session_remaining ?? 0),
           weekdays,
         };
       });
@@ -174,11 +180,18 @@ export default function GroupsTab() {
                 },
                 {
                   icon: "clock-o",
-                  label: t("classesPerRound"),
-                  value: formatInteger(item.classes_per_round ?? 4),
+                  label: t("classesThisMonth"),
+                  value: t("classesRemainingOfTotal", {
+                    remaining: item.month_session_remaining,
+                    total: item.month_session_total,
+                  }),
                 },
               ]}
-              borderColor={groupAccentColor(item.id, item.accent_color)}
+              borderColor={groupAccentColor(
+                item.id,
+                item.accent_color,
+                colors
+              )}
               onPress={() => router.push(`/groups/${item.id}`)}
               trailing={
                 <Pressable

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   Image,
   KeyboardAvoidingView,
@@ -21,7 +21,8 @@ import { fetchTrialInfo } from "@/src/license/api";
 import { useLicense } from "@/src/license/LicenseContext";
 import { useDialog } from "@/src/components/DialogProvider";
 import { t } from "@/src/i18n/ar";
-import { colors, spacing } from "@/src/theme/colors";
+import { spacing, type AppColors } from "@/src/theme/colors";
+import { useColors } from "@/src/theme/ThemeContext";
 import { rtlText } from "@/src/theme/rtl";
 import { whatsappUrl } from "@/src/utils/phone";
 import { APP_LOGO_MARK } from "@/src/components/AppBackground";
@@ -37,6 +38,9 @@ type BusyAction = "activate" | "trial" | null;
 
 /** Full-screen activate gate when the app is locked. */
 export function LicenseActivateScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const { activate, startTrial, lockReason } = useLicense();
   const dialog = useDialog();
   const [key, setKey] = useState("");
@@ -136,7 +140,7 @@ export function LicenseActivateScreen() {
         : t("licenseStartTrial");
 
   return (
-    <Screen safeTop padded={false} style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
+    <Screen safeTop padded={false} style={{ flex: 1, backgroundColor: colors.background }}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -197,7 +201,8 @@ export function LicenseActivateScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   content: {
     flexGrow: 1,
     justifyContent: "center",
@@ -219,3 +224,4 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
 });
+}

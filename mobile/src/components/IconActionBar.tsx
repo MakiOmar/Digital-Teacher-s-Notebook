@@ -1,7 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import React, { type ComponentProps } from "react";
-import { colors, radii, spacing } from "../theme/colors";
+import { radii, spacing } from "../theme/colors";
+import { useColors } from "../theme/ThemeContext";
 import { fonts } from "../theme/typography";
 import { rtlRow, rtlText } from "../theme/rtl";
 import { TourAnchor } from "@/src/tour/TourAnchor";
@@ -21,6 +22,7 @@ export type IconAction = {
 
 /** Compact icon+caption action row for page-top toolbars. */
 export function IconActionBar({ actions }: { actions: IconAction[] }) {
+  const colors = useColors();
   if (!actions.length) return null;
   return (
     <View style={styles.row}>
@@ -39,8 +41,20 @@ export function IconActionBar({ actions }: { actions: IconAction[] }) {
             accessibilityLabel={a.label}
             style={({ pressed }) => [
               styles.btn,
-              tone === "danger" && styles.btnDanger,
-              tone === "accent" && styles.btnAccent,
+              {
+                backgroundColor:
+                  tone === "danger"
+                    ? colors.unpaid
+                    : tone === "accent"
+                      ? colors.primarySoft
+                      : colors.surface,
+                borderColor:
+                  tone === "danger"
+                    ? colors.unpaidBorder
+                    : tone === "accent"
+                      ? colors.primary
+                      : colors.border,
+              },
               (a.disabled || pressed) && { opacity: 0.55 },
             ]}
           >
@@ -48,8 +62,14 @@ export function IconActionBar({ actions }: { actions: IconAction[] }) {
             <Text
               style={[
                 styles.caption,
-                tone === "danger" && { color: colors.danger },
-                tone === "accent" && { color: colors.primary },
+                {
+                  color:
+                    tone === "danger"
+                      ? colors.danger
+                      : tone === "accent"
+                        ? colors.primary
+                        : colors.textMuted,
+                },
               ]}
               numberOfLines={1}
             >
@@ -94,24 +114,13 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 8,
     borderRadius: radii.md,
-    backgroundColor: colors.surface,
     borderWidth: 1.5,
-    borderColor: colors.border,
-  },
-  btnAccent: {
-    backgroundColor: colors.primarySoft,
-    borderColor: colors.primary,
-  },
-  btnDanger: {
-    backgroundColor: "#FEF2F2",
-    borderColor: "#FECACA",
   },
   caption: {
     ...rtlText,
     fontSize: 11,
     fontFamily: fonts.bold,
     fontWeight: "700",
-    color: colors.textMuted,
     maxWidth: 72,
   },
 });

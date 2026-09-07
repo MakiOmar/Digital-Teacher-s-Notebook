@@ -558,6 +558,7 @@ export async function getGroupDuesForRoundNumber(
      WHERE br.group_id = ?
        AND br.round_number = ?
        AND s.status = 'active'
+       AND g.status = 'active'
      ORDER BY s.name COLLATE NOCASE`,
     [groupId, roundNumber]
   );
@@ -640,6 +641,7 @@ export async function getRoundDues(groupId?: number): Promise<StudentDueRow[]> {
      ) payment_totals ON payment_totals.billing_round_id = br.id
      WHERE br.status = 'open'
        AND s.status = 'active'
+       AND g.status = 'active'
        ${groupId != null ? "AND br.group_id = ?" : ""}
      ORDER BY g.name, s.name COLLATE NOCASE`,
     groupId != null ? [groupId] : []
@@ -750,6 +752,7 @@ export async function getRoundDuesForStudent(
      ) payment_totals ON payment_totals.billing_round_id = br.id
      WHERE br.status = 'open'
        AND s.status = 'active'
+       AND g.status = 'active'
        AND br.student_id = ?
      ORDER BY g.name COLLATE NOCASE`,
     [studentId]
@@ -864,7 +867,9 @@ const OPEN_ROUND_DUES_CTE = `
       AND e.group_id = g.id
       AND e.status = 'active'
     LEFT JOIN payments p ON p.billing_round_id = br.id
-    WHERE br.status = 'open' AND s.status = 'active'
+    WHERE br.status = 'open'
+      AND s.status = 'active'
+      AND g.status = 'active'
     GROUP BY br.id
   ),
   classified AS (

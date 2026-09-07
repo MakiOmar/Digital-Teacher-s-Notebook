@@ -363,9 +363,25 @@ export async function updateGroup(
   });
 }
 
+/** Pause a group and drop it from live dues (end enrollments + close open rounds). */
 export async function softDeleteGroup(id: number): Promise<void> {
-  const db = await getDb();
-  await db.runAsync("UPDATE groups SET status = 'paused' WHERE id = ?", [id]);
+  await withTransaction(async (db) => {
+    await db.runAsync("UPDATE groups SET status = 'paused' WHERE id = ?", [id]);
+    // Students leave the group so they no longer appear as enrolled there.
+    await db.runAsync(
+      `UPDATE enrollments
+       SET status = 'ended', end_date = date('now')
+       WHERE group_id = ? AND status = 'active'`,
+      [id]
+    );
+    // Close open billing rounds so Payments no longer lists their dues.
+    await db.runAsync(
+      `UPDATE billing_rounds
+       SET status = 'closed', closed_at = datetime('now')
+       WHERE group_id = ? AND status = 'open'`,
+      [id]
+    );
+  });
 }
 
 export async function listPatterns(groupId: number): Promise<SchedulePattern[]> {
@@ -397,7 +413,7 @@ export async function listStudentsWithEnrollment(): Promise<
      FROM students s
      LEFT JOIN enrollments e
        ON e.student_id = s.id AND e.status = 'active'
-     LEFT JOIN groups g ON g.id = e.group_id
+     LEFT JOIN groups g ON g.id = e.group_id AND g.status = 'active'
      ORDER BY s.name COLLATE NOCASE`
   );
 }

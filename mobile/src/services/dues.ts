@@ -40,7 +40,7 @@ export async function getStudentDuesForMonth(
        ) as paid
      FROM students s
      JOIN enrollments e ON e.student_id = s.id AND e.status = 'active'
-     JOIN groups g ON g.id = e.group_id
+     JOIN groups g ON g.id = e.group_id AND g.status = 'active'
      WHERE s.status = 'active'
      ORDER BY s.name COLLATE NOCASE`,
     [studyMonthId]

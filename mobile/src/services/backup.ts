@@ -2,6 +2,7 @@ import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import { getDb, reopenDb, withTransaction } from "../db/client";
+import { repairIncompleteGroupSchedules } from "./schedule";
 import { SCHEMA_SQL } from "../db/schema";
 import { t } from "../i18n/ar";
 
@@ -278,5 +279,7 @@ async function restoreBackup(
   await yieldToUi();
   const db = await reopenDb();
   await db.execAsync(SCHEMA_SQL);
+  // Backup rows can omit earlier months; rebuild missing classes from start dates.
+  await repairIncompleteGroupSchedules();
   report(onProgress, "insert", totalRows, Math.max(totalRows, 1), 100, 100);
 }

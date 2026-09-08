@@ -541,7 +541,8 @@ export async function listGroupsWithPatternsPage(input: {
       const nowLocal = (() => {
         const d = new Date();
         const pad = (n: number) => String(n).padStart(2, "0");
-        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+        // Match stored starts_at (YYYY-MM-DDTHH:mm:ss), not a space separator.
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
       })();
       const rows = await db.getAllAsync<{
         group_id: number;
@@ -551,13 +552,13 @@ export async function listGroupsWithPatternsPage(input: {
         `SELECT
            gs.group_id as group_id,
            COUNT(*) as total,
-           SUM(CASE WHEN gs.starts_at >= ? THEN 1 ELSE 0 END) as remaining
+           SUM(CASE WHEN replace(gs.starts_at, ' ', 'T') >= ? THEN 1 ELSE 0 END) as remaining
          FROM group_sessions gs
-         WHERE gs.study_month_id = ?
-           AND gs.status != 'cancelled'
+         WHERE gs.status != 'cancelled'
+           AND substr(replace(gs.starts_at, ' ', 'T'), 1, 7) = ?
            AND gs.group_id IN (${groups.map(() => "?").join(",")})
          GROUP BY gs.group_id`,
-        [nowLocal, studyMonth.id, ...groups.map((g) => g.id)]
+        [nowLocal, studyMonth.year_month, ...groups.map((g) => g.id)]
       );
       for (const row of rows) {
         sessionStats.set(row.group_id, {

@@ -14,6 +14,7 @@ import {
   resolveCurrentStudyMonth,
 } from "../repositories";
 import { scheduleAutoBackupOnEdit } from "../backup/autoBackup";
+import { repairIncompleteGroupSchedules } from "../services/schedule";
 import { userFacingErrorMessage } from "@/src/utils/errors";
 
 type AppDataContextValue = {
@@ -31,6 +32,17 @@ type AppDataContextValue = {
 
 const AppDataContext = createContext<AppDataContextValue | null>(null);
 
+let scheduleRepair: Promise<void> | null = null;
+
+function repairSchedulesOnce(): Promise<void> {
+  if (!scheduleRepair) {
+    scheduleRepair = repairIncompleteGroupSchedules()
+      .then(() => undefined)
+      .catch(() => undefined);
+  }
+  return scheduleRepair;
+}
+
 export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,6 +54,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const refresh = useCallback(async () => {
     try {
       await getDb();
+      await repairSchedulesOnce();
       const year = await getActiveYear();
       setActiveYear(year);
       if (year) {

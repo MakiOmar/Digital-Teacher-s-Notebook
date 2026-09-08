@@ -14,7 +14,7 @@ import type {
   PaymentMethod,
   Weekday,
 } from "../db/types";
-import { monthBounds, yearMonthLabel, monthsOverlappingRange } from "../utils/date";
+import { monthBounds, yearMonthLabel, monthsOverlappingRange, todayDateOnly } from "../utils/date";
 import { getSessionRoundDateRanges } from "../services/rounds";
 
 export type PagedResult<T> = {
@@ -449,11 +449,71 @@ export type PagedGroupRow = StudyGroup & {
   patterns: SchedulePattern[];
   student_count: number;
   total_fees: number;
-  /** Non-cancelled sessions in the current study month. */
+  /** Group class setting (`classes_per_round`) for the current round. */
   month_session_total: number;
-  /** Those sessions with starts_at still in the future. */
+  /** That setting minus completed classes in the current round. */
   month_session_remaining: number;
 };
+
+function sessionDateOnly(startsAt: string): string {
+  return startsAt.replace(" ", "T").slice(0, 10);
+}
+
+/**
+ * Current round is the chunk whose dates contain today.
+ * Before the first class, use the first round.
+ * After a round ends, use the latest started round that is not fully completed.
+ */
+function currentRoundClassCounts(
+  sessions: { starts_at: string; status: string }[],
+  classesPerRound: number,
+  today: string
+): { month_session_total: number; month_session_remaining: number } {
+  const per = Math.max(1, classesPerRound);
+  const ordered = [...sessions].sort((a, b) =>
+    a.starts_at.localeCompare(b.starts_at)
+  );
+  const rounds: { starts_at: string; status: string }[][] = [];
+  for (let i = 0; i < ordered.length; i += per) {
+    rounds.push(ordered.slice(i, i + per));
+  }
+
+  const completedIn = (round: { status: string }[]) =>
+    round.filter((s) => s.status === "completed").length;
+
+  let current = rounds[0];
+  const containing = rounds.find((round) => {
+    const first = sessionDateOnly(round[0].starts_at);
+    const last = sessionDateOnly(round[round.length - 1].starts_at);
+    return today >= first && today <= last;
+  });
+  if (containing) {
+    current = containing;
+  } else if (rounds.length) {
+    const firstDate = sessionDateOnly(rounds[0][0].starts_at);
+    if (today < firstDate) {
+      current = rounds[0];
+    } else {
+      const startedIncomplete = rounds.filter((round) => {
+        const first = sessionDateOnly(round[0].starts_at);
+        return first <= today && completedIn(round) < per;
+      });
+      const upcoming = rounds.filter(
+        (round) => sessionDateOnly(round[0].starts_at) > today
+      );
+      current =
+        startedIncomplete[startedIncomplete.length - 1] ??
+        upcoming[0] ??
+        rounds[rounds.length - 1];
+    }
+  }
+
+  const used = current ? completedIn(current) : 0;
+  return {
+    month_session_total: per,
+    month_session_remaining: Math.max(0, per - used),
+  };
+}
 
 /** Active groups filtered and paged in SQL, with stats for the visible page. */
 export async function listGroupsWithPatternsPage(input: {
@@ -527,45 +587,43 @@ export async function listGroupsWithPatternsPage(input: {
     patternsByGroup.set(pattern.group_id, list);
   }
 
-  // Current study-month session totals / remaining for the visible page.
+  // Current-round totals: group class setting minus completed classes only.
   const sessionStats = new Map<
     number,
     { month_session_total: number; month_session_remaining: number }
   >();
   if (groups.length) {
-    const activeYear = await getActiveYear();
-    const studyMonth = activeYear
-      ? await resolveCurrentStudyMonth(activeYear.id)
-      : null;
-    if (studyMonth) {
-      const nowLocal = (() => {
-        const d = new Date();
-        const pad = (n: number) => String(n).padStart(2, "0");
-        // Match stored starts_at (YYYY-MM-DDTHH:mm:ss), not a space separator.
-        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-      })();
-      const rows = await db.getAllAsync<{
-        group_id: number;
-        total: number;
-        remaining: number;
-      }>(
-        `SELECT
-           gs.group_id as group_id,
-           COUNT(*) as total,
-           SUM(CASE WHEN replace(gs.starts_at, ' ', 'T') >= ? THEN 1 ELSE 0 END) as remaining
-         FROM group_sessions gs
-         WHERE gs.status != 'cancelled'
-           AND substr(replace(gs.starts_at, ' ', 'T'), 1, 7) = ?
-           AND gs.group_id IN (${groups.map(() => "?").join(",")})
-         GROUP BY gs.group_id`,
-        [nowLocal, studyMonth.year_month, ...groups.map((g) => g.id)]
+    const sessionRows = await db.getAllAsync<{
+      group_id: number;
+      starts_at: string;
+      status: string;
+    }>(
+      `SELECT group_id, starts_at, status
+       FROM group_sessions
+       WHERE group_id IN (${groups.map(() => "?").join(",")})
+       ORDER BY group_id, starts_at`,
+      groups.map((g) => g.id)
+    );
+    const sessionsByGroup = new Map<
+      number,
+      { starts_at: string; status: string }[]
+    >();
+    for (const row of sessionRows) {
+      const list = sessionsByGroup.get(row.group_id) ?? [];
+      list.push(row);
+      sessionsByGroup.set(row.group_id, list);
+    }
+    const today = todayDateOnly();
+    for (const group of groups) {
+      const per = Math.max(1, group.classes_per_round ?? 4);
+      sessionStats.set(
+        group.id,
+        currentRoundClassCounts(
+          sessionsByGroup.get(group.id) ?? [],
+          per,
+          today
+        )
       );
-      for (const row of rows) {
-        sessionStats.set(row.group_id, {
-          month_session_total: Number(row.total ?? 0),
-          month_session_remaining: Number(row.remaining ?? 0),
-        });
-      }
     }
   }
 

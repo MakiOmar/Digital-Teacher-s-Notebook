@@ -80,12 +80,15 @@ function chunkSessionsByRound(
   classesPerRound: number
 ): { roundNumber: number; sessions: GroupSession[] }[] {
   const per = Math.max(1, classesPerRound || 4);
-  const active = sessions.filter((s) => s.status !== "cancelled");
+  // Cancelled classes still occupy their date so later days stay on the next round.
+  const ordered = [...sessions].sort((a, b) =>
+    a.starts_at.localeCompare(b.starts_at)
+  );
   const out: { roundNumber: number; sessions: GroupSession[] }[] = [];
-  for (let i = 0; i < active.length; i += per) {
+  for (let i = 0; i < ordered.length; i += per) {
     out.push({
       roundNumber: Math.floor(i / per) + 1,
-      sessions: active.slice(i, i + per),
+      sessions: ordered.slice(i, i + per),
     });
   }
   return out;

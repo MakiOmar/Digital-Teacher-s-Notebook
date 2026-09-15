@@ -29,7 +29,7 @@
     },
     "android": {
       "package": "com.itqandev.digitalteachernotebook",
-      "versionCode": 2,
+      "versionCode": 3,
       "supportsRtl": true,
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [

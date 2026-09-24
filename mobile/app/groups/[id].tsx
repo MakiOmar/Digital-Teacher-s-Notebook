@@ -80,10 +80,10 @@ function chunkSessionsByRound(
   classesPerRound: number
 ): { roundNumber: number; sessions: GroupSession[] }[] {
   const per = Math.max(1, classesPerRound || 4);
-  // Cancelled classes still occupy their date so later days stay on the next round.
-  const ordered = [...sessions].sort((a, b) =>
-    a.starts_at.localeCompare(b.starts_at)
-  );
+  // Exclude cancelled so round headers match payment date ranges / billing.
+  const ordered = [...sessions]
+    .filter((s) => s.status !== "cancelled")
+    .sort((a, b) => a.starts_at.localeCompare(b.starts_at));
   const out: { roundNumber: number; sessions: GroupSession[] }[] = [];
   for (let i = 0; i < ordered.length; i += per) {
     out.push({
@@ -320,7 +320,7 @@ export default function GroupDetailsScreen() {
   async function onDeleteGroup() {
     const ok = await dialog.confirm({
       title: t("delete"),
-      message: t("deleteConfirm"),
+      message: t("pauseGroupConfirm"),
       confirmLabel: t("delete"),
       danger: true,
     });

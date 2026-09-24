@@ -3,7 +3,7 @@ import { isRunningInExpoGo } from "expo";
 import { Platform } from "react-native";
 import { t } from "../i18n/ar";
 import { listUpcomingSessions } from "../repositories";
-import { getOpenRoundsPaymentSummary } from "../services/rounds";
+import { countOutstandingUnpaidPartials } from "../services/rounds";
 
 const SETTINGS_KEY = "tutor.reminders.v1";
 /** Legacy aggregate id — cancel on every reschedule. */
@@ -509,10 +509,7 @@ export async function rescheduleReminders(
   }
 
   if (prefs.unpaidEnabled) {
-    const summary = await getOpenRoundsPaymentSummary();
-    const unpaid = summary.dues.filter(
-      (d) => d.status === "unpaid" || d.status === "partial"
-    ).length;
+    const unpaid = await countOutstandingUnpaidPartials();
     if (unpaid > 0) {
       const when = new Date();
       when.setDate(when.getDate() + 7);

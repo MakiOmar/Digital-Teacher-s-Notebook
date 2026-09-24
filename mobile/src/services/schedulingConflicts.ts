@@ -34,7 +34,8 @@ export async function findOverlappingSession(input: {
       `SELECT gs.*, g.name AS group_name
        FROM group_sessions gs
        INNER JOIN groups g ON g.id = gs.group_id
-       WHERE gs.status != 'cancelled'
+       WHERE g.status = 'active'
+         AND gs.status != 'cancelled'
          AND gs.starts_at < ?
          AND gs.ends_at > ?
          AND (? IS NULL OR gs.id != ?)

@@ -159,7 +159,34 @@ export async function updateAcademicYear(
 
 export async function deleteAcademicYear(id: number): Promise<void> {
   const db = await getDb();
+  const sessions = await db.getFirstAsync<{ total: number }>(
+    `SELECT COUNT(*) as total
+     FROM group_sessions gs
+     JOIN study_months sm ON sm.id = gs.study_month_id
+     WHERE sm.academic_year_id = ?`,
+    [id]
+  );
+  if (Number(sessions?.total ?? 0) > 0) {
+    throw new Error(
+      "لا يمكن حذف السنة لوجود حصص مرتبطة بها. احذف أو أفرغ الحصص أولاً."
+    );
+  }
   await db.runAsync("DELETE FROM academic_years WHERE id = ?", [id]);
+}
+
+/** Count sessions linked to an academic year (for delete guards). */
+export async function countSessionsForAcademicYear(
+  yearId: number
+): Promise<number> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ total: number }>(
+    `SELECT COUNT(*) as total
+     FROM group_sessions gs
+     JOIN study_months sm ON sm.id = gs.study_month_id
+     WHERE sm.academic_year_id = ?`,
+    [yearId]
+  );
+  return Number(row?.total ?? 0);
 }
 
 export async function listSemesters(yearId: number): Promise<Semester[]> {
@@ -277,6 +304,14 @@ export async function listGroups(): Promise<StudyGroup[]> {
   );
 }
 
+export async function countActiveGroups(): Promise<number> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ total: number }>(
+    "SELECT COUNT(*) as total FROM groups WHERE status = 'active'"
+  );
+  return Number(row?.total ?? 0);
+}
+
 export async function getGroup(id: number): Promise<StudyGroup | null> {
   const db = await getDb();
   return (
@@ -365,6 +400,7 @@ export async function updateGroup(
 
 /** Pause a group and drop it from live dues (end enrollments + close open rounds). */
 export async function softDeleteGroup(id: number): Promise<void> {
+  const { forceCloseOpenRoundsOn } = await import("../services/rounds");
   await withTransaction(async (db) => {
     await db.runAsync("UPDATE groups SET status = 'paused' WHERE id = ?", [id]);
     // Students leave the group so they no longer appear as enrolled there.
@@ -374,13 +410,8 @@ export async function softDeleteGroup(id: number): Promise<void> {
        WHERE group_id = ? AND status = 'active'`,
       [id]
     );
-    // Close open billing rounds so Payments no longer lists their dues.
-    await db.runAsync(
-      `UPDATE billing_rounds
-       SET status = 'closed', closed_at = datetime('now')
-       WHERE group_id = ? AND status = 'open'`,
-      [id]
-    );
+    // Freeze then close open rounds so sync offsets stay honest.
+    await forceCloseOpenRoundsOn(db, { groupId: id });
   });
 }
 
@@ -399,6 +430,14 @@ export async function listStudents(): Promise<Student[]> {
   return db.getAllAsync<Student>(
     "SELECT * FROM students ORDER BY name COLLATE NOCASE"
   );
+}
+
+export async function countActiveStudents(): Promise<number> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ total: number }>(
+    "SELECT COUNT(*) as total FROM students WHERE status = 'active'"
+  );
+  return Number(row?.total ?? 0);
 }
 
 /** Students with active enrollment group name in one query (no N+1). */
@@ -552,7 +591,8 @@ export async function listGroupsWithPatternsPage(input: {
        COALESCE(SUM(
          CASE
            WHEN s.id IS NULL THEN 0
-           WHEN e.custom_monthly_fee IS NOT NULL THEN e.custom_monthly_fee
+           WHEN e.custom_monthly_fee IS NOT NULL AND e.custom_monthly_fee >= 0
+             THEN e.custom_monthly_fee
            ELSE g.default_monthly_fee
          END
        ), 0) as total_fees
@@ -587,43 +627,44 @@ export async function listGroupsWithPatternsPage(input: {
     patternsByGroup.set(pattern.group_id, list);
   }
 
-  // Current-round totals: group class setting minus completed classes only.
+  // Prefer open billing-round remaining classes (avoids full session history).
   const sessionStats = new Map<
     number,
     { month_session_total: number; month_session_remaining: number }
   >();
   if (groups.length) {
-    const sessionRows = await db.getAllAsync<{
+    const roundRows = await db.getAllAsync<{
       group_id: number;
-      starts_at: string;
-      status: string;
+      target_classes: number;
+      remaining_classes: number;
     }>(
-      `SELECT group_id, starts_at, status
-       FROM group_sessions
-       WHERE group_id IN (${groups.map(() => "?").join(",")})
-       ORDER BY group_id, starts_at`,
+      `SELECT group_id,
+         MAX(target_classes) as target_classes,
+         MAX(CASE
+           WHEN target_classes > counted_classes
+             THEN target_classes - counted_classes
+           ELSE 0
+         END) as remaining_classes
+       FROM billing_rounds
+       WHERE status = 'open'
+         AND group_id IN (${groups.map(() => "?").join(",")})
+       GROUP BY group_id`,
       groups.map((g) => g.id)
     );
-    const sessionsByGroup = new Map<
-      number,
-      { starts_at: string; status: string }[]
-    >();
-    for (const row of sessionRows) {
-      const list = sessionsByGroup.get(row.group_id) ?? [];
-      list.push(row);
-      sessionsByGroup.set(row.group_id, list);
+    for (const row of roundRows) {
+      sessionStats.set(row.group_id, {
+        month_session_total: Math.max(1, Number(row.target_classes ?? 4)),
+        month_session_remaining: Math.max(0, Number(row.remaining_classes ?? 0)),
+      });
     }
-    const today = todayDateOnly();
     for (const group of groups) {
-      const per = Math.max(1, group.classes_per_round ?? 4);
-      sessionStats.set(
-        group.id,
-        currentRoundClassCounts(
-          sessionsByGroup.get(group.id) ?? [],
-          per,
-          today
-        )
-      );
+      if (!sessionStats.has(group.id)) {
+        const per = Math.max(1, group.classes_per_round ?? 4);
+        sessionStats.set(group.id, {
+          month_session_total: per,
+          month_session_remaining: per,
+        });
+      }
     }
   }
 
@@ -757,6 +798,7 @@ export async function enrollStudentInGroup(
   groupId: number,
   startDate: string
 ): Promise<void> {
+  const { forceCloseOpenRoundsOn } = await import("../services/rounds");
   await withTransaction(async (db) => {
     const active = await db.getFirstAsync<Enrollment>(
       `SELECT * FROM enrollments WHERE student_id = ? AND status = 'active' LIMIT 1`,
@@ -764,6 +806,10 @@ export async function enrollStudentInGroup(
     );
     if (active?.group_id === groupId) return;
     if (active) {
+      await forceCloseOpenRoundsOn(db, {
+        studentId,
+        groupId: active.group_id,
+      });
       await db.runAsync(
         `UPDATE enrollments SET status = 'ended', end_date = ? WHERE id = ?`,
         [startDate, active.id]
@@ -904,6 +950,9 @@ export async function updateStudent(
       ? Number(input.group_id)
       : null;
 
+  const { forceCloseOpenRoundsOn } = await import("../services/rounds");
+  let openRoundForGroup: number | null = null;
+
   await withTransaction(async (db) => {
     await db.runAsync(
       `UPDATE students SET name = ?, student_phone = ?, guardian_phone = ?, notes = ?, status = ? WHERE id = ?`,
@@ -922,6 +971,10 @@ export async function updateStudent(
     );
     if (groupId == null) {
       if (active) {
+        await forceCloseOpenRoundsOn(db, {
+          studentId: id,
+          groupId: active.group_id,
+        });
         await db.runAsync(
           `UPDATE enrollments SET status = 'ended', end_date = date('now') WHERE id = ?`,
           [active.id]
@@ -931,6 +984,10 @@ export async function updateStudent(
     }
     if (active) {
       if (active.group_id !== groupId) {
+        await forceCloseOpenRoundsOn(db, {
+          studentId: id,
+          groupId: active.group_id,
+        });
         await db.runAsync(
           `UPDATE enrollments SET status = 'ended', end_date = date('now') WHERE id = ?`,
           [active.id]
@@ -941,6 +998,7 @@ export async function updateStudent(
            VALUES (?, ?, date('now'), NULL, ?, 'active')`,
           [id, groupId, input.custom_monthly_fee ?? null]
         );
+        openRoundForGroup = groupId;
       } else {
         await db.runAsync(
           `UPDATE enrollments SET custom_monthly_fee = ? WHERE id = ?`,
@@ -954,8 +1012,14 @@ export async function updateStudent(
          VALUES (?, ?, date('now'), NULL, ?, 'active')`,
         [id, groupId, input.custom_monthly_fee ?? null]
       );
+      openRoundForGroup = groupId;
     }
   });
+
+  if (openRoundForGroup != null) {
+    const { openRoundForNewEnrollment } = await import("../services/rounds");
+    await openRoundForNewEnrollment(id, openRoundForGroup);
+  }
 }
 
 export async function deleteStudent(id: number): Promise<void> {
@@ -1177,18 +1241,20 @@ export async function getStudentOpenRemaining(
   return dues.reduce((sum, d) => sum + d.remaining, 0);
 }
 
-/** Attendance rate per active enrollment student. */
+/** Attendance rate per active enrollment student (scoped to current group sessions). */
 export async function getAttendanceRatesByStudent(): Promise<
   { student_id: number; student_name: string; present: number; total: number }[]
 > {
   const db = await getDb();
   return db.getAllAsync(
     `SELECT s.id as student_id, s.name as student_name,
-       SUM(CASE WHEN a.status = 'present' THEN 1 ELSE 0 END) as present,
-       COUNT(a.id) as total
+       SUM(CASE WHEN gs.id IS NOT NULL AND a.status = 'present' THEN 1 ELSE 0 END) as present,
+       COUNT(gs.id) as total
      FROM students s
      JOIN enrollments e ON e.student_id = s.id AND e.status = 'active'
      LEFT JOIN attendances a ON a.student_id = s.id
+     LEFT JOIN group_sessions gs
+       ON gs.id = a.session_id AND gs.group_id = e.group_id
      WHERE s.status = 'active'
      GROUP BY s.id
      ORDER BY s.name COLLATE NOCASE`
@@ -1205,41 +1271,40 @@ export async function getSessionAttendanceCoverage(
   const sessionFilter = sessionIds?.length
     ? `AND gs.id IN (${sessionIds.map(() => "?").join(",")})`
     : "";
+  const roster = await db.getFirstAsync<{ total: number }>(
+    `SELECT COUNT(*) as total
+     FROM enrollments e
+     JOIN students s ON s.id = e.student_id
+     WHERE e.group_id = ?
+       AND e.status = 'active'
+       AND s.status = 'active'`,
+    [groupId]
+  );
+  const total = Number(roster?.total ?? 0);
   const rows = await db.getAllAsync<{
     session_id: number;
     marked: number;
-    total: number;
   }>(
     `SELECT
        gs.id as session_id,
-       (
-         SELECT COUNT(*)
-         FROM enrollments e
-         JOIN students s ON s.id = e.student_id
-         WHERE e.group_id = gs.group_id
-           AND e.status = 'active'
-           AND s.status = 'active'
-       ) as total,
-       (
-         SELECT COUNT(*)
-         FROM attendances a
-         JOIN students s ON s.id = a.student_id AND s.status = 'active'
-         JOIN enrollments e
-           ON e.student_id = a.student_id
-          AND e.group_id = gs.group_id
-          AND e.status = 'active'
-         WHERE a.session_id = gs.id
-       ) as marked
+       COUNT(CASE WHEN e.id IS NOT NULL AND s.id IS NOT NULL THEN a.id END) as marked
      FROM group_sessions gs
+     LEFT JOIN attendances a ON a.session_id = gs.id
+     LEFT JOIN students s ON s.id = a.student_id AND s.status = 'active'
+     LEFT JOIN enrollments e
+       ON e.student_id = a.student_id
+      AND e.group_id = gs.group_id
+      AND e.status = 'active'
      WHERE gs.group_id = ?
-       ${sessionFilter}`,
+       ${sessionFilter}
+     GROUP BY gs.id`,
     [groupId, ...(sessionIds ?? [])]
   );
   const map: Record<number, { marked: number; total: number }> = {};
   for (const r of rows) {
     map[r.session_id] = {
       marked: Number(r.marked ?? 0),
-      total: Number(r.total ?? 0),
+      total,
     };
   }
   return map;
@@ -1257,7 +1322,8 @@ export async function listUpcomingSessions(
     `SELECT gs.*, g.name as group_name, g.accent_color as accent_color
      FROM group_sessions gs
      JOIN groups g ON g.id = gs.group_id
-     WHERE gs.status IN ('scheduled', 'rescheduled') AND gs.starts_at >= datetime('now', 'localtime')
+     WHERE g.status = 'active'
+       AND gs.status IN ('scheduled', 'rescheduled') AND gs.starts_at >= datetime('now', 'localtime')
      ORDER BY gs.starts_at
      LIMIT ?`,
     [limit]
@@ -1275,7 +1341,8 @@ export async function listTodaysSessions(): Promise<
     `SELECT gs.*, g.name as group_name, g.accent_color as accent_color
      FROM group_sessions gs
      JOIN groups g ON g.id = gs.group_id
-     WHERE date(gs.starts_at) = date('now', 'localtime')
+     WHERE g.status = 'active'
+       AND date(gs.starts_at) = date('now', 'localtime')
        AND gs.status != 'cancelled'
      ORDER BY gs.starts_at ASC`
   );
@@ -1294,6 +1361,7 @@ export async function listTodaysSessionsPage(input: {
 }): Promise<PagedResult<TodaySessionRow>> {
   const db = await getDb();
   const conditions = [
+    "g.status = 'active'",
     "date(gs.starts_at) = date('now', 'localtime')",
     "gs.status != 'cancelled'",
   ];
@@ -1306,6 +1374,7 @@ export async function listTodaysSessionsPage(input: {
   const count = await db.getFirstAsync<{ total: number }>(
     `SELECT COUNT(*) as total
      FROM group_sessions gs
+     JOIN groups g ON g.id = gs.group_id
      WHERE ${where}`,
     params
   );
@@ -1338,7 +1407,8 @@ export async function listWeekSessions(
       `SELECT gs.*, g.name as group_name, g.accent_color as accent_color
        FROM group_sessions gs
        JOIN groups g ON g.id = gs.group_id
-       WHERE gs.status != 'cancelled'
+       WHERE g.status = 'active'
+         AND gs.status != 'cancelled'
          AND date(gs.starts_at) >= date(?)
          AND date(gs.starts_at) < date(?, '+7 days')
        ORDER BY gs.starts_at ASC`,
@@ -1352,7 +1422,8 @@ export async function listWeekSessions(
     `SELECT gs.*, g.name as group_name, g.accent_color as accent_color
      FROM group_sessions gs
      JOIN groups g ON g.id = gs.group_id
-     WHERE gs.status != 'cancelled'
+     WHERE g.status = 'active'
+       AND gs.status != 'cancelled'
        AND date(gs.starts_at) >= date('now', 'localtime',
          printf('-%d days', (CAST(strftime('%w', 'now', 'localtime') AS INTEGER) + 1) % 7))
        AND date(gs.starts_at) < date('now', 'localtime',
@@ -1630,24 +1701,17 @@ export async function upsertHomeworkDone(input: {
   session_id: number;
   student_id: number;
   homework_done: boolean;
-}): Promise<void> {
+}): Promise<boolean> {
   const db = await getDb();
   const done = input.homework_done ? 1 : 0;
-  await db.runAsync(
-    `INSERT INTO attendances (session_id, student_id, status, notes, homework_done)
-     VALUES (?, ?, 'present', NULL, ?)
-     ON CONFLICT(session_id, student_id) DO UPDATE SET
-       homework_done = excluded.homework_done`,
-    [input.session_id, input.student_id, done]
+  const result = await db.runAsync(
+    `UPDATE attendances
+     SET homework_done = ?
+     WHERE session_id = ? AND student_id = ?`,
+    [done, input.session_id, input.student_id]
   );
-  const session = await db.getFirstAsync<{ group_id: number }>(
-    "SELECT group_id FROM group_sessions WHERE id = ?",
-    [input.session_id]
-  );
-  if (session) {
-    const { onAttendanceChanged } = await import("../services/rounds");
-    await onAttendanceChanged(input.student_id, session.group_id);
-  }
+  // No insert / no round sync — homework must not create countable attendance.
+  return (result.changes ?? 0) > 0;
 }
 
 /** Mark many students in one transaction, then refresh round counters once per student. */
@@ -1683,28 +1747,22 @@ export async function upsertHomeworkBatch(
   sessionId: number,
   studentIds: number[],
   homeworkDone: boolean
-): Promise<void> {
-  if (!studentIds.length) return;
+): Promise<number> {
+  if (!studentIds.length) return 0;
   const done = homeworkDone ? 1 : 0;
-  const session = await (await getDb()).getFirstAsync<{ group_id: number }>(
-    "SELECT group_id FROM group_sessions WHERE id = ?",
-    [sessionId]
-  );
+  let updated = 0;
   await withTransaction(async (db) => {
     for (const studentId of studentIds) {
-      await db.runAsync(
-        `INSERT INTO attendances (session_id, student_id, status, notes, homework_done)
-         VALUES (?, ?, 'present', NULL, ?)
-         ON CONFLICT(session_id, student_id) DO UPDATE SET
-           homework_done = excluded.homework_done`,
-        [sessionId, studentId, done]
+      const result = await db.runAsync(
+        `UPDATE attendances
+         SET homework_done = ?
+         WHERE session_id = ? AND student_id = ?`,
+        [done, sessionId, studentId]
       );
+      updated += result.changes ?? 0;
     }
   });
-  if (session) {
-    const { onAttendanceChangedBatch } = await import("../services/rounds");
-    await onAttendanceChangedBatch(studentIds, session.group_id);
-  }
+  return updated;
 }
 
 // ─── Payments ─────────────────────────────────────────────────

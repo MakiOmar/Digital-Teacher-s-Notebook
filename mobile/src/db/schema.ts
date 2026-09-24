@@ -142,6 +142,14 @@ CREATE INDEX IF NOT EXISTS idx_rounds_student_group_status
   ON billing_rounds(student_id, group_id, status);
 CREATE INDEX IF NOT EXISTS idx_rounds_group_status
   ON billing_rounds(group_id, status);
+CREATE INDEX IF NOT EXISTS idx_rounds_group_number
+  ON billing_rounds(group_id, round_number);
+CREATE INDEX IF NOT EXISTS idx_sessions_group_status_starts
+  ON group_sessions(group_id, status, starts_at);
+CREATE INDEX IF NOT EXISTS idx_enrollments_group_status
+  ON enrollments(group_id, status);
+CREATE INDEX IF NOT EXISTS idx_enrollments_student_status
+  ON enrollments(student_id, status);
 
 CREATE TABLE IF NOT EXISTS round_stars (
   group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,

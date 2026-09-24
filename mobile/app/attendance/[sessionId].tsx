@@ -175,30 +175,38 @@ export default function AttendanceScreen() {
 
   const setHomework = useCallback(
     async (studentId: number, done: boolean) => {
-      setHomeworkMap((prev) => ({ ...prev, [studentId]: done }));
-      await upsertHomeworkDone({
+      const updated = await upsertHomeworkDone({
         session_id: id,
         student_id: studentId,
         homework_done: done,
       });
+      if (!updated) {
+        dialog.toast(t("homeworkNeedsAttendance"), "info");
+        return;
+      }
+      setHomeworkMap((prev) => ({ ...prev, [studentId]: done }));
       bump();
     },
-    [bump, id]
+    [bump, dialog, id]
   );
 
   const setAllHomework = useCallback(
     async (done: boolean) => {
-      const next: Record<number, boolean> = { ...homeworkMap };
-      for (const student of students) next[student.id] = done;
-      setHomeworkMap(next);
-      await upsertHomeworkBatch(
+      const updated = await upsertHomeworkBatch(
         id,
         students.map((s) => s.id),
         done
       );
+      if (!updated) {
+        dialog.toast(t("homeworkNeedsAttendance"), "info");
+        return;
+      }
+      const next: Record<number, boolean> = { ...homeworkMap };
+      for (const student of students) next[student.id] = done;
+      setHomeworkMap(next);
       bump();
     },
-    [bump, homeworkMap, id, students]
+    [bump, dialog, homeworkMap, id, students]
   );
 
   const shareLessonForStudent = useCallback(

@@ -24,8 +24,8 @@ import { useAppData } from "@/src/contexts/AppDataContext";
 import { t } from "@/src/i18n/ar";
 import { useLanguage } from "@/src/i18n/LanguageContext";
 import {
-  listGroups,
-  listStudents,
+  countActiveGroups,
+  countActiveStudents,
   listUpcomingSessions,
 } from "@/src/repositories";
 import { formatDateTimeAr } from "@/src/utils/date";
@@ -192,12 +192,12 @@ export default function HomeScreen() {
     try {
       const [upcoming, groups, students] = await Promise.all([
         listUpcomingSessions(1),
-        listGroups(),
-        listStudents(),
+        countActiveGroups(),
+        countActiveStudents(),
       ]);
       setNextSession(upcoming[0] ?? null);
-      setGroupCount(groups.length);
-      setStudentCount(students.length);
+      setGroupCount(groups);
+      setStudentCount(students);
     } finally {
       setLoading(false);
     }

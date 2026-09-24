@@ -132,9 +132,17 @@ export default function YearsScreen() {
                     danger: true,
                   });
                   if (!ok) return;
-                  await deleteAcademicYear(item.id);
-                  bump();
-                  await load();
+                  try {
+                    await deleteAcademicYear(item.id);
+                    bump();
+                    await load();
+                  } catch (e) {
+                    dialog.alert({
+                      title: t("error"),
+                      message:
+                        e instanceof Error ? e.message : t("yearDeleteBlocked"),
+                    });
+                  }
                 }
               })();
             }}

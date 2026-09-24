@@ -17,7 +17,10 @@ import { PaginationBar, pagingBarProps } from "@/src/components/PaginationBar";
 import { useDialog } from "@/src/components/DialogProvider";
 import { t } from "@/src/i18n/ar";
 import { getAttendanceRatesByStudent } from "@/src/repositories";
-import { getOpenRoundsPaymentSummary } from "@/src/services/rounds";
+import {
+  getCollectionsByGroup,
+  getOutstandingRemainingByGroup,
+} from "@/src/services/rounds";
 import { formatInteger, formatMoney } from "@/src/utils/date";
 import { spacing, type AppColors } from "@/src/theme/colors";
 import { fonts } from "@/src/theme/typography";
@@ -42,27 +45,33 @@ export default function ReportsScreen() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [rates, summary] = await Promise.all([
+      const [rates, collected, remaining] = await Promise.all([
         getAttendanceRatesByStudent(),
-        getOpenRoundsPaymentSummary(),
+        getCollectionsByGroup(),
+        getOutstandingRemainingByGroup(),
       ]);
       setAttendance(rates);
-      const map = new Map<
-        number,
-        { group_name: string; collected: number; remaining: number }
-      >();
-      for (const d of summary.dues) {
-        const cur = map.get(d.group_id) ?? {
-          group_name: d.group_name,
-          collected: 0,
-          remaining: 0,
-        };
-        cur.collected += d.paid;
-        cur.remaining += d.remaining;
-        map.set(d.group_id, cur);
-      }
+      const remainingMap = new Map(
+        remaining.map((r) => [r.group_id, Number(r.remaining)])
+      );
+      const ids = new Set<number>([
+        ...collected.map((c) => c.group_id),
+        ...remaining.map((r) => r.group_id),
+      ]);
+      const nameById = new Map<number, string>();
+      for (const c of collected) nameById.set(c.group_id, c.group_name);
+      for (const r of remaining) nameById.set(r.group_id, r.group_name);
       setByGroup(
-        [...map.entries()].map(([group_id, v]) => ({ group_id, ...v }))
+        [...ids]
+          .map((group_id) => ({
+            group_id,
+            group_name: nameById.get(group_id) ?? "",
+            collected: Number(
+              collected.find((c) => c.group_id === group_id)?.collected ?? 0
+            ),
+            remaining: remainingMap.get(group_id) ?? 0,
+          }))
+          .sort((a, b) => a.group_name.localeCompare(b.group_name, "ar"))
       );
     } finally {
       setLoading(false);

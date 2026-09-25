@@ -20,12 +20,20 @@ export type FilterOption = {
   label: string;
 };
 
+export type FilterFieldPresentation = "list" | "searchable" | "checkbox";
+
 export type FilterField = {
   key: string;
   label: string;
   /** Currently applied value. */
   value: string;
   options: FilterOption[];
+  /**
+   * list = stacked options (default);
+   * searchable = dropdown with search (groups);
+   * checkbox = compact modern single-select rows.
+   */
+  presentation?: FilterFieldPresentation;
 };
 
 /**
@@ -53,6 +61,9 @@ export function FiltersSheet({
   const colors = useColors();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<Record<string, string>>({});
+  const [searchByField, setSearchByField] = useState<Record<string, string>>(
+    {}
+  );
   const buttonLabel = triggerLabel ?? t("filter");
   const sheetTitle = title ?? buttonLabel;
 
@@ -67,7 +78,9 @@ export function FiltersSheet({
   }, [fields]);
 
   const activeCount = useMemo(() => {
-    return fields.filter((f) => f.value !== "all" && f.value !== "").length;
+    return fields.filter(
+      (f) => f.value !== "all" && f.value !== "" && f.value !== "current"
+    ).length;
   }, [fields]);
 
   const openSheet = () => {
@@ -75,6 +88,7 @@ export function FiltersSheet({
     const next: Record<string, string> = {};
     for (const f of fields) next[f.key] = f.value;
     setDraft(next);
+    setSearchByField({});
     setOpen(true);
   };
 
@@ -144,57 +158,226 @@ export function FiltersSheet({
               }}
               keyboardShouldPersistTaps="handled"
             >
-              {fields.map((field) => (
-                <View key={field.key} style={rtlBlock}>
-                  <Text style={[styles.fieldLabel, { color: colors.text }]}>
-                    {field.label}
-                  </Text>
-                  <View style={styles.options}>
-                    {field.options.map((opt) => {
-                      const on =
-                        (draft[field.key] ?? field.value) === opt.value;
-                      return (
-                        <Pressable
-                          key={opt.value}
-                          onPress={() =>
-                            setDraft((prev) => ({
+              {fields.map((field) => {
+                const presentation = field.presentation ?? "list";
+                const selected = draft[field.key] ?? field.value;
+                if (presentation === "searchable") {
+                  const q = (searchByField[field.key] ?? "").trim().toLowerCase();
+                  const filtered = q
+                    ? field.options.filter((o) =>
+                        o.label.toLowerCase().includes(q)
+                      )
+                    : field.options;
+                  return (
+                    <View key={field.key} style={rtlBlock}>
+                      <Text style={[styles.fieldLabel, { color: colors.text }]}>
+                        {field.label}
+                      </Text>
+                      <View
+                        style={[
+                          styles.searchShell,
+                          {
+                            borderColor: colors.border,
+                            backgroundColor: colors.background,
+                          },
+                        ]}
+                      >
+                        <FontAwesome
+                          name="search"
+                          size={14}
+                          color={colors.textMuted}
+                        />
+                        <TextInput
+                          value={searchByField[field.key] ?? ""}
+                          onChangeText={(text) =>
+                            setSearchByField((prev) => ({
                               ...prev,
-                              [field.key]: opt.value,
+                              [field.key]: text,
                             }))
                           }
-                          style={({ pressed }) => [
-                            styles.option,
-                            {
-                              borderColor: on ? colors.primary : colors.border,
-                              backgroundColor: on
-                                ? colors.primarySoft
-                                : colors.backgroundAlt,
-                            },
-                            pressed && { opacity: 0.75 },
-                          ]}
-                        >
+                          placeholder={t("searchPlaceholder")}
+                          placeholderTextColor={colors.textMuted}
+                          style={[styles.searchInput, { color: colors.text }]}
+                          autoCorrect={false}
+                        />
+                      </View>
+                      <View style={styles.options}>
+                        {filtered.length === 0 ? (
                           <Text
                             style={[
-                              styles.optionText,
-                              { color: on ? colors.primary : colors.text },
+                              styles.emptySearch,
+                              { color: colors.textMuted },
                             ]}
-                            numberOfLines={2}
                           >
-                            {opt.label}
+                            {t("empty")}
                           </Text>
-                          {on ? (
-                            <FontAwesome
-                              name="check"
-                              size={14}
-                              color={colors.primary}
-                            />
-                          ) : null}
-                        </Pressable>
-                      );
-                    })}
+                        ) : (
+                          filtered.map((opt) => {
+                            const on = selected === opt.value;
+                            return (
+                              <Pressable
+                                key={opt.value}
+                                onPress={() =>
+                                  setDraft((prev) => ({
+                                    ...prev,
+                                    [field.key]: opt.value,
+                                  }))
+                                }
+                                style={({ pressed }) => [
+                                  styles.option,
+                                  {
+                                    borderColor: on
+                                      ? colors.primary
+                                      : colors.border,
+                                    backgroundColor: on
+                                      ? colors.primarySoft
+                                      : colors.backgroundAlt,
+                                  },
+                                  pressed && { opacity: 0.75 },
+                                ]}
+                              >
+                                <Text
+                                  style={[
+                                    styles.optionText,
+                                    {
+                                      color: on ? colors.primary : colors.text,
+                                    },
+                                  ]}
+                                  numberOfLines={2}
+                                >
+                                  {opt.label}
+                                </Text>
+                                {on ? (
+                                  <FontAwesome
+                                    name="check"
+                                    size={14}
+                                    color={colors.primary}
+                                  />
+                                ) : null}
+                              </Pressable>
+                            );
+                          })
+                        )}
+                      </View>
+                    </View>
+                  );
+                }
+
+                if (presentation === "checkbox") {
+                  return (
+                    <View key={field.key} style={rtlBlock}>
+                      <Text style={[styles.fieldLabel, { color: colors.text }]}>
+                        {field.label}
+                      </Text>
+                      <View style={styles.checkboxList}>
+                        {field.options.map((opt) => {
+                          const on = selected === opt.value;
+                          return (
+                            <Pressable
+                              key={opt.value}
+                              onPress={() =>
+                                setDraft((prev) => ({
+                                  ...prev,
+                                  [field.key]: opt.value,
+                                }))
+                              }
+                              style={({ pressed }) => [
+                                styles.checkboxRow,
+                                rtlRow(),
+                                pressed && { opacity: 0.75 },
+                              ]}
+                            >
+                              <View
+                                style={[
+                                  styles.checkboxBox,
+                                  {
+                                    borderColor: on
+                                      ? colors.primary
+                                      : colors.border,
+                                    backgroundColor: on
+                                      ? colors.primary
+                                      : colors.surface,
+                                  },
+                                ]}
+                              >
+                                {on ? (
+                                  <FontAwesome
+                                    name="check"
+                                    size={12}
+                                    color="#fff"
+                                  />
+                                ) : null}
+                              </View>
+                              <Text
+                                style={[
+                                  styles.checkboxLabel,
+                                  { color: colors.text },
+                                ]}
+                                numberOfLines={2}
+                              >
+                                {opt.label}
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  );
+                }
+
+                return (
+                  <View key={field.key} style={rtlBlock}>
+                    <Text style={[styles.fieldLabel, { color: colors.text }]}>
+                      {field.label}
+                    </Text>
+                    <View style={styles.options}>
+                      {field.options.map((opt) => {
+                        const on = selected === opt.value;
+                        return (
+                          <Pressable
+                            key={opt.value}
+                            onPress={() =>
+                              setDraft((prev) => ({
+                                ...prev,
+                                [field.key]: opt.value,
+                              }))
+                            }
+                            style={({ pressed }) => [
+                              styles.option,
+                              {
+                                borderColor: on
+                                  ? colors.primary
+                                  : colors.border,
+                                backgroundColor: on
+                                  ? colors.primarySoft
+                                  : colors.backgroundAlt,
+                              },
+                              pressed && { opacity: 0.75 },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.optionText,
+                                { color: on ? colors.primary : colors.text },
+                              ]}
+                              numberOfLines={2}
+                            >
+                              {opt.label}
+                            </Text>
+                            {on ? (
+                              <FontAwesome
+                                name="check"
+                                size={14}
+                                color={colors.primary}
+                              />
+                            ) : null}
+                          </Pressable>
+                        );
+                      })}
+                    </View>
                   </View>
-                </View>
-              ))}
+                );
+              })}
             </ScrollView>
 
             {/* Comment: commit draft filters vs dismiss without changes. */}
@@ -532,6 +715,29 @@ const styles = StyleSheet.create({
   },
   options: {
     gap: spacing.sm,
+  },
+  checkboxList: {
+    gap: spacing.sm,
+  },
+  checkboxRow: {
+    alignItems: "center",
+    gap: spacing.md,
+    paddingVertical: 6,
+  },
+  checkboxBox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  checkboxLabel: {
+    ...rtlText,
+    flex: 1,
+    minWidth: 0,
+    fontSize: 15,
+    fontFamily: fonts.semiBold,
   },
   option: {
     ...rtlRow(),

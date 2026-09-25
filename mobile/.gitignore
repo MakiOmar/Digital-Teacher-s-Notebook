@@ -55,3 +55,11 @@ dist/
 
 # large stress-test backups (regenerate via samples/generate-heavy-backup.js)
 samples/tutoring-backup-heavy.json
+
+# local emulator / UI dump captures (never commit)
+.android-*.png
+.android-*.xml
+.emu-*.txt
+android-*.txt
+prebuild-rename.txt
+tmp-splash*.png

@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FlatList,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -78,6 +79,38 @@ export default function AddStudentsToGroupScreen() {
   const [activeSeatKey, setActiveSeatKey] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<Student[]>([]);
   const [saving, setSaving] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const seatsScrollRef = useRef<ScrollView>(null);
+  const seatOffsetY = useRef<Record<string, number>>({});
+
+  useEffect(() => {
+    const showEvent =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const onShow = Keyboard.addListener(showEvent, (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const onHide = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+    });
+    return () => {
+      onShow.remove();
+      onHide.remove();
+    };
+  }, []);
+
+  function scrollSeatsTo(y: number, extra = 24) {
+    // Delay so layout settles after keyboard / suggestions open.
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        seatsScrollRef.current?.scrollTo({
+          y: Math.max(0, y - extra),
+          animated: true,
+        });
+      }, 80);
+    });
+  }
 
   const reloadAvailable = useCallback(async () => {
     setAvailable(await listStudentsNotInGroup(groupId));
@@ -391,16 +424,25 @@ export default function AddStudentsToGroupScreen() {
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.OS === "ios" ? "padding" : undefined}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 0}
         >
           <ScrollView
-            contentContainerStyle={{ padding: spacing.lg, paddingBottom: 48 }}
+            ref={seatsScrollRef}
+            style={{ flex: 1 }}
+            contentContainerStyle={{
+              padding: spacing.lg,
+              paddingBottom: Math.max(48, keyboardHeight + 32),
+            }}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
           >
             <FormField
               label={t("seatsCount")}
               value={seatsCountInput}
               onChangeText={setSeatsCountInput}
               keyboardType="numeric"
+              onFocus={() => scrollSeatsTo(0, 0)}
             />
 
             {seats.map((seat, index) => {
@@ -414,7 +456,13 @@ export default function AddStudentsToGroupScreen() {
                 suggestions.length === 0;
 
               return (
-                <View key={seat.key} style={styles.seatCard}>
+                <View
+                  key={seat.key}
+                  style={styles.seatCard}
+                  onLayout={(e) => {
+                    seatOffsetY.current[seat.key] = e.nativeEvent.layout.y;
+                  }}
+                >
                   <View style={styles.seatHeader}>
                     <Text style={styles.seatTitle}>
                       {t("seatLabel")} {index + 1}
@@ -433,6 +481,7 @@ export default function AddStudentsToGroupScreen() {
                       onFocus={() => {
                         setActiveSeatKey(seat.key);
                         void loadSuggestions(seat.text);
+                        scrollSeatsTo(seatOffsetY.current[seat.key] ?? 0, 16);
                       }}
                       placeholder={t("studentName")}
                       placeholderTextColor={colors.textMuted}

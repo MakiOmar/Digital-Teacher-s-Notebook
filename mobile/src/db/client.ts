@@ -137,6 +137,29 @@ async function migrate(db: SQLite.SQLiteDatabase): Promise<void> {
     );
   `);
 
+  // First-time enrollments that used "today" after the group already started:
+  // widen start_date so schedule attendance from group start counts toward rounds.
+  await db.execAsync(`
+    UPDATE enrollments
+    SET start_date = (
+      SELECT g.start_date FROM groups g WHERE g.id = enrollments.group_id
+    )
+    WHERE status = 'active'
+      AND EXISTS (
+        SELECT 1 FROM groups g
+        WHERE g.id = enrollments.group_id
+          AND g.start_date IS NOT NULL
+          AND trim(g.start_date) != ''
+          AND date(g.start_date) < date(enrollments.start_date)
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM enrollments e2
+        WHERE e2.student_id = enrollments.student_id
+          AND e2.group_id = enrollments.group_id
+          AND e2.status = 'ended'
+      );
+  `);
+
   // Seed open round #1 for active enrollments missing a round
   await db.execAsync(`
     INSERT INTO billing_rounds (group_id, student_id, round_number, target_classes, counted_classes, status)

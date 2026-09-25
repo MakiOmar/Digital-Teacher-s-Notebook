@@ -21,6 +21,7 @@ import {
 import { DetailCard } from "@/src/components/DetailCard";
 import { ScreenWithFixedActions } from "@/src/components/ScreenWithFixedActions";
 import { DateField, TimeField } from "@/src/components/DateFields";
+import { RoundAccordion } from "@/src/components/RoundAccordion";
 import { t } from "@/src/i18n/ar";
 import {
   getGroup,
@@ -60,36 +61,64 @@ import {
 } from "@/src/utils/statusLabels";
 import { userFacingErrorMessage } from "@/src/utils/errors";
 
+type RoundChunk = { roundNumber: number; sessions: GroupSession[] };
+
 type ListRowItem =
   | { kind: "meta" }
   | { kind: "studentsTitle" }
   | { kind: "studentEmpty" }
   | { kind: "student"; due: StudentDueRow }
-  | { kind: "sessionsTitle" }
-  | { kind: "sessionsEmpty" }
+  | { kind: "roundsTitle" }
+  | { kind: "roundsEmpty" }
   | {
-      kind: "roundHeader";
-      roundNumber: number;
-      title: string;
+      kind: "round";
+      chunk: RoundChunk;
+      startedAt: string | null;
+      closedAt: string | null;
       starName?: string;
-    }
-  | { kind: "session"; session: GroupSession };
+    };
 
 function chunkSessionsByRound(
   sessions: GroupSession[],
   classesPerRound: number
-): { roundNumber: number; sessions: GroupSession[] }[] {
+): RoundChunk[] {
   const per = Math.max(1, classesPerRound || 4);
   // Exclude cancelled so round headers match payment date ranges / billing.
   const ordered = [...sessions]
     .filter((s) => s.status !== "cancelled")
     .sort((a, b) => a.starts_at.localeCompare(b.starts_at));
-  const out: { roundNumber: number; sessions: GroupSession[] }[] = [];
+  const out: RoundChunk[] = [];
   for (let i = 0; i < ordered.length; i += per) {
     out.push({
       roundNumber: Math.floor(i / per) + 1,
       sessions: ordered.slice(i, i + per),
     });
+  }
+  return out;
+}
+
+/** Round is finished only when every class is completed and fully marked. */
+function isRoundAttendanceComplete(
+  chunk: RoundChunk,
+  coverage: Record<number, { marked: number; total: number }>
+): boolean {
+  if (!chunk.sessions.length) return false;
+  return chunk.sessions.every((s) => {
+    if (s.status !== "completed") return false;
+    const c = coverage[s.id];
+    return Boolean(c && c.total > 0 && c.marked >= c.total);
+  });
+}
+
+/** Show rounds up through the first incomplete one (gate next round). */
+function visibleRoundChunks(
+  chunks: RoundChunk[],
+  coverage: Record<number, { marked: number; total: number }>
+): RoundChunk[] {
+  const out: RoundChunk[] = [];
+  for (const chunk of chunks) {
+    out.push(chunk);
+    if (!isRoundAttendanceComplete(chunk, coverage)) break;
   }
   return out;
 }
@@ -171,11 +200,13 @@ export default function GroupDetailsScreen() {
   const [roundStars, setRoundStars] = useState<
     Record<number, { student_id: number; student_name: string }>
   >({});
+  const [expandedRound, setExpandedRound] = useState<number | null>(null);
   const [customOpen, setCustomOpen] = useState(false);
   const [customDate, setCustomDate] = useState(todayDateOnly());
   const [customStart, setCustomStart] = useState("16:00");
   const [customEnd, setCustomEnd] = useState("18:00");
   const [customBusy, setCustomBusy] = useState(false);
+
   useEffect(() => {
     navigation.setOptions({
       headerTitle: group?.name || t("groups"),
@@ -200,6 +231,25 @@ export default function GroupDetailsScreen() {
     return chunkSessionsByRound(sessions, group?.classes_per_round ?? 4);
   }, [sessions, group?.classes_per_round]);
 
+  const unlockedRounds = useMemo(
+    () => visibleRoundChunks(sessionRounds, coverage),
+    [sessionRounds, coverage]
+  );
+
+  // Default-expand the latest unlocked round; keep selection valid when gating changes.
+  useEffect(() => {
+    if (!unlockedRounds.length) {
+      setExpandedRound(null);
+      return;
+    }
+    setExpandedRound((prev) => {
+      if (prev != null && unlockedRounds.some((c) => c.roundNumber === prev)) {
+        return prev;
+      }
+      return unlockedRounds[unlockedRounds.length - 1].roundNumber;
+    });
+  }, [unlockedRounds]);
+
   const listData = useMemo((): ListRowItem[] => {
     const rows: ListRowItem[] = [{ kind: "meta" }, { kind: "studentsTitle" }];
     if (!dues.length) {
@@ -209,36 +259,28 @@ export default function GroupDetailsScreen() {
         rows.push({ kind: "student", due });
       }
     }
-    rows.push({ kind: "sessionsTitle" });
-    if (!sessionRounds.length) {
-      rows.push({ kind: "sessionsEmpty" });
-    } else {
-      const per = group?.classes_per_round ?? 4;
-      for (const chunk of sessionRounds) {
-        const start = chunk.sessions[0]?.starts_at;
-        const end =
-          chunk.sessions.length >= per
-            ? chunk.sessions[chunk.sessions.length - 1]?.starts_at
-            : null;
-        const title = formatRoundTitle(
-          chunk.roundNumber,
-          start,
-          end,
-          t("roundUntilOngoing")
-        );
-        rows.push({
-          kind: "roundHeader",
-          roundNumber: chunk.roundNumber,
-          title,
-          starName: roundStars[chunk.roundNumber]?.student_name,
-        });
-        for (const s of chunk.sessions) {
-          rows.push({ kind: "session", session: s });
-        }
-      }
+    rows.push({ kind: "roundsTitle" });
+    if (!unlockedRounds.length) {
+      rows.push({ kind: "roundsEmpty" });
+      return rows;
+    }
+    const per = group?.classes_per_round ?? 4;
+    for (const chunk of unlockedRounds) {
+      const startedAt = chunk.sessions[0]?.starts_at ?? null;
+      const closedAt =
+        chunk.sessions.length >= per
+          ? chunk.sessions[chunk.sessions.length - 1]?.starts_at ?? null
+          : null;
+      rows.push({
+        kind: "round",
+        chunk,
+        startedAt,
+        closedAt,
+        starName: roundStars[chunk.roundNumber]?.student_name,
+      });
     }
     return rows;
-  }, [dues, sessionRounds, group?.classes_per_round, roundStars]);
+  }, [dues, unlockedRounds, group?.classes_per_round, roundStars]);
 
   useFocusEffect(
     useCallback(() => {
@@ -393,30 +435,58 @@ export default function GroupDetailsScreen() {
           <StudentDueRowItem due={item.due} onPress={onStudentPress} />
         );
       }
-      if (item.kind === "sessionsTitle") {
+      if (item.kind === "roundsTitle") {
         return <Title>{t("sessions")}</Title>;
       }
-      if (item.kind === "sessionsEmpty") {
+      if (item.kind === "roundsEmpty") {
         return <Muted>{t("noSessions")}</Muted>;
       }
-      if (item.kind === "roundHeader") {
+      if (item.kind === "round") {
+        const open = expandedRound === item.chunk.roundNumber;
+        const heading = formatRoundTitle(
+          item.chunk.roundNumber,
+          item.startedAt,
+          item.closedAt,
+          t("roundUntilOngoing")
+        );
         return (
-          <View style={styles.roundBlock}>
-            <View style={styles.divider} />
-            <MonthStarTitle title={item.title} starName={item.starName} />
-            <View style={styles.divider} />
-          </View>
+          <RoundAccordion
+            roundNumber={item.chunk.roundNumber}
+            startedAt={item.startedAt}
+            closedAt={item.closedAt}
+            expanded={open}
+            onToggle={() =>
+              setExpandedRound((prev) =>
+                prev === item.chunk.roundNumber ? null : item.chunk.roundNumber
+              )
+            }
+          >
+            <MonthStarTitle title={heading} starName={item.starName} />
+            {!item.chunk.sessions.length ? (
+              <Muted>{t("noSessions")}</Muted>
+            ) : (
+              item.chunk.sessions.map((s) => (
+                <SessionClassButton
+                  key={s.id}
+                  session={s}
+                  coverage={coverage[s.id]}
+                  onPress={() => onSessionPress(s.id)}
+                />
+              ))
+            )}
+          </RoundAccordion>
         );
       }
-      return (
-        <SessionClassButton
-          session={item.session}
-          coverage={coverage[item.session.id]}
-          onPress={() => onSessionPress(item.session.id)}
-        />
-      );
+      return null;
     },
-    [group, patterns, coverage, onStudentPress, onSessionPress]
+    [
+      group,
+      patterns,
+      coverage,
+      onStudentPress,
+      onSessionPress,
+      expandedRound,
+    ]
   );
 
   const keyExtractor = useCallback((item: ListRowItem, index: number) => {
@@ -429,14 +499,12 @@ export default function GroupDetailsScreen() {
         return "studentEmpty";
       case "student":
         return `student-${item.due.student_id}`;
-      case "sessionsTitle":
-        return "sessionsTitle";
-      case "sessionsEmpty":
-        return "sessionsEmpty";
-      case "roundHeader":
-        return `round-${item.roundNumber}`;
-      case "session":
-        return `session-${item.session.id}`;
+      case "roundsTitle":
+        return "roundsTitle";
+      case "roundsEmpty":
+        return "roundsEmpty";
+      case "round":
+        return `round-${item.chunk.roundNumber}`;
       default:
         return String(index);
     }
@@ -460,13 +528,6 @@ export default function GroupDetailsScreen() {
           tone: "accent",
           onPress: () =>
             router.push(`/groups/add-students?groupId=${groupId}` as never),
-        },
-        {
-          key: "addOne",
-          icon: "plus",
-          label: t("addStudent"),
-          onPress: () =>
-            router.push(`/students/form?groupId=${groupId}` as never),
         },
         {
           key: "payments",
@@ -583,15 +644,6 @@ export default function GroupDetailsScreen() {
 
 function createStyles(colors: AppColors) {
   return StyleSheet.create({
-  roundBlock: {
-    marginBottom: spacing.sm,
-  },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.border,
-    width: "100%",
-    marginVertical: 4,
-  },
   modalBackdrop: {
     flex: 1,
     backgroundColor: "rgba(15, 23, 42, 0.45)",

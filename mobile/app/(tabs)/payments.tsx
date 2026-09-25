@@ -12,7 +12,10 @@ import { PaginationBar, pagingBarProps } from "@/src/components/PaginationBar";
 import { PaymentDueCard } from "@/src/components/PaymentDueCard";
 import { TourAnchor } from "@/src/tour/TourAnchor";
 import { t } from "@/src/i18n/ar";
-import { getOpenRoundsPaymentPage } from "@/src/services/rounds";
+import {
+  getOpenRoundsPaymentPage,
+  type PaymentRoundFilter,
+} from "@/src/services/rounds";
 import { useServerPagination } from "@/src/hooks/useServerPagination";
 import { useGeneralSettings } from "@/src/settings/GeneralSettingsContext";
 import type { PaymentStatus, StudentDueRow } from "@/src/db/types";
@@ -24,17 +27,31 @@ type PaymentListState = {
   totalCollected: number;
   totalRemaining: number;
   groups: { id: number; name: string }[];
+  roundNumbers: number[];
 };
+
+function parseRoundFilter(value: string | undefined): PaymentRoundFilter {
+  if (value === "all") return "all";
+  if (value === "current" || value == null || value === "") return "current";
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : "current";
+}
+
+function roundFilterValue(round: PaymentRoundFilter): string {
+  return round === "all" || round === "current" ? round : String(round);
+}
 
 export default function PaymentsTab() {
   const router = useRouter();
   const { pageSize } = useGeneralSettings();
   const [filter, setFilter] = useState<PaymentStatus | "all">("unpaid");
   const [groupFilter, setGroupFilter] = useState<number | "all">("all");
+  const [roundFilter, setRoundFilter] = useState<PaymentRoundFilter>("current");
   const [state, setState] = useState<PaymentListState>({
     totalCollected: 0,
     totalRemaining: 0,
     groups: [],
+    roundNumbers: [],
   });
   const metadataRequest = useRef(0);
 
@@ -56,13 +73,26 @@ export default function PaymentsTab() {
     []
   );
 
-  const resetKey = `${filter}:${groupFilter}`;
+  const roundOptions = useMemo(
+    () => [
+      { value: "current", label: t("currentRound") },
+      { value: "all", label: t("filterAllRounds") },
+      ...state.roundNumbers.map((n) => ({
+        value: String(n),
+        label: t("roundNumberLabel", { n }),
+      })),
+    ],
+    [state.roundNumbers]
+  );
+
+  const resetKey = `${filter}:${groupFilter}:${roundFilterValue(roundFilter)}`;
   const fetchPage = useCallback(
     async (limit: number, offset: number) => {
       const request = ++metadataRequest.current;
       const result = await getOpenRoundsPaymentPage({
         status: filter === "all" ? undefined : filter,
         groupId: groupFilter === "all" ? undefined : groupFilter,
+        round: roundFilter,
         limit,
         offset,
       });
@@ -71,11 +101,12 @@ export default function PaymentsTab() {
           totalCollected: result.totalCollected,
           totalRemaining: result.totalRemaining,
           groups: result.groups,
+          roundNumbers: result.roundNumbers,
         });
       }
       return { items: result.items, total: result.total };
     },
-    [filter, groupFilter]
+    [filter, groupFilter, roundFilter]
   );
   const paging = useServerPagination<StudentDueRow>(
     fetchPage,
@@ -130,17 +161,27 @@ export default function PaymentsTab() {
               label: t("filterByGroup"),
               value: groupFilter === "all" ? "all" : String(groupFilter),
               options: groupOptions,
+              presentation: "searchable",
+            },
+            {
+              key: "round",
+              label: t("filterByRound"),
+              value: roundFilterValue(roundFilter),
+              options: roundOptions,
+              presentation: "checkbox",
             },
             {
               key: "status",
               label: t("filterByStatus"),
               value: filter,
               options: statusOptions,
+              presentation: "checkbox",
             },
           ]}
           onApply={(next) => {
             const g = next.group ?? "all";
             setGroupFilter(g === "all" ? "all" : Number(g));
+            setRoundFilter(parseRoundFilter(next.round));
             setFilter((next.status as PaymentStatus | "all") ?? "unpaid");
           }}
         />

@@ -33,11 +33,25 @@ export async function listAcademicYears(): Promise<AcademicYear[]> {
 
 export async function getActiveYear(): Promise<AcademicYear | null> {
   const db = await getDb();
-  return (
+  const active =
     (await db.getFirstAsync<AcademicYear>(
       "SELECT * FROM academic_years WHERE is_active = 1 LIMIT 1"
-    )) ?? null
+    )) ?? null;
+  if (active) return active;
+
+  // Heal: years exist but none marked active (e.g. deleted the active year).
+  const fallback = await db.getFirstAsync<AcademicYear>(
+    `SELECT * FROM academic_years
+     ORDER BY start_date DESC, id DESC
+     LIMIT 1`
   );
+  if (!fallback) return null;
+  await db.runAsync("UPDATE academic_years SET is_active = 0");
+  await db.runAsync(
+    "UPDATE academic_years SET is_active = 1 WHERE id = ?",
+    [fallback.id]
+  );
+  return { ...fallback, is_active: 1 };
 }
 
 export async function setActiveYear(id: number): Promise<void> {
@@ -81,14 +95,19 @@ export async function createAcademicYearWithSemesters(input: {
   }
 
   return withTransaction(async (db) => {
-    await db.runAsync("UPDATE academic_years SET is_active = 0");
     const yearStart = input.semester1.start_date;
     const yearEnd = input.semester2.end_date;
 
+    // Keep the current active year; only activate the new one when none is active.
+    const active = await db.getFirstAsync<{ id: number }>(
+      "SELECT id FROM academic_years WHERE is_active = 1 LIMIT 1"
+    );
+    const makeActive = active ? 0 : 1;
+
     const yearResult = await db.runAsync(
       `INSERT INTO academic_years (name, start_date, end_date, is_active, status)
-       VALUES (?, ?, ?, 1, 'open')`,
-      [input.name, yearStart, yearEnd]
+       VALUES (?, ?, ?, ?, 'open')`,
+      [input.name, yearStart, yearEnd, makeActive]
     );
     const yearId = Number(yearResult.lastInsertRowId);
 
@@ -171,7 +190,28 @@ export async function deleteAcademicYear(id: number): Promise<void> {
       "لا يمكن حذف السنة لوجود حصص مرتبطة بها. احذف أو أفرغ الحصص أولاً."
     );
   }
+
+  const wasActive = await db.getFirstAsync<{ id: number }>(
+    "SELECT id FROM academic_years WHERE id = ? AND is_active = 1",
+    [id]
+  );
   await db.runAsync("DELETE FROM academic_years WHERE id = ?", [id]);
+
+  // If the deleted year was active, promote another remaining year.
+  if (wasActive) {
+    const next = await db.getFirstAsync<{ id: number }>(
+      `SELECT id FROM academic_years
+       ORDER BY start_date DESC, id DESC
+       LIMIT 1`
+    );
+    if (next) {
+      await db.runAsync("UPDATE academic_years SET is_active = 0");
+      await db.runAsync(
+        "UPDATE academic_years SET is_active = 1 WHERE id = ?",
+        [next.id]
+      );
+    }
+  }
 }
 
 /** Count sessions linked to an academic year (for delete guards). */
@@ -627,44 +667,45 @@ export async function listGroupsWithPatternsPage(input: {
     patternsByGroup.set(pattern.group_id, list);
   }
 
-  // Prefer open billing-round remaining classes (avoids full session history).
+  // "حصص الشهر الحالي" = calendar chunk containing today (session completed),
+  // not per-student billing remaining (that lives on payment cards).
   const sessionStats = new Map<
     number,
     { month_session_total: number; month_session_remaining: number }
   >();
   if (groups.length) {
-    const roundRows = await db.getAllAsync<{
+    const sessionRows = await db.getAllAsync<{
       group_id: number;
-      target_classes: number;
-      remaining_classes: number;
+      starts_at: string;
+      status: string;
     }>(
-      `SELECT group_id,
-         MAX(target_classes) as target_classes,
-         MAX(CASE
-           WHEN target_classes > counted_classes
-             THEN target_classes - counted_classes
-           ELSE 0
-         END) as remaining_classes
-       FROM billing_rounds
-       WHERE status = 'open'
-         AND group_id IN (${groups.map(() => "?").join(",")})
-       GROUP BY group_id`,
+      `SELECT group_id, starts_at, status
+       FROM group_sessions
+       WHERE group_id IN (${groups.map(() => "?").join(",")})
+         AND status != 'cancelled'
+       ORDER BY group_id, starts_at`,
       groups.map((g) => g.id)
     );
-    for (const row of roundRows) {
-      sessionStats.set(row.group_id, {
-        month_session_total: Math.max(1, Number(row.target_classes ?? 4)),
-        month_session_remaining: Math.max(0, Number(row.remaining_classes ?? 0)),
-      });
+    const sessionsByGroup = new Map<
+      number,
+      { starts_at: string; status: string }[]
+    >();
+    for (const row of sessionRows) {
+      const list = sessionsByGroup.get(row.group_id) ?? [];
+      list.push(row);
+      sessionsByGroup.set(row.group_id, list);
     }
+    const today = todayDateOnly();
     for (const group of groups) {
-      if (!sessionStats.has(group.id)) {
-        const per = Math.max(1, group.classes_per_round ?? 4);
-        sessionStats.set(group.id, {
-          month_session_total: per,
-          month_session_remaining: per,
-        });
-      }
+      const per = Math.max(1, group.classes_per_round ?? 4);
+      sessionStats.set(
+        group.id,
+        currentRoundClassCounts(
+          sessionsByGroup.get(group.id) ?? [],
+          per,
+          today
+        )
+      );
     }
   }
 
@@ -798,7 +839,9 @@ export async function enrollStudentInGroup(
   groupId: number,
   startDate: string
 ): Promise<void> {
-  const { forceCloseOpenRoundsOn } = await import("../services/rounds");
+  const { forceCloseOpenRoundsOn, resolveEnrollmentStartDateOn } = await import(
+    "../services/rounds"
+  );
   await withTransaction(async (db) => {
     const active = await db.getFirstAsync<Enrollment>(
       `SELECT * FROM enrollments WHERE student_id = ? AND status = 'active' LIMIT 1`,
@@ -815,11 +858,17 @@ export async function enrollStudentInGroup(
         [startDate, active.id]
       );
     }
+    const resolvedStart = await resolveEnrollmentStartDateOn(
+      db,
+      studentId,
+      groupId,
+      startDate
+    );
     await db.runAsync(
       `INSERT INTO enrollments
        (student_id, group_id, start_date, end_date, custom_monthly_fee, status)
        VALUES (?, ?, ?, NULL, NULL, 'active')`,
-      [studentId, groupId, startDate]
+      [studentId, groupId, resolvedStart]
     );
     await db.runAsync(
       `UPDATE students SET status = 'active' WHERE id = ?`,
@@ -910,6 +959,15 @@ export async function createStudent(input: {
     );
     const studentId = Number(r.lastInsertRowId);
     if (groupId != null) {
+      const { resolveEnrollmentStartDateOn } = await import("../services/rounds");
+      const requested =
+        input.start_date ?? new Date().toISOString().slice(0, 10);
+      const resolvedStart = await resolveEnrollmentStartDateOn(
+        db,
+        studentId,
+        groupId,
+        requested
+      );
       await db.runAsync(
         `INSERT INTO enrollments
          (student_id, group_id, start_date, end_date, custom_monthly_fee, status)
@@ -917,7 +975,7 @@ export async function createStudent(input: {
         [
           studentId,
           groupId,
-          input.start_date ?? new Date().toISOString().slice(0, 10),
+          resolvedStart,
           input.custom_monthly_fee ?? null,
         ]
       );
@@ -950,7 +1008,9 @@ export async function updateStudent(
       ? Number(input.group_id)
       : null;
 
-  const { forceCloseOpenRoundsOn } = await import("../services/rounds");
+  const { forceCloseOpenRoundsOn, resolveEnrollmentStartDateOn } = await import(
+    "../services/rounds"
+  );
   let openRoundForGroup: number | null = null;
 
   await withTransaction(async (db) => {
@@ -992,11 +1052,17 @@ export async function updateStudent(
           `UPDATE enrollments SET status = 'ended', end_date = date('now') WHERE id = ?`,
           [active.id]
         );
+        const start = await resolveEnrollmentStartDateOn(
+          db,
+          id,
+          groupId,
+          new Date().toISOString().slice(0, 10)
+        );
         await db.runAsync(
           `INSERT INTO enrollments
            (student_id, group_id, start_date, end_date, custom_monthly_fee, status)
-           VALUES (?, ?, date('now'), NULL, ?, 'active')`,
-          [id, groupId, input.custom_monthly_fee ?? null]
+           VALUES (?, ?, ?, NULL, ?, 'active')`,
+          [id, groupId, start, input.custom_monthly_fee ?? null]
         );
         openRoundForGroup = groupId;
       } else {
@@ -1006,11 +1072,17 @@ export async function updateStudent(
         );
       }
     } else {
+      const start = await resolveEnrollmentStartDateOn(
+        db,
+        id,
+        groupId,
+        new Date().toISOString().slice(0, 10)
+      );
       await db.runAsync(
         `INSERT INTO enrollments
          (student_id, group_id, start_date, end_date, custom_monthly_fee, status)
-         VALUES (?, ?, date('now'), NULL, ?, 'active')`,
-        [id, groupId, input.custom_monthly_fee ?? null]
+         VALUES (?, ?, ?, NULL, ?, 'active')`,
+        [id, groupId, start, input.custom_monthly_fee ?? null]
       );
       openRoundForGroup = groupId;
     }

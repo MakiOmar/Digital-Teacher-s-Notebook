@@ -241,6 +241,8 @@ export const ar = {
 
   // Attendance
   attendance: "الحضور",
+  /** Session card: marked students / enrolled roster (not classes in the round). */
+  sessionRosterAttendance: "حضور الطلاب",
   homework: "الواجب",
   homeworkDone: "تم الواجب",
   homeworkNotDone: "لم يتم الواجب",
@@ -310,10 +312,12 @@ export const ar = {
   filter: "تصفية",
   applyFilter: "تطبيق",
   filterByGroup: "المجموعة",
+  filterByRound: "الجولة",
   filterByStatus: "الحالة",
   filterByWeekday: "يوم الحضور",
   filterAllWeekdays: "كل الأيام",
   filterAllStatuses: "كل الحالات",
+  filterAllRounds: "كل الجولات",
   sessionRescheduled: "معاد جدولتها",
   unpaid: "مدفعش",
   partial: "جزئي",

@@ -18,6 +18,54 @@ function statusFor(due: number, paid: number): PaymentStatus {
   return "partial";
 }
 
+/**
+ * First membership: count from group.start_date so schedule attendance before
+ * "enroll today" still advances the round. Rejoin after leave: use requested date
+ * so prior closed rounds stay outside the sync window.
+ */
+export async function resolveEnrollmentStartDateOn(
+  db: SQLiteDatabase,
+  studentId: number,
+  groupId: number,
+  requestedStart: string
+): Promise<string> {
+  const requested = requestedStart.slice(0, 10);
+  const prior = await db.getFirstAsync<{ id: number }>(
+    `SELECT id FROM enrollments
+     WHERE student_id = ? AND group_id = ? AND status = 'ended'
+     LIMIT 1`,
+    [studentId, groupId]
+  );
+  if (prior) return requested;
+  const group = await db.getFirstAsync<{ start_date: string | null }>(
+    "SELECT start_date FROM groups WHERE id = ?",
+    [groupId]
+  );
+  const gStart = group?.start_date?.trim().slice(0, 10) || null;
+  if (gStart && gStart < requested) return gStart;
+  return requested;
+}
+
+async function enrollmentCountStartOn(
+  db: SQLiteDatabase,
+  studentId: number,
+  groupId: number,
+  enrollmentStart: string,
+  groupStartDate: string | null | undefined
+): Promise<string> {
+  const requested = enrollmentStart.slice(0, 10);
+  const prior = await db.getFirstAsync<{ id: number }>(
+    `SELECT id FROM enrollments
+     WHERE student_id = ? AND group_id = ? AND status = 'ended'
+     LIMIT 1`,
+    [studentId, groupId]
+  );
+  if (prior) return requested;
+  const gStart = groupStartDate?.trim().slice(0, 10) || null;
+  if (gStart && gStart < requested) return gStart;
+  return requested;
+}
+
 async function ensureOpenRoundOn(
   db: SQLiteDatabase,
   studentId: number,
@@ -131,10 +179,12 @@ export async function syncRoundProgressForStudent(
   groupId: number
 ): Promise<BillingRound> {
   return withTransaction(async (db) => {
-    const group = await db.getFirstAsync<{ classes_per_round: number }>(
-      "SELECT classes_per_round FROM groups WHERE id = ?",
-      [groupId]
-    );
+    const group = await db.getFirstAsync<{
+      classes_per_round: number;
+      start_date: string | null;
+    }>("SELECT classes_per_round, start_date FROM groups WHERE id = ?", [
+      groupId,
+    ]);
     const classesPerRound = group?.classes_per_round ?? 4;
     let open = await ensureOpenRoundOn(db, studentId, groupId, classesPerRound);
 
@@ -144,7 +194,13 @@ export async function syncRoundProgressForStudent(
        LIMIT 1`,
       [studentId, groupId]
     );
-    const startDate = enrollment?.start_date ?? "0000-01-01";
+    const startDate = await enrollmentCountStartOn(
+      db,
+      studentId,
+      groupId,
+      enrollment?.start_date ?? "0000-01-01",
+      group?.start_date
+    );
 
     const countable = await db.getAllAsync<{ id: number }>(
       `SELECT a.id FROM attendances a
@@ -193,11 +249,14 @@ export async function syncRoundProgressForStudents(
   if (!unique.length) return;
 
   await withTransaction(async (db) => {
-    const group = await db.getFirstAsync<{ classes_per_round: number }>(
-      "SELECT classes_per_round FROM groups WHERE id = ?",
-      [groupId]
-    );
+    const group = await db.getFirstAsync<{
+      classes_per_round: number;
+      start_date: string | null;
+    }>("SELECT classes_per_round, start_date FROM groups WHERE id = ?", [
+      groupId,
+    ]);
     const classesPerRound = group?.classes_per_round ?? 4;
+    const groupStart = group?.start_date ?? null;
 
     const placeholders = unique.map(() => "?").join(", ");
     const enrollments = await db.getAllAsync<{
@@ -209,9 +268,25 @@ export async function syncRoundProgressForStudents(
          AND student_id IN (${placeholders})`,
       [groupId, ...unique]
     );
+    const rejoined = await db.getAllAsync<{ student_id: number }>(
+      `SELECT DISTINCT student_id FROM enrollments
+       WHERE group_id = ? AND status = 'ended'
+         AND student_id IN (${placeholders})`,
+      [groupId, ...unique]
+    );
+    const rejoinedSet = new Set(rejoined.map((r) => r.student_id));
     const startByStudent = new Map<number, string>();
     for (const row of enrollments) {
-      startByStudent.set(row.student_id, row.start_date);
+      const requested = row.start_date.slice(0, 10);
+      if (rejoinedSet.has(row.student_id)) {
+        startByStudent.set(row.student_id, requested);
+        continue;
+      }
+      const gStart = groupStart?.trim().slice(0, 10) || null;
+      startByStudent.set(
+        row.student_id,
+        gStart && gStart < requested ? gStart : requested
+      );
     }
 
     const allCountable = await db.getAllAsync<{
@@ -577,6 +652,48 @@ async function attachSessionRoundDates(
   });
 }
 
+/** Overlay session calendar dates on due rows spanning one or many groups. */
+async function attachSessionRoundDatesMulti(
+  rows: StudentDueRow[]
+): Promise<StudentDueRow[]> {
+  if (!rows.length) return rows;
+  const classesPerRoundByGroup = new Map<number, number>();
+  for (const row of rows) {
+    if (!classesPerRoundByGroup.has(row.group_id)) {
+      classesPerRoundByGroup.set(row.group_id, 4);
+    }
+  }
+  const db = await getDb();
+  const groupIds = [...classesPerRoundByGroup.keys()];
+  const placeholders = groupIds.map(() => "?").join(", ");
+  const groups = await db.getAllAsync<{
+    id: number;
+    classes_per_round: number;
+  }>(
+    `SELECT id, classes_per_round FROM groups WHERE id IN (${placeholders})`,
+    groupIds
+  );
+  for (const g of groups) {
+    classesPerRoundByGroup.set(g.id, Math.max(1, g.classes_per_round ?? 4));
+  }
+  const rangeCache = await getSessionRoundDateRangesForGroups(
+    classesPerRoundByGroup
+  );
+  return rows.map((row) => {
+    const per = classesPerRoundByGroup.get(row.group_id) ?? 4;
+    const ranges = rangeCache.get(sessionRangeCacheKey(row.group_id, per));
+    const range =
+      row.round_number != null ? ranges?.get(row.round_number) : undefined;
+    return range
+      ? {
+          ...row,
+          started_at: range.started_at,
+          closed_at: range.closed_at,
+        }
+      : row;
+  });
+}
+
 /** All active students in the group for a given round number (paid/unpaid). */
 export async function getGroupDuesForRoundNumber(
   groupId: number,
@@ -665,6 +782,18 @@ export async function getGroupDuesForRoundNumber(
 
 export async function getRoundDues(groupId?: number): Promise<StudentDueRow[]> {
   const db = await getDb();
+  // Recompute counted_classes so late enroll dates still pick up group-start attendance.
+  if (groupId != null) {
+    const enrolled = await db.getAllAsync<{ student_id: number }>(
+      `SELECT student_id FROM enrollments
+       WHERE group_id = ? AND status = 'active'`,
+      [groupId]
+    );
+    await syncRoundProgressForStudents(
+      enrolled.map((r) => r.student_id),
+      groupId
+    );
+  }
   const rows = await db.getAllAsync<{
     round_id: number;
     round_number: number;
@@ -941,7 +1070,8 @@ const OUTSTANDING_DUES_CTE = `
   classified AS (
     SELECT
       round_id, round_number, counted_classes, target_classes,
-      started_at, closed_at, student_id, student_name, student_phone,
+      started_at, closed_at, round_status,
+      student_id, student_name, student_phone,
       guardian_phone, group_id, group_name, due, paid,
       MAX(0, due - paid) as remaining,
       CASE
@@ -1015,61 +1145,105 @@ type OutstandingDueSqlRow = {
   status: PaymentStatus;
 };
 
+export type PaymentRoundFilter = "current" | "all" | number;
+
 export type OpenRoundPaymentPage = {
   items: StudentDueRow[];
   total: number;
   totalCollected: number;
   totalRemaining: number;
   groups: { id: number; name: string }[];
+  /** Distinct billing round numbers for the filter dropdown. */
+  roundNumbers: number[];
 };
 
-/** Outstanding payment rows with status/group filtering and paging in SQL. */
+/** Outstanding payment rows with status/group/round filtering and paging in SQL. */
 export async function getOpenRoundsPaymentPage(input: {
   status?: PaymentStatus;
   groupId?: number;
+  /** current = open rounds only (default); all = any; number = that round_number. */
+  round?: PaymentRoundFilter;
   limit: number;
   offset: number;
 }): Promise<OpenRoundPaymentPage> {
   const db = await getDb();
-  const conditions = ["1 = 1"];
-  const params: (string | number)[] = [];
+  const roundFilter: PaymentRoundFilter = input.round ?? "current";
+  const listConditions = ["1 = 1"];
+  const listParams: (string | number)[] = [];
+  // Collected follows group + round, but ignores payment status.
+  const collectConditions = ["1 = 1"];
+  const collectParams: (string | number)[] = [];
+
   if (input.groupId != null) {
-    conditions.push("group_id = ?");
-    params.push(input.groupId);
+    listConditions.push("group_id = ?");
+    listParams.push(input.groupId);
+    collectConditions.push("group_id = ?");
+    collectParams.push(input.groupId);
+  }
+  if (roundFilter === "current") {
+    listConditions.push("round_status = 'open'");
+    collectConditions.push("round_status = 'open'");
+  } else if (roundFilter !== "all") {
+    listConditions.push("round_number = ?");
+    listParams.push(roundFilter);
+    collectConditions.push("round_number = ?");
+    collectParams.push(roundFilter);
   }
   if (input.status) {
-    conditions.push("status = ?");
-    params.push(input.status);
+    listConditions.push("status = ?");
+    listParams.push(input.status);
   }
-  const where = conditions.join(" AND ");
+  const listWhere = listConditions.join(" AND ");
+  const collectWhere = collectConditions.join(" AND ");
 
+  // Remaining/count follow the list filters. Collected ignores status so the
+  // default "unpaid" filter does not zero out earnings already received.
   const aggregates = await db.getFirstAsync<{
     total_rows: number;
-    total_collected: number;
     total_remaining: number;
   }>(
     `${OUTSTANDING_DUES_CTE}
      SELECT
        COUNT(*) as total_rows,
-       COALESCE(SUM(paid), 0) as total_collected,
        COALESCE(SUM(remaining), 0) as total_remaining
      FROM classified
-     WHERE ${where}`,
-    params
+     WHERE ${listWhere}`,
+    listParams
+  );
+  const collected = await db.getFirstAsync<{ total_collected: number }>(
+    `${OUTSTANDING_DUES_CTE}
+     SELECT COALESCE(SUM(paid), 0) as total_collected
+     FROM classified
+     WHERE ${collectWhere}`,
+    collectParams
   );
 
   const page = await db.getAllAsync<OutstandingDueSqlRow>(
     `${OUTSTANDING_DUES_CTE}
      SELECT * FROM classified
-     WHERE ${where}
+     WHERE ${listWhere}
      ORDER BY group_name COLLATE NOCASE, student_name COLLATE NOCASE
      LIMIT ? OFFSET ?`,
-    [...params, input.limit, input.offset]
+    [...listParams, input.limit, input.offset]
   );
 
   const groups = await db.getAllAsync<{ id: number; name: string }>(
     `SELECT id, name FROM groups WHERE status = 'active' ORDER BY name COLLATE NOCASE`
   );
+
+  const roundNumberRows =
+    input.groupId != null
+      ? await db.getAllAsync<{ round_number: number }>(
+          `SELECT DISTINCT round_number FROM billing_rounds
+           WHERE group_id = ?
+           ORDER BY round_number ASC`,
+          [input.groupId]
+        )
+      : await db.getAllAsync<{ round_number: number }>(
+          `SELECT DISTINCT br.round_number FROM billing_rounds br
+           JOIN groups g ON g.id = br.group_id AND g.status = 'active'
+           ORDER BY br.round_number ASC`
+        );
 
   const mapped: StudentDueRow[] = page.map((row) => ({
     student_id: row.student_id,
@@ -1091,12 +1265,16 @@ export async function getOpenRoundsPaymentPage(input: {
     closed_at: row.closed_at,
   }));
 
+  // billing_rounds.started_at is enrollment/create time — show session calendar instead.
+  const items = await attachSessionRoundDatesMulti(mapped);
+
   return {
-    items: mapped,
+    items,
     total: Number(aggregates?.total_rows ?? 0),
-    totalCollected: Number(aggregates?.total_collected ?? 0),
+    totalCollected: Number(collected?.total_collected ?? 0),
     totalRemaining: Number(aggregates?.total_remaining ?? 0),
     groups,
+    roundNumbers: roundNumberRows.map((r) => Number(r.round_number)),
   };
 }
 

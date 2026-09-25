@@ -80,8 +80,8 @@ export function SessionClassButton({
         {coverage && coverage.total > 0 ? (
           <IconDetailRow
             icon="check-square-o"
-            label={t("attendance")}
-            value={`${coverage.marked}/${coverage.total}`}
+          label={t("sessionRosterAttendance")}
+          value={`${coverage.marked}/${coverage.total}`}
           />
         ) : null}
       </View>

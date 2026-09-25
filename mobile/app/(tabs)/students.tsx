@@ -233,12 +233,14 @@ export default function StudentsTab() {
               label: t("filterByGroup"),
               value: groupFilter,
               options: groupOptions,
+              presentation: "searchable",
             },
             {
               key: "status",
               label: t("filterByStatus"),
               value: statusFilter,
               options: statusOptions,
+              presentation: "checkbox",
             },
           ]}
           onApply={(next) => {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   FlatList,
   Modal,
@@ -15,9 +15,9 @@ import {
   Muted,
 } from "@/src/components/ui";
 import { ScreenWithFixedActions } from "@/src/components/ScreenWithFixedActions";
-import { PaginationBar, pagingBarProps } from "@/src/components/PaginationBar";
-import { FiltersSheet } from "@/src/components/FilterSelect";
 import { RoundPaymentCard } from "@/src/components/RoundPaymentCard";
+import { RoundAccordion } from "@/src/components/RoundAccordion";
+import { MonthStarTitle } from "@/src/components/MonthStarTitle";
 import { t } from "@/src/i18n/ar";
 import {
   createPayment,
@@ -32,7 +32,6 @@ import {
 } from "@/src/services/rounds";
 import type { PaymentMethod, StudentDueRow } from "@/src/db/types";
 import {
-  formatRoundRange,
   formatRoundTitle,
   todayDateOnly,
 } from "@/src/utils/date";
@@ -41,10 +40,7 @@ import { useColors } from "@/src/theme/ThemeContext";
 import { rtlBlock, rtlRow, rtlText } from "@/src/theme/rtl";
 import { fonts } from "@/src/theme/typography";
 import { useAppData } from "@/src/contexts/AppDataContext";
-import { MonthStarTitle } from "@/src/components/MonthStarTitle";
 import { useDialog } from "@/src/components/DialogProvider";
-import { useClientPagination } from "@/src/hooks/useClientPagination";
-import { useGeneralSettings } from "@/src/settings/GeneralSettingsContext";
 import { userFacingErrorMessage } from "@/src/utils/errors";
 
 const METHODS: { key: PaymentMethod; label: string }[] = [
@@ -61,23 +57,25 @@ export default function GroupRoundPaymentsScreen() {
   const groupId = Number(groupIdParam);
   const navigation = useNavigation();
   const { bump } = useAppData();
-  const { pageSize } = useGeneralSettings();
   const dialog = useDialog();
 
   const [loading, setLoading] = useState(true);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [groupName, setGroupName] = useState("");
   const [roundSummaries, setRoundSummaries] = useState<GroupRoundSummary[]>([]);
-  const [selectedRound, setSelectedRound] = useState<number | null>(null);
-  const [rows, setRows] = useState<StudentDueRow[]>([]);
+  const [expandedRound, setExpandedRound] = useState<number | null>(null);
+  const [rowsByRound, setRowsByRound] = useState<
+    Record<number, StudentDueRow[]>
+  >({});
+  const [starByRound, setStarByRound] = useState<Record<number, string | null>>(
+    {}
+  );
   const [busyStudentId, setBusyStudentId] = useState<number | null>(null);
   const [methodsByStudent, setMethodsByStudent] = useState<
     Record<number, PaymentMethod>
   >({});
   const [bulkPayOpen, setBulkPayOpen] = useState(false);
   const [bulkPayDraft, setBulkPayDraft] = useState<PaymentMethod>("cash");
-  const [monthStarName, setMonthStarName] = useState<string | null>(null);
-  const initialRoundReloadRef = useRef<number | null>(null);
 
   useEffect(() => {
     navigation.setOptions({
@@ -85,58 +83,22 @@ export default function GroupRoundPaymentsScreen() {
     });
   }, [navigation, groupName]);
 
-  const selectedSummary = useMemo(
-    () => roundSummaries.find((r) => r.round_number === selectedRound) ?? null,
-    [roundSummaries, selectedRound]
+  const expandedRows = useMemo(
+    () => (expandedRound != null ? rowsByRound[expandedRound] ?? [] : []),
+    [expandedRound, rowsByRound]
   );
 
-  const paging = useClientPagination(
-    rows,
-    pageSize,
-    `${groupId}:${selectedRound ?? 0}`
-  );
-
-  const roundHeading = useMemo(() => {
-    if (!selectedSummary) return t("selectRound");
-    return formatRoundTitle(
-      selectedSummary.round_number,
-      selectedSummary.started_at,
-      selectedSummary.closed_at,
-      t("roundUntilOngoing")
-    );
-  }, [selectedSummary]);
-
-  const roundOptions = useMemo(
-    () =>
-      roundSummaries.map((s) => ({
-        value: String(s.round_number),
-        label: formatRoundTitle(
-          s.round_number,
-          s.started_at,
-          s.closed_at,
-          t("roundUntilOngoing")
-        ),
-      })),
-    [roundSummaries]
-  );
-
-  const monthFilterFields = useMemo(
-    () => [
-      {
-        key: "round",
-        label: t("selectMonth"),
-        value: selectedRound != null ? String(selectedRound) : "",
-        options: roundOptions,
-      },
-    ],
-    [roundOptions, selectedRound]
-  );
-
-  const reloadRows = useCallback(
+  const reloadRound = useCallback(
     async (round: number) => {
-      setRows(await getGroupDuesForRoundNumber(groupId, round));
-      const star = await getRoundStar(groupId, round);
-      setMonthStarName(star?.student_name ?? null);
+      const [dues, star] = await Promise.all([
+        getGroupDuesForRoundNumber(groupId, round),
+        getRoundStar(groupId, round),
+      ]);
+      setRowsByRound((prev) => ({ ...prev, [round]: dues }));
+      setStarByRound((prev) => ({
+        ...prev,
+        [round]: star?.student_name ?? null,
+      }));
     },
     [groupId]
   );
@@ -150,19 +112,20 @@ export default function GroupRoundPaymentsScreen() {
       ]);
       setGroupName(g?.name ?? "");
       setRoundSummaries(summaries);
-      const round = summaries[0]?.round_number ?? null;
-      initialRoundReloadRef.current = round;
-      setSelectedRound(round);
-      if (round != null) {
-        await reloadRows(round);
-      } else {
-        setRows([]);
-        setMonthStarName(null);
+      const preferred =
+        summaries.find((s) => s.has_open)?.round_number ??
+        summaries[0]?.round_number ??
+        null;
+      setExpandedRound(preferred);
+      setRowsByRound({});
+      setStarByRound({});
+      if (preferred != null) {
+        await reloadRound(preferred);
       }
     } finally {
       setLoading(false);
     }
-  }, [groupId, reloadRows]);
+  }, [groupId, reloadRound]);
 
   useFocusEffect(
     useCallback(() => {
@@ -170,15 +133,16 @@ export default function GroupRoundPaymentsScreen() {
     }, [load])
   );
 
-  useEffect(() => {
-    if (selectedRound == null) return;
-    if (initialRoundReloadRef.current === selectedRound) {
-      initialRoundReloadRef.current = null;
+  async function toggleRound(roundNumber: number) {
+    if (expandedRound === roundNumber) {
+      setExpandedRound(null);
       return;
     }
-    initialRoundReloadRef.current = null;
-    void reloadRows(selectedRound);
-  }, [reloadRows, selectedRound]);
+    setExpandedRound(roundNumber);
+    if (!rowsByRound[roundNumber]) {
+      await reloadRound(roundNumber);
+    }
+  }
 
   function methodFor(studentId: number): PaymentMethod {
     return methodsByStudent[studentId] ?? "cash";
@@ -208,9 +172,9 @@ export default function GroupRoundPaymentsScreen() {
           t("roundUntilOngoing")
         ),
       });
-      if (!silent && selectedRound != null) {
+      if (!silent && row.round_number != null) {
         bump();
-        await reloadRows(selectedRound);
+        await reloadRound(row.round_number);
       }
     } catch (e) {
       if (!silent) {
@@ -228,9 +192,9 @@ export default function GroupRoundPaymentsScreen() {
     if (!silent) setBusyStudentId(row.student_id);
     try {
       await deletePaymentsForBillingRound(row.round_id);
-      if (!silent && selectedRound != null) {
+      if (!silent && row.round_number != null) {
         bump();
-        await reloadRows(selectedRound);
+        await reloadRound(row.round_number);
       }
     } catch (e) {
       if (!silent) {
@@ -264,15 +228,15 @@ export default function GroupRoundPaymentsScreen() {
   }
 
   function onMarkAllPaid() {
-    const targets = rows.filter((r) => r.status !== "paid");
-    if (!targets.length || selectedRound == null) return;
+    const targets = expandedRows.filter((r) => r.status !== "paid");
+    if (!targets.length || expandedRound == null) return;
     setBulkPayDraft("cash");
     setBulkPayOpen(true);
   }
 
   async function confirmBulkPay(method: PaymentMethod) {
-    const targets = rows.filter((r) => r.status !== "paid");
-    if (!targets.length || selectedRound == null) return;
+    const targets = expandedRows.filter((r) => r.status !== "paid");
+    if (!targets.length || expandedRound == null) return;
     setBulkPayOpen(false);
     setBulkBusy(true);
     try {
@@ -280,7 +244,7 @@ export default function GroupRoundPaymentsScreen() {
         await markPaid(row, method, true);
       }
       bump();
-      await reloadRows(selectedRound);
+      await reloadRound(expandedRound);
       dialog.toast(t("switchedPaid"), "success");
     } catch (e) {
       dialog.toast(userFacingErrorMessage(e), "error");
@@ -290,8 +254,8 @@ export default function GroupRoundPaymentsScreen() {
   }
 
   function onMarkAllUnpaid() {
-    const targets = rows.filter((r) => r.paid > 0);
-    if (!targets.length || selectedRound == null) return;
+    const targets = expandedRows.filter((r) => r.paid > 0);
+    if (!targets.length || expandedRound == null) return;
     void (async () => {
       const ok = await dialog.confirm({
         title: t("markAllUnpaid"),
@@ -306,7 +270,7 @@ export default function GroupRoundPaymentsScreen() {
           await markUnpaid(row, true);
         }
         bump();
-        await reloadRows(selectedRound);
+        await reloadRound(expandedRound);
         dialog.toast(t("switchedUnpaid"), "success");
       } catch (e) {
         dialog.toast(userFacingErrorMessage(e), "error");
@@ -324,45 +288,10 @@ export default function GroupRoundPaymentsScreen() {
     );
   }
 
-  const listHeader = (
-    <View style={styles.listHeader}>
-      {/* Comment: pick month in Apply modal, then show that month’s results. */}
-      {!roundSummaries.length ? (
-        <Muted>{t("noRoundsYet")}</Muted>
-      ) : (
-        <FiltersSheet
-          triggerLabel={t("selectRound")}
-          title={t("selectMonth")}
-          icon="calendar"
-          showBadge={false}
-          fields={monthFilterFields}
-          onApply={(values) => {
-            const next = Number(values.round);
-            if (!Number.isFinite(next)) return;
-            setSelectedRound(next);
-          }}
-        />
-      )}
-
-      {selectedSummary ? (
-        <View style={styles.roundBanner}>
-          <MonthStarTitle title={roundHeading} starName={monthStarName} />
-          <Muted>
-            {formatRoundRange(
-              selectedSummary.started_at,
-              selectedSummary.closed_at,
-              t("roundUntilOngoing")
-            )}
-          </Muted>
-        </View>
-      ) : null}
-    </View>
-  );
-
   return (
     <ScreenWithFixedActions
       actions={
-        rows.length
+        expandedRows.length
           ? [
               {
                 key: "paid",
@@ -388,31 +317,56 @@ export default function GroupRoundPaymentsScreen() {
         style={{ flex: 1 }}
         contentContainerStyle={{
           paddingHorizontal: spacing.lg,
+          paddingTop: spacing.md,
           paddingBottom: 40,
           flexGrow: 1,
         }}
-        data={paging.pageItems}
-        keyExtractor={(item) => String(item.round_id ?? item.student_id)}
-        ListHeaderComponent={listHeader}
-        ListEmptyComponent={<EmptyState message={t("noStudentsInGroup")} />}
-        ListFooterComponent={
-          <PaginationBar {...pagingBarProps(paging)} />
-        }
-        renderItem={({ item }) => {
-          const busy = bulkBusy || busyStudentId === item.student_id;
+        data={roundSummaries}
+        keyExtractor={(item) => String(item.round_number)}
+        ListEmptyComponent={<EmptyState message={t("noRoundsYet")} />}
+        renderItem={({ item: summary }) => {
+          const open = expandedRound === summary.round_number;
+          const rows = rowsByRound[summary.round_number] ?? [];
+          const starName = starByRound[summary.round_number];
+          const heading = formatRoundTitle(
+            summary.round_number,
+            summary.started_at,
+            summary.closed_at,
+            t("roundUntilOngoing")
+          );
           return (
-            <RoundPaymentCard
-              item={item}
-              method={methodFor(item.student_id)}
-              busy={busy}
-              onTogglePaid={(v) => onToggle(item, v)}
-              onChangeMethod={(next) =>
-                setMethodsByStudent((prev) => ({
-                  ...prev,
-                  [item.student_id]: next,
-                }))
-              }
-            />
+            <RoundAccordion
+              roundNumber={summary.round_number}
+              startedAt={summary.started_at}
+              closedAt={summary.closed_at}
+              expanded={open}
+              onToggle={() => void toggleRound(summary.round_number)}
+            >
+              <MonthStarTitle title={heading} starName={starName} />
+              {!rows.length ? (
+                <Muted>{t("noStudentsInGroup")}</Muted>
+              ) : (
+                rows.map((row) => {
+                  const busy =
+                    bulkBusy || busyStudentId === row.student_id;
+                  return (
+                    <RoundPaymentCard
+                      key={String(row.round_id ?? row.student_id)}
+                      item={row}
+                      method={methodFor(row.student_id)}
+                      busy={busy}
+                      onTogglePaid={(v) => onToggle(row, v)}
+                      onChangeMethod={(next) =>
+                        setMethodsByStudent((prev) => ({
+                          ...prev,
+                          [row.student_id]: next,
+                        }))
+                      }
+                    />
+                  );
+                })
+              )}
+            </RoundAccordion>
           );
         }}
       />
@@ -486,15 +440,6 @@ export default function GroupRoundPaymentsScreen() {
 
 function createStyles(colors: AppColors) {
   return StyleSheet.create({
-  listHeader: {
-    paddingTop: spacing.md,
-    paddingBottom: spacing.sm,
-    gap: 6,
-  },
-  roundBanner: {
-    marginTop: 4,
-    gap: 4,
-  },
   modalBackdrop: {
     flex: 1,
     backgroundColor: "rgba(15, 23, 42, 0.45)",
@@ -549,14 +494,15 @@ function createStyles(colors: AppColors) {
   modalActions: {
     width: "100%",
     gap: spacing.sm,
+    alignItems: "stretch",
   },
   modalCancel: {
     flex: 1,
     borderWidth: 1.5,
-    borderColor: colors.border,
     borderRadius: radii.md,
     paddingVertical: 12,
     alignItems: "center",
+    borderColor: colors.border,
   },
   modalCancelText: {
     ...rtlText,

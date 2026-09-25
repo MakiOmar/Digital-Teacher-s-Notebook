@@ -128,6 +128,7 @@ export const en = {
   generateSchedule: "Generate schedule",
   regenerateSchedule: "Regenerate schedule",
   sessions: "Classes",
+  roundsTab: "Rounds",
   noGroups: "No groups yet",
   groupDetails: "Group details",
   addStudentsToGroup: "Add students",

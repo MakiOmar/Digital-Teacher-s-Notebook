@@ -63,12 +63,14 @@ import { userFacingErrorMessage } from "@/src/utils/errors";
 
 type RoundChunk = { roundNumber: number; sessions: GroupSession[] };
 
+type ContentTab = "students" | "rounds";
+
 type ListRowItem =
   | { kind: "meta" }
+  | { kind: "tabs" }
   | { kind: "studentsTitle" }
   | { kind: "studentEmpty" }
   | { kind: "student"; due: StudentDueRow }
-  | { kind: "roundsTitle" }
   | { kind: "roundsEmpty" }
   | {
       kind: "round";
@@ -201,6 +203,7 @@ export default function GroupDetailsScreen() {
     Record<number, { student_id: number; student_name: string }>
   >({});
   const [expandedRound, setExpandedRound] = useState<number | null>(null);
+  const [contentTab, setContentTab] = useState<ContentTab>("students");
   const [customOpen, setCustomOpen] = useState(false);
   const [customDate, setCustomDate] = useState(todayDateOnly());
   const [customStart, setCustomStart] = useState("16:00");
@@ -251,15 +254,19 @@ export default function GroupDetailsScreen() {
   }, [unlockedRounds]);
 
   const listData = useMemo((): ListRowItem[] => {
-    const rows: ListRowItem[] = [{ kind: "meta" }, { kind: "studentsTitle" }];
-    if (!dues.length) {
-      rows.push({ kind: "studentEmpty" });
-    } else {
-      for (const due of dues) {
-        rows.push({ kind: "student", due });
+    const rows: ListRowItem[] = [{ kind: "meta" }, { kind: "tabs" }];
+    if (contentTab === "students") {
+      rows.push({ kind: "studentsTitle" });
+      if (!dues.length) {
+        rows.push({ kind: "studentEmpty" });
+      } else {
+        for (const due of dues) {
+          rows.push({ kind: "student", due });
+        }
       }
+      return rows;
     }
-    rows.push({ kind: "roundsTitle" });
+
     if (!unlockedRounds.length) {
       rows.push({ kind: "roundsEmpty" });
       return rows;
@@ -280,7 +287,13 @@ export default function GroupDetailsScreen() {
       });
     }
     return rows;
-  }, [dues, unlockedRounds, group?.classes_per_round, roundStars]);
+  }, [
+    contentTab,
+    dues,
+    unlockedRounds,
+    group?.classes_per_round,
+    roundStars,
+  ]);
 
   useFocusEffect(
     useCallback(() => {
@@ -422,6 +435,44 @@ export default function GroupDetailsScreen() {
           />
         );
       }
+      if (item.kind === "tabs") {
+        return (
+          <View style={[styles.tabRow, rtlRow()]}>
+            <Pressable
+              onPress={() => setContentTab("students")}
+              style={[
+                styles.tabChip,
+                contentTab === "students" && styles.tabChipOn,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.tabChipText,
+                  contentTab === "students" && styles.tabChipTextOn,
+                ]}
+              >
+                {t("students")}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setContentTab("rounds")}
+              style={[
+                styles.tabChip,
+                contentTab === "rounds" && styles.tabChipOn,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.tabChipText,
+                  contentTab === "rounds" && styles.tabChipTextOn,
+                ]}
+              >
+                {t("roundsTab")}
+              </Text>
+            </Pressable>
+          </View>
+        );
+      }
       if (item.kind === "studentsTitle") {
         return <Title>{t("groupStudents")}</Title>;
       }
@@ -435,20 +486,11 @@ export default function GroupDetailsScreen() {
           <StudentDueRowItem due={item.due} onPress={onStudentPress} />
         );
       }
-      if (item.kind === "roundsTitle") {
-        return <Title>{t("sessions")}</Title>;
-      }
       if (item.kind === "roundsEmpty") {
         return <Muted>{t("noSessions")}</Muted>;
       }
       if (item.kind === "round") {
         const open = expandedRound === item.chunk.roundNumber;
-        const heading = formatRoundTitle(
-          item.chunk.roundNumber,
-          item.startedAt,
-          item.closedAt,
-          t("roundUntilOngoing")
-        );
         return (
           <RoundAccordion
             roundNumber={item.chunk.roundNumber}
@@ -461,7 +503,7 @@ export default function GroupDetailsScreen() {
               )
             }
           >
-            <MonthStarTitle title={heading} starName={item.starName} />
+            <MonthStarTitle starName={item.starName} />
             {!item.chunk.sessions.length ? (
               <Muted>{t("noSessions")}</Muted>
             ) : (
@@ -486,6 +528,8 @@ export default function GroupDetailsScreen() {
       onStudentPress,
       onSessionPress,
       expandedRound,
+      contentTab,
+      styles,
     ]
   );
 
@@ -493,14 +537,14 @@ export default function GroupDetailsScreen() {
     switch (item.kind) {
       case "meta":
         return "meta";
+      case "tabs":
+        return "tabs";
       case "studentsTitle":
         return "studentsTitle";
       case "studentEmpty":
         return "studentEmpty";
       case "student":
         return `student-${item.due.student_id}`;
-      case "roundsTitle":
-        return "roundsTitle";
       case "roundsEmpty":
         return "roundsEmpty";
       case "round":
@@ -644,6 +688,34 @@ export default function GroupDetailsScreen() {
 
 function createStyles(colors: AppColors) {
   return StyleSheet.create({
+  tabRow: {
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+    width: "100%",
+  },
+  tabChip: {
+    flex: 1,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    alignItems: "center",
+  },
+  tabChipOn: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primarySoft,
+  },
+  tabChipText: {
+    ...rtlText,
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.textMuted,
+  },
+  tabChipTextOn: {
+    color: colors.primary,
+  },
   modalBackdrop: {
     flex: 1,
     backgroundColor: "rgba(15, 23, 42, 0.45)",

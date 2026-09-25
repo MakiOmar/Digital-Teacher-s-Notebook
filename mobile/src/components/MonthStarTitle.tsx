@@ -6,23 +6,26 @@ import { t } from "../i18n/ar";
 
 const STAR_ICON = require("../../assets/images/star.png");
 
-/** Month/round title with star badge — display only (who is the month star). */
+/** Month-star badge; optional title when the round label is shown elsewhere. */
 export function MonthStarTitle({
   title,
   starName,
 }: {
-  title: string;
+  title?: string | null;
   starName?: string | null;
 }) {
   const colors = useColors();
+  const showTitle = Boolean(title?.trim());
 
   return (
-    <View style={styles.wrap}>
-      {/* Round / month heading */}
-      <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+    <View style={[styles.wrap, !showTitle && styles.wrapStarOnly]}>
+      {showTitle ? (
+        <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+      ) : null}
       <View
         style={[
           styles.starRow,
+          !showTitle && styles.starRowFull,
           {
             backgroundColor: colors.partial,
             borderColor: colors.star,
@@ -50,6 +53,9 @@ const styles = StyleSheet.create({
     width: "100%",
     marginVertical: spacing.xs,
   },
+  wrapStarOnly: {
+    justifyContent: "flex-start",
+  },
   title: {
     ...rtlText,
     flex: 1,
@@ -65,6 +71,9 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     paddingVertical: 4,
     paddingHorizontal: 10,
+  },
+  starRowFull: {
+    maxWidth: "100%",
   },
   starIcon: {
     width: 18,

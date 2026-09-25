@@ -142,6 +142,7 @@ export const ar = {
   generateSchedule: "توليد الجدول",
   regenerateSchedule: "إعادة توليد الجدول",
   sessions: "الحصص",
+  roundsTab: "الجولات",
   noGroups: "لا توجد مجموعات بعد",
   groupDetails: "تفاصيل المجموعة",
   addStudentsToGroup: "إضافة طلاب",

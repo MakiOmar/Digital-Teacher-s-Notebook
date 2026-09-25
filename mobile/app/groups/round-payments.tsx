@@ -328,12 +328,6 @@ export default function GroupRoundPaymentsScreen() {
           const open = expandedRound === summary.round_number;
           const rows = rowsByRound[summary.round_number] ?? [];
           const starName = starByRound[summary.round_number];
-          const heading = formatRoundTitle(
-            summary.round_number,
-            summary.started_at,
-            summary.closed_at,
-            t("roundUntilOngoing")
-          );
           return (
             <RoundAccordion
               roundNumber={summary.round_number}
@@ -342,7 +336,7 @@ export default function GroupRoundPaymentsScreen() {
               expanded={open}
               onToggle={() => void toggleRound(summary.round_number)}
             >
-              <MonthStarTitle title={heading} starName={starName} />
+              <MonthStarTitle starName={starName} />
               {!rows.length ? (
                 <Muted>{t("noStudentsInGroup")}</Muted>
               ) : (

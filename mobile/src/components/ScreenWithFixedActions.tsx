@@ -6,7 +6,7 @@ import { spacing } from "../theme/colors";
 import { useColors } from "../theme/ThemeContext";
 
 /**
- * Detail/session shell: fixed top IconActionBar + flex body.
+ * Detail/session shell: fixed top ⋮ actions menu + flex body.
  * Keeps list/scroll content from fighting a tall static header.
  */
 export function ScreenWithFixedActions({

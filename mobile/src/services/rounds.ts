@@ -1126,6 +1126,57 @@ export async function getOutstandingRemainingByGroup(): Promise<
   );
 }
 
+/** All active-enrollment billing rounds with due/paid/status (includes closed paid). */
+const PAYMENT_PAGE_DUES_CTE = `
+  WITH due_rows AS (
+    SELECT
+      br.id as round_id,
+      br.round_number,
+      br.counted_classes,
+      br.target_classes,
+      br.started_at,
+      br.closed_at,
+      br.status as round_status,
+      s.id as student_id,
+      s.name as student_name,
+      s.student_phone,
+      s.guardian_phone,
+      g.id as group_id,
+      g.name as group_name,
+      CASE
+        WHEN e.custom_monthly_fee IS NOT NULL AND e.custom_monthly_fee >= 0
+          THEN e.custom_monthly_fee
+        ELSE g.default_monthly_fee
+      END as due,
+      COALESCE(SUM(p.amount), 0) as paid
+    FROM billing_rounds br
+    JOIN students s ON s.id = br.student_id
+    JOIN groups g ON g.id = br.group_id
+    JOIN enrollments e
+      ON e.student_id = s.id
+      AND e.group_id = g.id
+      AND e.status = 'active'
+    LEFT JOIN payments p ON p.billing_round_id = br.id
+    WHERE s.status = 'active'
+      AND g.status = 'active'
+    GROUP BY br.id
+  ),
+  classified AS (
+    SELECT
+      round_id, round_number, counted_classes, target_classes,
+      started_at, closed_at, round_status,
+      student_id, student_name, student_phone,
+      guardian_phone, group_id, group_name, due, paid,
+      MAX(0, due - paid) as remaining,
+      CASE
+        WHEN due <= 0 THEN 'paid'
+        WHEN paid <= 0 THEN 'unpaid'
+        WHEN paid + 0.001 >= due THEN 'paid'
+        ELSE 'partial'
+      END as status
+    FROM due_rows
+  )`;
+
 type OutstandingDueSqlRow = {
   round_id: number;
   round_number: number;
@@ -1157,7 +1208,10 @@ export type OpenRoundPaymentPage = {
   roundNumbers: number[];
 };
 
-/** Outstanding payment rows with status/group/round filtering and paging in SQL. */
+/**
+ * Payments tab page: list + remaining from dues; earnings from real payment rows.
+ * Closed fully-paid rounds stay visible under status=paid and still count in earnings.
+ */
 export async function getOpenRoundsPaymentPage(input: {
   status?: PaymentStatus;
   groupId?: number;
@@ -1168,58 +1222,72 @@ export async function getOpenRoundsPaymentPage(input: {
 }): Promise<OpenRoundPaymentPage> {
   const db = await getDb();
   const roundFilter: PaymentRoundFilter = input.round ?? "current";
+
   const listConditions = ["1 = 1"];
   const listParams: (string | number)[] = [];
-  // Collected follows group + round, but ignores payment status.
-  const collectConditions = ["1 = 1"];
-  const collectParams: (string | number)[] = [];
+  const remainConditions = ["remaining > 0.001"];
+  const remainParams: (string | number)[] = [];
+  const earnConditions = ["1 = 1"];
+  const earnParams: (string | number)[] = [];
 
   if (input.groupId != null) {
     listConditions.push("group_id = ?");
     listParams.push(input.groupId);
-    collectConditions.push("group_id = ?");
-    collectParams.push(input.groupId);
+    remainConditions.push("group_id = ?");
+    remainParams.push(input.groupId);
+    earnConditions.push("COALESCE(p.group_id, br.group_id) = ?");
+    earnParams.push(input.groupId);
   }
+
   if (roundFilter === "current") {
     listConditions.push("round_status = 'open'");
-    collectConditions.push("round_status = 'open'");
+    remainConditions.push("round_status = 'open'");
+    earnConditions.push("br.status = 'open'");
   } else if (roundFilter !== "all") {
     listConditions.push("round_number = ?");
     listParams.push(roundFilter);
-    collectConditions.push("round_number = ?");
-    collectParams.push(roundFilter);
+    remainConditions.push("round_number = ?");
+    remainParams.push(roundFilter);
+    earnConditions.push("br.round_number = ?");
+    earnParams.push(roundFilter);
   }
+
   if (input.status) {
     listConditions.push("status = ?");
     listParams.push(input.status);
+    remainConditions.push("status = ?");
+    remainParams.push(input.status);
   }
-  const listWhere = listConditions.join(" AND ");
-  const collectWhere = collectConditions.join(" AND ");
 
-  // Remaining/count follow the list filters. Collected ignores status so the
-  // default "unpaid" filter does not zero out earnings already received.
+  const listWhere = listConditions.join(" AND ");
+  const remainWhere = remainConditions.join(" AND ");
+  const earnWhere = earnConditions.join(" AND ");
+
   const aggregates = await db.getFirstAsync<{
     total_rows: number;
     total_remaining: number;
   }>(
-    `${OUTSTANDING_DUES_CTE}
+    `${PAYMENT_PAGE_DUES_CTE}
      SELECT
-       COUNT(*) as total_rows,
-       COALESCE(SUM(remaining), 0) as total_remaining
-     FROM classified
-     WHERE ${listWhere}`,
-    listParams
+       (SELECT COUNT(*) FROM classified WHERE ${listWhere}) as total_rows,
+       (SELECT COALESCE(SUM(remaining), 0) FROM classified WHERE ${remainWhere}) as total_remaining`,
+    [...listParams, ...remainParams]
   );
+
+  // Real cash received — never drop closed/paid rounds from the earnings total.
   const collected = await db.getFirstAsync<{ total_collected: number }>(
-    `${OUTSTANDING_DUES_CTE}
-     SELECT COALESCE(SUM(paid), 0) as total_collected
-     FROM classified
-     WHERE ${collectWhere}`,
-    collectParams
+    `SELECT COALESCE(SUM(p.amount), 0) as total_collected
+     FROM payments p
+     LEFT JOIN billing_rounds br ON br.id = p.billing_round_id
+     JOIN groups g
+       ON g.id = COALESCE(p.group_id, br.group_id)
+      AND g.status = 'active'
+     WHERE ${earnWhere}`,
+    earnParams
   );
 
   const page = await db.getAllAsync<OutstandingDueSqlRow>(
-    `${OUTSTANDING_DUES_CTE}
+    `${PAYMENT_PAGE_DUES_CTE}
      SELECT * FROM classified
      WHERE ${listWhere}
      ORDER BY group_name COLLATE NOCASE, student_name COLLATE NOCASE

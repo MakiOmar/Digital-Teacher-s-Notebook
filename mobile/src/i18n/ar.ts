@@ -10,6 +10,7 @@ export const ar = {
   students: "الطلاب",
   payments: "المدفوعات",
   more: "المزيد",
+  actionsMenu: "الإجراءات",
   save: "حفظ",
   date: "التاريخ",
   cancel: "إلغاء",

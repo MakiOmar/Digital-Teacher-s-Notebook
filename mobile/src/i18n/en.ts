@@ -6,6 +6,7 @@ export const en = {
   students: "Students",
   payments: "Payments",
   more: "More",
+  actionsMenu: "Actions",
   save: "Save",
   date: "Date",
   cancel: "Cancel",

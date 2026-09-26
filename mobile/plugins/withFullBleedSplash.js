@@ -57,12 +57,12 @@ const STYLES_XML = `<?xml version="1.0" encoding="utf-8"?>
   <!--
     App + launch themes deliberately avoid Theme.SplashScreen so Android 12+
     does not clip the brand into a circle. Brand shows via windowBackground.
+    Do not set android:statusBarColor / android:navigationBarColor — those
+    APIs are deprecated and disabled under Android 15 edge-to-edge.
   -->
   <style name="AppTheme" parent="Theme.AppCompat.Light.NoActionBar">
     <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
     <item name="colorPrimary">@color/colorPrimary</item>
-    <item name="android:statusBarColor">@android:color/transparent</item>
-    <item name="android:navigationBarColor">@android:color/transparent</item>
     <item name="android:windowBackground">@drawable/splashscreen_full</item>
     <item name="android:colorBackground">@color/splashscreen_background</item>
     <item name="android:windowDisablePreview">true</item>
@@ -70,8 +70,6 @@ const STYLES_XML = `<?xml version="1.0" encoding="utf-8"?>
   <style name="Theme.App.SplashScreen" parent="Theme.AppCompat.Light.NoActionBar">
     <item name="android:windowBackground">@drawable/splashscreen_full</item>
     <item name="android:colorBackground">@color/splashscreen_background</item>
-    <item name="android:statusBarColor">@android:color/transparent</item>
-    <item name="android:navigationBarColor">@android:color/transparent</item>
     <item name="android:windowNoTitle">true</item>
     <item name="android:windowDisablePreview">true</item>
   </style>
@@ -96,14 +94,6 @@ function withFullBleedSplash(config) {
       },
       { $: { name: "colorPrimary" }, _: "@color/colorPrimary" },
       {
-        $: { name: "android:statusBarColor" },
-        _: "@android:color/transparent",
-      },
-      {
-        $: { name: "android:navigationBarColor" },
-        _: "@android:color/transparent",
-      },
-      {
         $: { name: "android:windowBackground" },
         _: "@drawable/splashscreen_full",
       },
@@ -122,14 +112,6 @@ function withFullBleedSplash(config) {
       {
         $: { name: "android:colorBackground" },
         _: "@color/splashscreen_background",
-      },
-      {
-        $: { name: "android:statusBarColor" },
-        _: "@android:color/transparent",
-      },
-      {
-        $: { name: "android:navigationBarColor" },
-        _: "@android:color/transparent",
       },
       { $: { name: "android:windowNoTitle" }, _: "true" },
       { $: { name: "android:windowDisablePreview" }, _: "true" },

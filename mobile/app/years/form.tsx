@@ -1,13 +1,13 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   View,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useNavigation, useRouter } from "expo-router";
 import { Muted, Screen, SectionTitle } from "@/src/components/ui";
-import { IconActionBar } from "@/src/components/IconActionBar";
+import { useHeaderToolbar } from "@/src/components/useHeaderToolbar";
 import { SelectField } from "@/src/components/FilterSelect";
 import { DateField } from "@/src/components/DateFields";
 import { t } from "@/src/i18n/ar";
@@ -41,6 +41,7 @@ function initialSemesterDates() {
 
 export default function YearFormScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const { bump } = useAppData();
   const dialog = useDialog();
   const yearOptions = useMemo(() => academicYearOptions(), []);
@@ -117,6 +118,23 @@ export default function YearFormScreen() {
     }
   }
 
+  useEffect(() => {
+    navigation.setOptions({ headerTitle: t("addYear") });
+  }, [navigation]);
+
+  useHeaderToolbar({
+    actions: [
+      {
+        key: "save",
+        icon: "save",
+        label: t("actionSave"),
+        tone: "accent",
+        disabled: saving,
+        onPress: () => void onSave(),
+      },
+    ],
+  });
+
   return (
     <Screen padded={false} style={{ flex: 1 }}>
       <KeyboardAvoidingView
@@ -131,18 +149,6 @@ export default function YearFormScreen() {
           }}
           keyboardShouldPersistTaps="handled"
         >
-          <IconActionBar
-            actions={[
-              {
-                key: "save",
-                icon: "save",
-                label: t("actionSave"),
-                tone: "accent",
-                disabled: saving,
-                onPress: () => void onSave(),
-              },
-            ]}
-          />
           {/* Comment: academic year is picked from a generated list, not typed. */}
           <SelectField
             label={t("yearName")}

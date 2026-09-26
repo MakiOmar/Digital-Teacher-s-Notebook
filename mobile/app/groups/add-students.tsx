@@ -12,16 +12,16 @@ import {
   View,
 } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import {
   EmptyState,
   FormField,
   Muted,
   Screen,
   SearchField,
-  Title,
 } from "@/src/components/ui";
-import { IconActionBar } from "@/src/components/IconActionBar";
+import { useHeaderToolbar } from "@/src/components/useHeaderToolbar";
+import type { IconAction } from "@/src/components/IconActionBar";
 import { t } from "@/src/i18n/ar";
 import {
   assignSeatToGroup,
@@ -66,6 +66,7 @@ export default function AddStudentsToGroupScreen() {
   const { groupId: groupIdParam } = useLocalSearchParams<{ groupId: string }>();
   const groupId = Number(groupIdParam);
   const router = useRouter();
+  const navigation = useNavigation();
   const { bump } = useAppData();
   const dialog = useDialog();
 
@@ -276,62 +277,69 @@ export default function AddStudentsToGroupScreen() {
     }
   }
 
-  const existingActions = [
+  const existingActions: IconAction[] = [
     {
       key: "addSelected",
-      icon: "user-plus" as const,
+      icon: "user-plus",
       label: t("addSelectedStudents"),
-      tone: "accent" as const,
+      tone: "accent",
       disabled: saving || selectedIds.size === 0,
       onPress: () => void onAddSelected(),
     },
     {
       key: "selectAll",
-      icon: "check-square-o" as const,
+      icon: "check-square-o",
       label: t("selectAllStudents"),
       disabled: saving || !filtered.length,
       onPress: selectAllVisible,
     },
     {
       key: "clear",
-      icon: "square-o" as const,
+      icon: "square-o",
       label: t("clearSelectedStudents"),
       disabled: saving || selectedIds.size === 0,
       onPress: clearSelected,
     },
   ];
 
-  const newActions = [
+  const newActions: IconAction[] = [
     {
       key: "seats",
-      icon: "th-large" as const,
+      icon: "th-large",
       label: t("actionSeats"),
-      tone: "accent" as const,
+      tone: "accent",
       onPress: onGenerateSeats,
     },
     {
       key: "seat",
-      icon: "plus" as const,
+      icon: "plus",
       label: t("actionSeat"),
       onPress: addSeat,
     },
     {
       key: "save",
-      icon: "save" as const,
+      icon: "save",
       label: t("actionSave"),
       disabled: saving,
       onPress: () => void onSaveSeats(),
     },
   ];
 
+  useHeaderToolbar({
+    actions: mode === "existing" ? existingActions : newActions,
+  });
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerTitle: group?.name
+        ? `${t("addStudentsToGroup")} · ${group.name}`
+        : t("addStudentsToGroup"),
+    });
+  }, [navigation, group?.name]);
+
   return (
     <Screen padded={false} style={{ flex: 1 }}>
       <View style={styles.pagePad}>
-        <Title>{t("addStudentsToGroup")}</Title>
-        <Muted style={{ marginBottom: spacing.md }}>
-          {group?.name ?? "—"}
-        </Muted>
-
         {/* Existing students vs type-new-names */}
         <View style={styles.modeRow}>
           <Pressable
@@ -361,10 +369,6 @@ export default function AddStudentsToGroupScreen() {
             </Text>
           </Pressable>
         </View>
-
-        <IconActionBar
-          actions={mode === "existing" ? existingActions : newActions}
-        />
       </View>
 
       {mode === "existing" ? (

@@ -9,14 +9,13 @@ import {
   Text,
   View,
 } from "react-native";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useNavigation } from "expo-router";
 import {
   Muted,
   PrimaryButton,
   Screen,
-  Title,
 } from "@/src/components/ui";
-import { IconActionBar } from "@/src/components/IconActionBar";
+import { useHeaderToolbar } from "@/src/components/useHeaderToolbar";
 import { t } from "@/src/i18n/ar";
 import {
   exportBackupFile,
@@ -73,6 +72,7 @@ function phaseLabel(phase: BackupProgress["phase"], mode: "import" | "export") {
 export default function BackupScreen() {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const navigation = useNavigation();
 
   const { bump } = useAppData();
   const dialog = useDialog();
@@ -88,6 +88,32 @@ export default function BackupScreen() {
     directoryUri: null,
     directoryLabel: null,
   });
+
+  useHeaderToolbar({
+    actions: [
+      {
+        key: "export",
+        icon: "upload",
+        label: t("actionExport"),
+        tone: "accent",
+        disabled: busy,
+        onPress: () => void onExport(),
+      },
+      {
+        key: "import",
+        icon: "download",
+        label: t("actionImport"),
+        disabled: busy,
+        onPress: onImport,
+      },
+    ],
+  });
+
+  useFocusEffect(
+    useCallback(() => {
+      navigation.setOptions({ headerTitle: t("backup") });
+    }, [navigation])
+  );
 
   const refreshSettings = useCallback(async () => {
     const next = await loadAutoBackupSettings();
@@ -245,26 +271,6 @@ export default function BackupScreen() {
         }}
         keyboardShouldPersistTaps="handled"
       >
-        <IconActionBar
-          actions={[
-            {
-              key: "export",
-              icon: "upload",
-              label: t("actionExport"),
-              tone: "accent",
-              disabled: busy,
-              onPress: () => void onExport(),
-            },
-            {
-              key: "import",
-              icon: "download",
-              label: t("actionImport"),
-              disabled: busy,
-              onPress: onImport,
-            },
-          ]}
-        />
-        <Title>{t("backup")}</Title>
         <Muted style={{ marginBottom: spacing.lg }}>
           صدّر نسخة احتياطية كملف JSON واحفظها على جهازك أو Google Drive يدوياً.
         </Muted>

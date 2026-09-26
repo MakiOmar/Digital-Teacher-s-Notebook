@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { FlatList, RefreshControl, View } from "react-native";
+import { FlatList, RefreshControl } from "react-native";
 import { useRouter } from "expo-router";
 import {
   EmptyState,
@@ -8,7 +8,7 @@ import {
   Title,
 } from "@/src/components/ui";
 import { DetailCard } from "@/src/components/DetailCard";
-import { FiltersSheet } from "@/src/components/FilterSelect";
+import { PageToolbar } from "@/src/components/PageToolbar";
 import { PaginationBar, pagingBarProps } from "@/src/components/PaginationBar";
 import { TourAnchor } from "@/src/tour/TourAnchor";
 import { t } from "@/src/i18n/ar";
@@ -71,22 +71,24 @@ export default function TodayScreen() {
           />
         }
         ListHeaderComponent={
-          <View>
-            <TourAnchor id="todayHeader">
-              <Title>{t("todaySchedule")}</Title>
-            </TourAnchor>
-            <FiltersSheet
-              fields={[
+          <PageToolbar
+            title={
+              <TourAnchor id="todayHeader">
+                <Title>{t("todaySchedule")}</Title>
+              </TourAnchor>
+            }
+            filter={{
+              fields: [
                 {
                   key: "status",
                   label: t("filterByStatus"),
                   value: statusFilter,
                   options: statusOptions,
                 },
-              ]}
-              onApply={(next) => setStatusFilter(next.status ?? "all")}
-            />
-          </View>
+              ],
+              onApply: (next) => setStatusFilter(next.status ?? "all"),
+            }}
+          />
         }
         ListEmptyComponent={<EmptyState message={t("noSessionsToday")} />}
         ListFooterComponent={

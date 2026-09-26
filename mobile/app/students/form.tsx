@@ -13,7 +13,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { FormField, Screen } from "@/src/components/ui";
 import { SelectField } from "@/src/components/FilterSelect";
-import { IconActionBar } from "@/src/components/IconActionBar";
+import { useHeaderToolbar } from "@/src/components/useHeaderToolbar";
 import { DateField } from "@/src/components/DateFields";
 import { t } from "@/src/i18n/ar";
 import {
@@ -245,6 +245,31 @@ export default function StudentFormScreen() {
     }
   }
 
+  useHeaderToolbar({
+    actions: [
+      {
+        key: "save",
+        icon: "save",
+        label: t("actionSave"),
+        tone: "accent",
+        disabled: saving,
+        onPress: () => void onSave(false),
+      },
+      ...(!editId
+        ? [
+            {
+              key: "saveAnother",
+              icon: "plus" as const,
+              label: t("saveAndAddAnother"),
+              tone: "default" as const,
+              disabled: saving,
+              onPress: () => void onSave(true),
+            },
+          ]
+        : []),
+    ],
+  });
+
   return (
     <Screen padded={false} style={{ flex: 1 }}>
       <KeyboardAvoidingView
@@ -255,31 +280,6 @@ export default function StudentFormScreen() {
           contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40 }}
           keyboardShouldPersistTaps="handled"
         >
-          <IconActionBar
-            actions={[
-              {
-                key: "save",
-                icon: "save",
-                label: t("actionSave"),
-                tone: "accent",
-                disabled: saving,
-                onPress: () => void onSave(false),
-              },
-              ...(!editId
-                ? [
-                    {
-                      key: "saveAnother",
-                      icon: "plus" as const,
-                      label: t("saveAndAddAnother"),
-                      tone: "default" as const,
-                      disabled: saving,
-                      onPress: () => void onSave(true),
-                    },
-                  ]
-                : []),
-            ]}
-          />
-
           {/* Essentials: name, parent phone; group is optional */}
           <FormField
             label={t("studentName")}

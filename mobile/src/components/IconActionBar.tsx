@@ -1,10 +1,12 @@
-import { useMemo, useState, type ComponentProps } from "react";
+import { useMemo, useRef, useState, type ComponentProps } from "react";
 import {
   Modal,
   Pressable,
   StyleSheet,
   Text,
   View,
+  type StyleProp,
+  type ViewStyle,
 } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { radii, spacing } from "../theme/colors";
@@ -28,11 +30,20 @@ export type IconAction = {
 };
 
 /**
- * Page-top actions as a ⋮ overflow menu (keeps toolbars compact).
+ * Compact ⋮ trigger + actions modal. Use in nav headerRight or inline toolbars.
  */
-export function IconActionBar({ actions }: { actions: IconAction[] }) {
+export function OverflowMenuButton({
+  actions,
+  style,
+}: {
+  actions: IconAction[];
+  style?: StyleProp<ViewStyle>;
+}) {
   const colors = useColors();
   const [open, setOpen] = useState(false);
+  // Keep latest actions so headerRight closures stay fresh on press.
+  const actionsRef = useRef(actions);
+  actionsRef.current = actions;
   const tourId = useMemo(
     () => actions.find((a) => a.tourId)?.tourId,
     [actions]
@@ -61,7 +72,7 @@ export function IconActionBar({ actions }: { actions: IconAction[] }) {
   );
 
   return (
-    <View style={styles.wrap}>
+    <View style={[styles.compactWrap, style]}>
       {tourId ? (
         <TourAnchor id={tourId} style={styles.tourWrap}>
           {trigger}
@@ -91,7 +102,7 @@ export function IconActionBar({ actions }: { actions: IconAction[] }) {
               {t("actionsMenu")}
             </Text>
             <View style={styles.menuList}>
-              {actions.map((a) => {
+              {actionsRef.current.map((a) => {
                 const tone = a.tone ?? "default";
                 const iconColor =
                   tone === "danger"
@@ -165,19 +176,24 @@ export function IconActionBar({ actions }: { actions: IconAction[] }) {
   );
 }
 
+/**
+ * Mid-content overflow (e.g. save-notes). Page chrome should use useHeaderToolbar / PageToolbar.
+ */
+export function IconActionBar({ actions }: { actions: IconAction[] }) {
+  if (!actions.length) return null;
+  return <OverflowMenuButton actions={actions} />;
+}
+
 const styles = StyleSheet.create({
-  wrap: {
-    ...rtlRow(),
-    justifyContent: "flex-start",
-    width: "100%",
-    marginBottom: spacing.md,
+  compactWrap: {
+    alignSelf: "center",
   },
   tourWrap: {
-    alignSelf: "flex-start",
+    alignSelf: "center",
   },
   trigger: {
-    width: 44,
-    height: 44,
+    width: 40,
+    height: 40,
     borderRadius: radii.md,
     borderWidth: 1.5,
     alignItems: "center",

@@ -7,7 +7,7 @@ import {
   SkeletonList,
   StatCard,
 } from "@/src/components/ui";
-import { FiltersSheet } from "@/src/components/FilterSelect";
+import { PageToolbar } from "@/src/components/PageToolbar";
 import { PaginationBar, pagingBarProps } from "@/src/components/PaginationBar";
 import { PaymentDueCard } from "@/src/components/PaymentDueCard";
 import { TourAnchor } from "@/src/tour/TourAnchor";
@@ -154,35 +154,37 @@ export default function PaymentsTab() {
             />
           </View>
         </TourAnchor>
-        <FiltersSheet
-          fields={[
-            {
-              key: "group",
-              label: t("filterByGroup"),
-              value: groupFilter === "all" ? "all" : String(groupFilter),
-              options: groupOptions,
-              presentation: "searchable",
+        <PageToolbar
+          filter={{
+            fields: [
+              {
+                key: "group",
+                label: t("filterByGroup"),
+                value: groupFilter === "all" ? "all" : String(groupFilter),
+                options: groupOptions,
+                presentation: "searchable",
+              },
+              {
+                key: "round",
+                label: t("filterByRound"),
+                value: roundFilterValue(roundFilter),
+                options: roundOptions,
+                presentation: "checkbox",
+              },
+              {
+                key: "status",
+                label: t("filterByStatus"),
+                value: filter,
+                options: statusOptions,
+                presentation: "checkbox",
+              },
+            ],
+            onApply: (next) => {
+              const g = next.group ?? "all";
+              setGroupFilter(g === "all" ? "all" : Number(g));
+              setRoundFilter(parseRoundFilter(next.round));
+              setFilter((next.status as PaymentStatus | "all") ?? "unpaid");
             },
-            {
-              key: "round",
-              label: t("filterByRound"),
-              value: roundFilterValue(roundFilter),
-              options: roundOptions,
-              presentation: "checkbox",
-            },
-            {
-              key: "status",
-              label: t("filterByStatus"),
-              value: filter,
-              options: statusOptions,
-              presentation: "checkbox",
-            },
-          ]}
-          onApply={(next) => {
-            const g = next.group ?? "all";
-            setGroupFilter(g === "all" ? "all" : Number(g));
-            setRoundFilter(parseRoundFilter(next.round));
-            setFilter((next.status as PaymentStatus | "all") ?? "unpaid");
           }}
         />
       </View>

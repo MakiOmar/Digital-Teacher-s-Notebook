@@ -10,8 +10,7 @@ import {
 } from "@/src/components/ui";
 import { DetailCard } from "@/src/components/DetailCard";
 import { StudentCardEdgeContacts } from "@/src/components/StudentCardEdgeContacts";
-import { FiltersSheet } from "@/src/components/FilterSelect";
-import { IconActionBar } from "@/src/components/IconActionBar";
+import { PageToolbar } from "@/src/components/PageToolbar";
 import { StudentImportModal } from "@/src/components/StudentImportModal";
 import { PaginationBar, pagingBarProps } from "@/src/components/PaginationBar";
 import { useDialog } from "@/src/components/DialogProvider";
@@ -225,40 +224,42 @@ export default function StudentsTab() {
   return (
     <Screen safeTop padded={false} style={{ flex: 1 }}>
       <View style={{ padding: spacing.lg, paddingBottom: 0 }}>
-        <IconActionBar actions={toolbarActions} />
-        <FiltersSheet
-          fields={[
-            {
-              key: "group",
-              label: t("filterByGroup"),
-              value: groupFilter,
-              options: groupOptions,
-              presentation: "searchable",
+        <PageToolbar
+          actions={toolbarActions}
+          filter={{
+            fields: [
+              {
+                key: "group",
+                label: t("filterByGroup"),
+                value: groupFilter,
+                options: groupOptions,
+                presentation: "searchable",
+              },
+              {
+                key: "status",
+                label: t("filterByStatus"),
+                value: statusFilter,
+                options: statusOptions,
+                presentation: "checkbox",
+              },
+            ],
+            onApply: (next) => {
+              setGroupFilter(next.group ?? "all");
+              setStatusFilter(next.status ?? "all");
             },
-            {
-              key: "status",
-              label: t("filterByStatus"),
-              value: statusFilter,
-              options: statusOptions,
-              presentation: "checkbox",
-            },
-          ]}
-          onApply={(next) => {
-            setGroupFilter(next.group ?? "all");
-            setStatusFilter(next.status ?? "all");
           }}
-        />
-        <SearchField
-          value={query}
-          onChangeText={setQuery}
-          placeholder={t("searchPlaceholder")}
-        />
-        {/* How many students are checked across pages */}
-        {selectMode && selectedIds.size > 0 ? (
-          <Text style={[styles.selectedCount, { color: colors.primary }]}>
-            {t("selectedStudentsCount", { count: selectedIds.size })}
-          </Text>
-        ) : null}
+        >
+          {selectMode && selectedIds.size > 0 ? (
+            <Text style={[styles.selectedCount, { color: colors.primary }]}>
+              {t("selectedStudentsCount", { count: selectedIds.size })}
+            </Text>
+          ) : null}
+          <SearchField
+            value={query}
+            onChangeText={setQuery}
+            placeholder={t("searchPlaceholder")}
+          />
+        </PageToolbar>
       </View>
       <FlatList
         style={{ flex: 1 }}

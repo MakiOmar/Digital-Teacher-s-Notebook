@@ -14,7 +14,7 @@ import {
   Muted,
   Screen,
 } from "@/src/components/ui";
-import { IconActionBar } from "@/src/components/IconActionBar";
+import { useHeaderToolbar } from "@/src/components/useHeaderToolbar";
 import { DateField, TimeField } from "@/src/components/DateFields";
 import { t } from "@/src/i18n/ar";
 import {
@@ -87,6 +87,19 @@ export default function GroupFormScreen() {
       }
     })();
   }, [editId]);
+
+  useHeaderToolbar({
+    actions: [
+      {
+        key: "save",
+        icon: "save",
+        label: t("actionSave"),
+        tone: "accent",
+        disabled: saving,
+        onPress: () => void onSave(),
+      },
+    ],
+  });
 
   function toggleDay(d: Weekday) {
     setSelectedDays((prev) =>
@@ -194,18 +207,6 @@ export default function GroupFormScreen() {
           contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40 }}
           keyboardShouldPersistTaps="handled"
         >
-          <IconActionBar
-            actions={[
-              {
-                key: "save",
-                icon: "save",
-                label: t("actionSave"),
-                tone: "accent",
-                disabled: saving,
-                onPress: () => void onSave(),
-              },
-            ]}
-          />
           <FormField label={t("groupName")} value={name} onChangeText={setName} />
           <FormField label={t("subject")} value={subject} onChangeText={setSubject} />
           <FormField

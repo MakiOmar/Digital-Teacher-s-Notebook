@@ -36,9 +36,21 @@ export type FilterField = {
   presentation?: FilterFieldPresentation;
 };
 
+/** Human-readable applied filter labels for toolbars. */
+export function filterAppliedSummary(fields: FilterField[]): string {
+  return fields
+    .map((f) => {
+      const opt = f.options.find((o) => o.value === f.value);
+      return opt?.label ?? f.value;
+    })
+    .filter(Boolean)
+    .join(" · ");
+}
+
 /**
  * Filter trigger → modal with option lists → تطبيق / إلغاء.
  * Draft values only commit when the user taps Apply.
+ * Default trigger is a compact filter icon (for header / title rows).
  */
 export function FiltersSheet({
   fields,
@@ -47,16 +59,22 @@ export function FiltersSheet({
   title,
   icon = "filter",
   showBadge = true,
+  variant = "icon",
+  showSummary = false,
 }: {
   fields: FilterField[];
   onApply: (values: Record<string, string>) => void;
-  /** Button label; defaults to تصفية. */
+  /** Button label; defaults to تصفية. Used when variant is "button". */
   triggerLabel?: string;
   /** Modal title; defaults to triggerLabel or تصفية. */
   title?: string;
   icon?: React.ComponentProps<typeof FontAwesome>["name"];
   /** Hide the numeric badge (useful for single required selects like month). */
   showBadge?: boolean;
+  /** icon = compact header/toolbar control; button = labeled chip. */
+  variant?: "icon" | "button";
+  /** Show applied labels under the trigger (usually false for icon). */
+  showSummary?: boolean;
 }) {
   const colors = useColors();
   const [open, setOpen] = useState(false);
@@ -67,15 +85,10 @@ export function FiltersSheet({
   const buttonLabel = triggerLabel ?? t("filter");
   const sheetTitle = title ?? buttonLabel;
 
-  const appliedSummary = useMemo(() => {
-    return fields
-      .map((f) => {
-        const opt = f.options.find((o) => o.value === f.value);
-        return opt?.label ?? f.value;
-      })
-      .filter(Boolean)
-      .join(" · ");
-  }, [fields]);
+  const appliedSummary = useMemo(
+    () => filterAppliedSummary(fields),
+    [fields]
+  );
 
   const activeCount = useMemo(() => {
     return fields.filter(
@@ -99,34 +112,54 @@ export function FiltersSheet({
     setOpen(false);
   };
 
+  const badge =
+    showBadge && activeCount > 0 ? (
+      <View
+        style={[
+          variant === "icon" ? styles.iconBadge : styles.badge,
+          { backgroundColor: colors.primary },
+        ]}
+      >
+        <Text style={styles.badgeText}>{activeCount}</Text>
+      </View>
+    ) : null;
+
   return (
-    <View style={[styles.triggerWrap, rtlBlock]}>
+    <View
+      style={[
+        variant === "icon" ? styles.iconWrap : styles.triggerWrap,
+        variant === "button" && rtlBlock,
+      ]}
+    >
       {/* Comment: list toolbar — opens the filter sheet. */}
       <Pressable
         onPress={openSheet}
         accessibilityRole="button"
         accessibilityLabel={buttonLabel}
         style={({ pressed }) => [
-          styles.trigger,
-          rtlRow(),
+          variant === "icon" ? styles.iconTrigger : styles.trigger,
+          variant === "button" && rtlRow(),
           {
             borderColor: colors.primary,
-            backgroundColor: colors.primarySoft,
+            backgroundColor:
+              variant === "icon" ? colors.surface : colors.primarySoft,
           },
           pressed && { opacity: 0.75 },
         ]}
       >
-        <FontAwesome name={icon} size={14} color={colors.primary} />
-        <Text style={[styles.triggerText, { color: colors.primary }]}>
-          {buttonLabel}
-        </Text>
-        {showBadge && activeCount > 0 ? (
-          <View style={[styles.badge, { backgroundColor: colors.primary }]}>
-            <Text style={styles.badgeText}>{activeCount}</Text>
-          </View>
+        <FontAwesome
+          name={icon}
+          size={variant === "icon" ? 16 : 14}
+          color={colors.primary}
+        />
+        {variant === "button" ? (
+          <Text style={[styles.triggerText, { color: colors.primary }]}>
+            {buttonLabel}
+          </Text>
         ) : null}
+        {badge}
       </Pressable>
-      {appliedSummary ? (
+      {showSummary && appliedSummary ? (
         <Text style={[styles.summary, { color: colors.textMuted }]} numberOfLines={2}>
           {appliedSummary}
         </Text>
@@ -594,6 +627,9 @@ const styles = StyleSheet.create({
     width: "100%",
     marginBottom: spacing.sm,
   },
+  iconWrap: {
+    alignSelf: "center",
+  },
   trigger: {
     alignSelf: "stretch",
     alignItems: "center",
@@ -603,6 +639,14 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     paddingVertical: 10,
     paddingHorizontal: spacing.md,
+  },
+  iconTrigger: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.md,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
   },
   triggerText: {
     ...rtlText,
@@ -614,6 +658,17 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 10,
     paddingHorizontal: 6,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconBadge: {
+    position: "absolute",
+    top: -4,
+    end: -4,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    paddingHorizontal: 4,
     alignItems: "center",
     justifyContent: "center",
   },

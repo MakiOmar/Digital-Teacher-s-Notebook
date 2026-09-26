@@ -1,13 +1,13 @@
 import { useCallback, useState } from "react";
-import { FlatList, View } from "react-native";
-import { useFocusEffect, useRouter } from "expo-router";
+import { FlatList } from "react-native";
+import { useFocusEffect, useNavigation, useRouter } from "expo-router";
 import {
   EmptyState,
   LoadingBlock,
   Screen,
 } from "@/src/components/ui";
 import { DetailCard } from "@/src/components/DetailCard";
-import { IconActionBar } from "@/src/components/IconActionBar";
+import { useHeaderToolbar } from "@/src/components/useHeaderToolbar";
 import { PaginationBar, pagingBarProps } from "@/src/components/PaginationBar";
 import { t } from "@/src/i18n/ar";
 import {
@@ -24,11 +24,30 @@ import { colors, spacing } from "@/src/theme/colors";
 
 export default function YearsScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const { bump } = useAppData();
   const { pageSize } = useGeneralSettings();
   const dialog = useDialog();
   const [loading, setLoading] = useState(true);
   const [years, setYears] = useState<AcademicYear[]>([]);
+
+  useHeaderToolbar({
+    actions: [
+      {
+        key: "add",
+        icon: "plus",
+        label: t("actionAdd"),
+        tone: "accent",
+        onPress: () => router.push("/years/form"),
+      },
+    ],
+  });
+
+  useFocusEffect(
+    useCallback(() => {
+      navigation.setOptions({ headerTitle: t("academicYears") });
+    }, [navigation])
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -57,19 +76,6 @@ export default function YearsScreen() {
 
   return (
     <Screen padded={false} style={{ flex: 1 }}>
-      <View style={{ padding: spacing.lg, paddingBottom: 0 }}>
-        <IconActionBar
-          actions={[
-            {
-              key: "add",
-              icon: "plus",
-              label: t("actionAdd"),
-              tone: "accent",
-              onPress: () => router.push("/years/form"),
-            },
-          ]}
-        />
-      </View>
       <FlatList
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: 40 }}

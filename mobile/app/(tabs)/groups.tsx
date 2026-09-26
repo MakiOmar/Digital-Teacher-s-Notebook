@@ -9,8 +9,7 @@ import {
   SkeletonList,
 } from "@/src/components/ui";
 import { DetailCard } from "@/src/components/DetailCard";
-import { FiltersSheet } from "@/src/components/FilterSelect";
-import { IconActionBar } from "@/src/components/IconActionBar";
+import { PageToolbar } from "@/src/components/PageToolbar";
 import { PaginationBar, pagingBarProps } from "@/src/components/PaginationBar";
 import { TourAnchor } from "@/src/tour/TourAnchor";
 import { t } from "@/src/i18n/ar";
@@ -108,7 +107,7 @@ export default function GroupsTab() {
   return (
     <Screen safeTop padded={false} style={{ flex: 1 }}>
       <View style={{ padding: spacing.lg, paddingBottom: 0 }}>
-        <IconActionBar
+        <PageToolbar
           actions={[
             {
               key: "add",
@@ -119,23 +118,24 @@ export default function GroupsTab() {
               onPress: () => router.push("/groups/form"),
             },
           ]}
-        />
-        <FiltersSheet
-          fields={[
-            {
-              key: "weekday",
-              label: t("filterByWeekday"),
-              value: weekdayFilter,
-              options: weekdayOptions,
-            },
-          ]}
-          onApply={(next) => setWeekdayFilter(next.weekday ?? "all")}
-        />
-        <SearchField
-          value={query}
-          onChangeText={setQuery}
-          placeholder={t("searchPlaceholder")}
-        />
+          filter={{
+            fields: [
+              {
+                key: "weekday",
+                label: t("filterByWeekday"),
+                value: weekdayFilter,
+                options: weekdayOptions,
+              },
+            ],
+            onApply: (next) => setWeekdayFilter(next.weekday ?? "all"),
+          }}
+        >
+          <SearchField
+            value={query}
+            onChangeText={setQuery}
+            placeholder={t("searchPlaceholder")}
+          />
+        </PageToolbar>
       </View>
       <FlatList
         style={{ flex: 1 }}

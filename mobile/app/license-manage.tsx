@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   KeyboardAvoidingView,
   Linking,
@@ -9,15 +9,15 @@ import {
   Text,
   View,
 } from "react-native";
+import { useNavigation } from "expo-router";
 import {
   Card,
   FormField,
   Muted,
   PrimaryButton,
   Screen,
-  Title,
 } from "@/src/components/ui";
-import { IconActionBar } from "@/src/components/IconActionBar";
+import { useHeaderToolbar } from "@/src/components/useHeaderToolbar";
 import { SUPPORT_WHATSAPP } from "@/src/config/support";
 import { useLicense } from "@/src/license/LicenseContext";
 import { useDialog } from "@/src/components/DialogProvider";
@@ -36,6 +36,7 @@ function formatIsoDate(iso: string | null): string {
 
 /** Manage / status screen for an active license (including trial → paid upgrade). */
 export default function LicenseManageScreen() {
+  const navigation = useNavigation();
   const {
     licenseKeyMasked,
     expiresAt,
@@ -50,6 +51,31 @@ export default function LicenseManageScreen() {
   const [busy, setBusy] = useState(false);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeKey, setUpgradeKey] = useState("");
+
+  useHeaderToolbar({
+    actions: [
+      {
+        key: "refresh",
+        icon: "refresh",
+        label: t("licenseRecheck"),
+        tone: "accent",
+        disabled: busy,
+        onPress: () => void onRefresh(),
+      },
+      {
+        key: "remove",
+        icon: "trash",
+        label: t("licenseRemove"),
+        tone: "danger",
+        disabled: busy,
+        onPress: () => void onRemove(),
+      },
+    ],
+  });
+
+  useEffect(() => {
+    navigation.setOptions({ headerTitle: t("license") });
+  }, [navigation]);
 
   async function onRefresh() {
     setBusy(true);
@@ -135,27 +161,6 @@ export default function LicenseManageScreen() {
 
   return (
     <Screen>
-      <IconActionBar
-        actions={[
-          {
-            key: "refresh",
-            icon: "refresh",
-            label: t("licenseRecheck"),
-            tone: "accent",
-            disabled: busy,
-            onPress: () => void onRefresh(),
-          },
-          {
-            key: "remove",
-            icon: "trash",
-            label: t("licenseRemove"),
-            tone: "danger",
-            disabled: busy,
-            onPress: () => void onRemove(),
-          },
-        ]}
-      />
-      <Title>{t("license")}</Title>
       <Card>
         <Text style={styles.line}>
           {t("licenseKey")}: {licenseKeyMasked ?? "—"}

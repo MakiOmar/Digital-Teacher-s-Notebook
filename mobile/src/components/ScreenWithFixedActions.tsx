@@ -1,55 +1,35 @@
 import React from "react";
-import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { type StyleProp, type ViewStyle } from "react-native";
 import { Screen } from "./ui";
-import { IconActionBar, type IconAction } from "./IconActionBar";
-import { spacing } from "../theme/colors";
-import { useColors } from "../theme/ThemeContext";
+import type { IconAction } from "./IconActionBar";
+import {
+  useHeaderToolbar,
+  type HeaderFilterConfig,
+} from "./useHeaderToolbar";
 
 /**
- * Detail/session shell: fixed top ⋮ actions menu + flex body.
- * Keeps list/scroll content from fighting a tall static header.
+ * Detail/session shell: ⋮ (+ optional filter) in the nav header next to the title.
  */
 export function ScreenWithFixedActions({
   actions,
+  filter,
   children,
   floating,
   style,
 }: {
   actions: IconAction[];
+  filter?: HeaderFilterConfig | null;
   children: React.ReactNode;
   /** Optional overlays (FABs) above the body. */
   floating?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
-  const colors = useColors();
+  useHeaderToolbar({ actions, filter });
 
   return (
     <Screen padded={false} style={[{ flex: 1 }, style]} safeTop={false}>
-      {actions.length ? (
-        <View
-          style={[
-            styles.fixedActions,
-            {
-              backgroundColor: colors.background,
-              borderBottomColor: colors.border,
-            },
-          ]}
-        >
-          <IconActionBar actions={actions} />
-        </View>
-      ) : null}
       {children}
       {floating}
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  fixedActions: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-    paddingBottom: 0,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    zIndex: 2,
-  },
-});

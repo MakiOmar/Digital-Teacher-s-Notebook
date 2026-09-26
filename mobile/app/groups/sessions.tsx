@@ -1,12 +1,12 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, View } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import {
   EmptyState,
   LoadingBlock,
   Screen,
 } from "@/src/components/ui";
-import { FiltersSheet } from "@/src/components/FilterSelect";
+import { useHeaderToolbar } from "@/src/components/useHeaderToolbar";
 import { PaginationBar, pagingBarProps } from "@/src/components/PaginationBar";
 import {
   getSessionAttendanceCoverage,
@@ -27,12 +27,32 @@ export default function GroupSessionsScreen() {
   const { groupId } = useLocalSearchParams<{ groupId: string }>();
   const id = Number(groupId);
   const router = useRouter();
+  const navigation = useNavigation();
   const { pageSize } = useGeneralSettings();
   const [coverage, setCoverage] = useState<
     Record<number, { marked: number; total: number }>
   >({});
   const [statusFilter, setStatusFilter] = useState<"all" | string>("all");
   const coverageRequest = useRef(0);
+  const statusOptions = useMemo(() => sessionStatusFilterOptions(), []);
+
+  useEffect(() => {
+    navigation.setOptions({ headerTitle: t("sessions") });
+  }, [navigation]);
+
+  useHeaderToolbar({
+    filter: {
+      fields: [
+        {
+          key: "status",
+          label: t("filterByStatus"),
+          value: statusFilter,
+          options: statusOptions,
+        },
+      ],
+      onApply: (next) => setStatusFilter(next.status ?? "all"),
+    },
+  });
 
   const fetchPage = useCallback(
     async (limit: number, offset: number) => {
@@ -61,8 +81,6 @@ export default function GroupSessionsScreen() {
     `${id}:${statusFilter}`
   );
 
-  const statusOptions = useMemo(() => sessionStatusFilterOptions(), []);
-
   if (paging.loading) {
     return (
       <Screen>
@@ -78,19 +96,6 @@ export default function GroupSessionsScreen() {
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40 }}
         data={paging.pageItems}
         keyExtractor={(item) => String(item.id)}
-        ListHeaderComponent={
-          <FiltersSheet
-            fields={[
-              {
-                key: "status",
-                label: t("filterByStatus"),
-                value: statusFilter,
-                options: statusOptions,
-              },
-            ]}
-            onApply={(next) => setStatusFilter(next.status ?? "all")}
-          />
-        }
         ListEmptyComponent={
           <EmptyState
             message={

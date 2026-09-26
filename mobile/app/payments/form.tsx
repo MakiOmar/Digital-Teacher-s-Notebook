@@ -13,7 +13,7 @@ import {
   FormField,
   Screen,
 } from "@/src/components/ui";
-import { IconActionBar } from "@/src/components/IconActionBar";
+import { useHeaderToolbar } from "@/src/components/useHeaderToolbar";
 import { DateField } from "@/src/components/DateFields";
 import { FiltersSheet } from "@/src/components/FilterSelect";
 import { t } from "@/src/i18n/ar";
@@ -239,6 +239,43 @@ export default function PaymentFormScreen() {
     }
   }
 
+  useHeaderToolbar({
+    actions: [
+      {
+        key: "save",
+        icon: "save",
+        label: t("actionSave"),
+        tone: "accent",
+        disabled: saving,
+        onPress: () => void onSave(),
+      },
+      ...(editId
+        ? [
+            {
+              key: "delete",
+              icon: "trash" as const,
+              label: t("delete"),
+              tone: "danger" as const,
+              onPress: () => {
+                void (async () => {
+                  const ok = await dialog.confirm({
+                    title: t("delete"),
+                    message: t("deleteConfirm"),
+                    confirmLabel: t("delete"),
+                    danger: true,
+                  });
+                  if (!ok) return;
+                  await deletePayment(editId);
+                  bump();
+                  router.back();
+                })();
+              },
+            },
+          ]
+        : []),
+    ],
+  });
+
   return (
     <Screen padded={false} style={{ flex: 1 }}>
       <KeyboardAvoidingView
@@ -249,42 +286,6 @@ export default function PaymentFormScreen() {
           contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40 }}
           keyboardShouldPersistTaps="handled"
         >
-          <IconActionBar
-            actions={[
-              {
-                key: "save",
-                icon: "save",
-                label: t("actionSave"),
-                tone: "accent",
-                disabled: saving,
-                onPress: () => void onSave(),
-              },
-              ...(editId
-                ? [
-                    {
-                      key: "delete",
-                      icon: "trash" as const,
-                      label: t("delete"),
-                      tone: "danger" as const,
-                      onPress: () => {
-                        void (async () => {
-                          const ok = await dialog.confirm({
-                            title: t("delete"),
-                            message: t("deleteConfirm"),
-                            confirmLabel: t("delete"),
-                            danger: true,
-                          });
-                          if (!ok) return;
-                          await deletePayment(editId);
-                          bump();
-                          router.back();
-                        })();
-                      },
-                    },
-                  ]
-                : []),
-            ]}
-          />
           {!editId ? (
             <>
               {/* Step 1: group */}
@@ -343,10 +344,12 @@ export default function PaymentFormScreen() {
                 <Text style={styles.hint}>{t("noOpenRound")}</Text>
               ) : (
                 <FiltersSheet
+                  variant="button"
                   triggerLabel={t("selectRound")}
                   title={t("selectMonth")}
                   icon="calendar"
                   showBadge={false}
+                  showSummary
                   fields={monthFilterFields}
                   onApply={onApplyRound}
                 />

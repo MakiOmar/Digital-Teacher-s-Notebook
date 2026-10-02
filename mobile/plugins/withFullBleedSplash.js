@@ -1,7 +1,8 @@
 const {
-  withMainActivity,
+  AndroidConfig,
   withAndroidStyles,
   withDangerousMod,
+  withFinalizedMod,
   withAndroidManifest,
 } = require("expo/config-plugins");
 const fs = require("fs");
@@ -207,44 +208,61 @@ function withFullBleedSplash(config) {
     },
   ]);
 
-  config = withMainActivity(config, (cfg) => {
-    let src = cfg.modResults.contents;
+  // Finalized so expo-splash-screen (which anchors on `super.onCreate(null)`)
+  // has already written MainActivity before these edits run.
+  config = withFinalizedMod(config, [
+    "android",
+    async (cfg) => {
+      const mainActivity = await AndroidConfig.Paths.getMainActivityAsync(
+        cfg.modRequest.projectRoot
+      );
+      const updated = applyFullBleedMainActivity(mainActivity.contents);
+      if (updated !== mainActivity.contents) {
+        fs.writeFileSync(mainActivity.path, updated);
+      }
+      return cfg;
+    },
+  ]);
 
-    src = src.replace(
-      /import\s+expo\.modules\.splashscreen\.SplashScreenManager\s*\n?/g,
-      ""
-    );
-    // Strip Expo-generated splash registration block (reappears after prebuild).
-    src = src.replace(
-      /\/\/\s*@generated begin expo-splashscreen[\s\S]*?\/\/\s*@generated end expo-splashscreen\s*/g,
-      ""
-    );
-    src = src.replace(
-      /SplashScreenManager\.registerOnActivity\(this\)\s*/g,
-      ""
-    );
+  return config;
+}
 
-    if (!src.includes("setTheme(R.style.AppTheme)")) {
-      src = src.replace(
-        /override fun onCreate\(savedInstanceState: Bundle\?\) \{\s*/,
-        `override fun onCreate(savedInstanceState: Bundle?) {
+function applyFullBleedMainActivity(contents) {
+  let src = contents;
+
+  src = src.replace(
+    /import\s+expo\.modules\.splashscreen\.SplashScreenManager\s*\n?/g,
+    ""
+  );
+  // Strip Expo-generated splash registration block (reappears after prebuild).
+  src = src.replace(
+    /\/\/\s*@generated begin expo-splashscreen[\s\S]*?\/\/\s*@generated end expo-splashscreen\s*/g,
+    ""
+  );
+  src = src.replace(/SplashScreenManager\.registerOnActivity\(this\)\s*/g, "");
+  // expo-splash-screen comments out setTheme; restore it.
+  src = src.replace(
+    /\/\/\s*setTheme\(R\.style\.AppTheme\)/g,
+    "setTheme(R.style.AppTheme)"
+  );
+
+  if (!src.includes("setTheme(R.style.AppTheme)")) {
+    src = src.replace(
+      /override fun onCreate\(savedInstanceState: Bundle\?\) \{\s*/,
+      `override fun onCreate(savedInstanceState: Bundle?) {
     // Full wordmark via windowBackground; avoid Android 12 circular splash icon.
     setTheme(R.style.AppTheme)
     `
-      );
-    }
-
-    // Prefer keeping instance state (null wiped config changes on rotation).
-    src = src.replace(
-      /super\.onCreate\(null\)/,
-      "super.onCreate(savedInstanceState)"
     );
+  }
 
-    cfg.modResults.contents = src;
-    return cfg;
-  });
+  // Prefer keeping instance state (null wiped config changes on rotation).
+  src = src.replace(
+    /super\.onCreate\(null\)/,
+    "super.onCreate(savedInstanceState)"
+  );
 
-  return config;
+  return src;
 }
 
 module.exports = withFullBleedSplash;

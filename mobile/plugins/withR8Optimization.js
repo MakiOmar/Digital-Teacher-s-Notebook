@@ -28,6 +28,12 @@ function withR8Optimization(config) {
       "android.r8.optimizedResourceShrinking",
       "true"
     );
+    // Full R8 on a clean release build exhausts the template's 512m Metaspace.
+    setGradleProperty(
+      cfg.modResults,
+      "org.gradle.jvmargs",
+      "-Xmx4096m -XX:MaxMetaspaceSize=1024m"
+    );
     return cfg;
   });
 

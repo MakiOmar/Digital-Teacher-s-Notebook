@@ -72,6 +72,7 @@ type ListRowItem =
   | { kind: "studentEmpty" }
   | { kind: "student"; due: StudentDueRow }
   | { kind: "roundsEmpty" }
+  | { kind: "roundsGateHint" }
   | {
       kind: "round";
       chunk: RoundChunk;
@@ -271,6 +272,7 @@ export default function GroupDetailsScreen() {
       rows.push({ kind: "roundsEmpty" });
       return rows;
     }
+    rows.push({ kind: "roundsGateHint" });
     const per = group?.classes_per_round ?? 4;
     for (const chunk of unlockedRounds) {
       const startedAt = chunk.sessions[0]?.starts_at ?? null;
@@ -489,6 +491,13 @@ export default function GroupDetailsScreen() {
       if (item.kind === "roundsEmpty") {
         return <Muted>{t("noSessions")}</Muted>;
       }
+      if (item.kind === "roundsGateHint") {
+        return (
+          <View style={styles.gateHint}>
+            <Text style={styles.gateHintText}>{t("roundsGateHint")}</Text>
+          </View>
+        );
+      }
       if (item.kind === "round") {
         const open = expandedRound === item.chunk.roundNumber;
         return (
@@ -547,6 +556,8 @@ export default function GroupDetailsScreen() {
         return `student-${item.due.student_id}`;
       case "roundsEmpty":
         return "roundsEmpty";
+      case "roundsGateHint":
+        return "roundsGateHint";
       case "round":
         return `round-${item.chunk.roundNumber}`;
       default:
@@ -715,6 +726,21 @@ function createStyles(colors: AppColors) {
   },
   tabChipTextOn: {
     color: colors.primary,
+  },
+  gateHint: {
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: colors.primarySoft,
+    borderRadius: radii.md,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginBottom: spacing.md,
+  },
+  gateHintText: {
+    ...rtlText,
+    fontSize: 13,
+    lineHeight: 20,
+    color: colors.text,
   },
   modalBackdrop: {
     flex: 1,

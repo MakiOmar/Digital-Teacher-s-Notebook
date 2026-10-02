@@ -15,7 +15,7 @@ import {
   Muted,
 } from "@/src/components/ui";
 import { ScreenWithFixedActions } from "@/src/components/ScreenWithFixedActions";
-import { IconActionBar } from "@/src/components/IconActionBar";
+import { PageToolbar } from "@/src/components/PageToolbar";
 import type { IconAction } from "@/src/components/IconActionBar";
 import { DetailCard } from "@/src/components/DetailCard";
 import { DateField, TimeField } from "@/src/components/DateFields";
@@ -414,9 +414,67 @@ export default function AttendanceScreen() {
     })();
   }, [bump, dialog, id, load, rescheduleDate, rescheduleTime]);
 
+  const onSaveNotes = useCallback(() => {
+    void (async () => {
+      try {
+        await updateSessionNotes(id, notes.trim() || null);
+        dialog.toast(t("success"), "success");
+        bump();
+      } catch (e) {
+        dialog.toast(userFacingErrorMessage(e), "error");
+      }
+    })();
+  }, [bump, dialog, id, notes]);
+
+  const attendanceBulkActions = useMemo<IconAction[]>(
+    () => [
+      {
+        key: "present",
+        icon: "check",
+        label: t("actionPresent"),
+        tone: "accent",
+        onPress: onMarkAllPresent,
+      },
+      {
+        key: "absent",
+        icon: "times",
+        label: t("actionAbsent"),
+        onPress: onMarkAllAbsent,
+      },
+    ],
+    [onMarkAllAbsent, onMarkAllPresent]
+  );
+
+  const homeworkBulkActions = useMemo<IconAction[]>(
+    () => [
+      {
+        key: "hw-done",
+        icon: "check",
+        label: t("actionHomeworkDone"),
+        tone: "accent",
+        onPress: onMarkAllHomeworkDone,
+      },
+      {
+        key: "hw-not",
+        icon: "times",
+        label: t("actionHomeworkNotDone"),
+        onPress: onMarkAllHomeworkNotDone,
+      },
+    ],
+    [onMarkAllHomeworkDone, onMarkAllHomeworkNotDone]
+  );
+
   const sessionActions = useMemo<IconAction[]>(() => {
+    const save: IconAction = {
+      key: "save-notes",
+      icon: "save",
+      label: t("save"),
+      tone: "accent",
+      onPress: onSaveNotes,
+    };
     if (cancelled) {
       return [
+        save,
         {
           key: "restore",
           icon: "undo",
@@ -433,41 +491,8 @@ export default function AttendanceScreen() {
       ];
     }
 
-    const bulkActions: IconAction[] =
-      tab === "homework"
-        ? [
-            {
-              key: "hw-done",
-              icon: "check",
-              label: t("actionHomeworkDone"),
-              tone: "accent",
-              onPress: onMarkAllHomeworkDone,
-            },
-            {
-              key: "hw-not",
-              icon: "times",
-              label: t("actionHomeworkNotDone"),
-              onPress: onMarkAllHomeworkNotDone,
-            },
-          ]
-        : [
-            {
-              key: "present",
-              icon: "check",
-              label: t("actionPresent"),
-              tone: "accent",
-              onPress: onMarkAllPresent,
-            },
-            {
-              key: "absent",
-              icon: "times",
-              label: t("actionAbsent"),
-              onPress: onMarkAllAbsent,
-            },
-          ];
-
     return [
-      ...bulkActions,
+      save,
       completed
         ? {
             key: "reopen",
@@ -506,14 +531,10 @@ export default function AttendanceScreen() {
     completed,
     onCancelSession,
     onCompleteSession,
-    onMarkAllAbsent,
-    onMarkAllHomeworkDone,
-    onMarkAllHomeworkNotDone,
-    onMarkAllPresent,
     onReopenSession,
     onRestoreSession,
+    onSaveNotes,
     openReschedule,
-    tab,
   ]);
 
   const renderItem = useCallback<ListRenderItem<Student>>(
@@ -657,25 +678,8 @@ export default function AttendanceScreen() {
           placeholder={t("sessionNotesHint")}
           multiline
         />
-        <IconActionBar
-          actions={[
-            {
-              key: "save-notes",
-              icon: "save",
-              label: t("save"),
-              tone: "accent",
-              onPress: () => {
-                void (async () => {
-                  await updateSessionNotes(id, notes.trim() || null);
-                  dialog.toast(t("success"), "success");
-                  bump();
-                })();
-              },
-            },
-          ]}
-        />
 
-        {/* Attendance / Homework tabs — each has its own bulk actions in the bar. */}
+        {/* Attendance / Homework tabs — each has its own bulk menu on the heading row. */}
         <View style={[styles.tabs, rtlRow()]}>
           {(
             [
@@ -698,10 +702,21 @@ export default function AttendanceScreen() {
           })}
         </View>
 
-        {/* Comment: section label so the per-student list is obvious below. */}
-        <Text style={styles.studentsHeading}>
-          {tab === "homework" ? t("homework") : t("markAttendance")}
-        </Text>
+        {/* Comment: section label + bulk menu for the active tab only. */}
+        <PageToolbar
+          title={
+            <Text style={styles.studentsHeading}>
+              {tab === "homework" ? t("homework") : t("markAttendance")}
+            </Text>
+          }
+          actions={
+            cancelled
+              ? []
+              : tab === "homework"
+                ? homeworkBulkActions
+                : attendanceBulkActions
+          }
+        />
         {cancelled ? <Muted>{t("sessionCancelled")}</Muted> : null}
       </View>
     );
@@ -712,11 +727,10 @@ export default function AttendanceScreen() {
     onPickStar,
     starStudent,
     notes,
-    id,
-    dialog,
-    bump,
     cancelled,
     tab,
+    attendanceBulkActions,
+    homeworkBulkActions,
   ]);
 
   if (loading || !session) {

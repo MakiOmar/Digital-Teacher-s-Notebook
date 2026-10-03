@@ -43,10 +43,8 @@ import { ThemeProvider, useColors, useTheme } from "@/src/theme/ThemeContext";
 
 /**
  * Prefer reading-start alignment helpers in src/theme/rtl.ts.
- * Preferred language drives I18nManager.forceRTL (ar) / false (en).
- * app.json forcesRTL is false so English LTR works after prebuild.
+ * Preferred language drives I18nManager.allowRTL/forceRTL (bootstrapLanguageLayout).
  */
-I18nManager.allowRTL(true);
 
 /**
  * Do NOT call preventAutoHideAsync here. Keeping the native splash with

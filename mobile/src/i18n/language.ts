@@ -20,8 +20,12 @@ export {
 const LAYOUT_RELOAD_KEY = "tutoring.lang.layout.reload.v3";
 const LAYOUT_RETRY_KEY = "tutoring.lang.layout.retry.v3";
 
+/**
+ * allowRTL must follow the language too: with allowRTL(true) Android reports
+ * RTL whenever the device's first locale is RTL, even when forceRTL is false.
+ */
 function applyLayoutDirection(wantRtl: boolean): void {
-  I18nManager.allowRTL(true);
+  I18nManager.allowRTL(wantRtl);
   I18nManager.forceRTL(wantRtl);
 }
 

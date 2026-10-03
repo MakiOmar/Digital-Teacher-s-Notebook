@@ -6,6 +6,7 @@ import type {
   StudentDueRow,
 } from "../db/types";
 import type { SQLiteDatabase } from "expo-sqlite";
+import { getCurrentMonthByGroup } from "./groupMonths";
 
 export function isCountableAttendance(status: AttendanceStatus): boolean {
   return status === "present" || status === "absent_unexcused";
@@ -1215,7 +1216,7 @@ export type OpenRoundPaymentPage = {
 export async function getOpenRoundsPaymentPage(input: {
   status?: PaymentStatus;
   groupId?: number;
-  /** current = open rounds only (default); all = any; number = that round_number. */
+  /** current = each group's current month (group-page gate); all = any; number = that round_number. */
   round?: PaymentRoundFilter;
   limit: number;
   offset: number;
@@ -1240,9 +1241,20 @@ export async function getOpenRoundsPaymentPage(input: {
   }
 
   if (roundFilter === "current") {
-    listConditions.push("round_status = 'open'");
-    remainConditions.push("round_status = 'open'");
-    earnConditions.push("br.status = 'open'");
+    const pairs = [...(await getCurrentMonthByGroup(input.groupId))];
+    const match = (prefix: string) =>
+      pairs.length
+        ? `(${pairs
+            .map(() => `(${prefix}group_id = ? AND ${prefix}round_number = ?)`)
+            .join(" OR ")})`
+        : "0 = 1";
+    const pairParams = pairs.flat();
+    listConditions.push(match(""));
+    listParams.push(...pairParams);
+    remainConditions.push(match(""));
+    remainParams.push(...pairParams);
+    earnConditions.push(match("br."));
+    earnParams.push(...pairParams);
   } else if (roundFilter !== "all") {
     listConditions.push("round_number = ?");
     listParams.push(roundFilter);

@@ -48,6 +48,11 @@ import {
 import { generateSessionsForGroup } from "@/src/services/schedule";
 import { createManualGroupSession } from "@/src/services/sessions";
 import { getRoundDues } from "@/src/services/rounds";
+import {
+  chunkSessionsByRound,
+  visibleRoundChunks,
+  type MonthChunk,
+} from "@/src/services/groupMonths";
 import { SessionClassButton } from "@/src/components/SessionClassButton";
 import { MonthStarTitle } from "@/src/components/MonthStarTitle";
 import { useDialog } from "@/src/components/DialogProvider";
@@ -61,7 +66,7 @@ import {
 } from "@/src/utils/statusLabels";
 import { userFacingErrorMessage } from "@/src/utils/errors";
 
-type RoundChunk = { roundNumber: number; sessions: GroupSession[] };
+type RoundChunk = MonthChunk<GroupSession>;
 
 type ContentTab = "students" | "rounds";
 
@@ -80,51 +85,6 @@ type ListRowItem =
       closedAt: string | null;
       starName?: string;
     };
-
-function chunkSessionsByRound(
-  sessions: GroupSession[],
-  classesPerRound: number
-): RoundChunk[] {
-  const per = Math.max(1, classesPerRound || 4);
-  // Exclude cancelled so round headers match payment date ranges / billing.
-  const ordered = [...sessions]
-    .filter((s) => s.status !== "cancelled")
-    .sort((a, b) => a.starts_at.localeCompare(b.starts_at));
-  const out: RoundChunk[] = [];
-  for (let i = 0; i < ordered.length; i += per) {
-    out.push({
-      roundNumber: Math.floor(i / per) + 1,
-      sessions: ordered.slice(i, i + per),
-    });
-  }
-  return out;
-}
-
-/** Round is finished only when every class is completed and fully marked. */
-function isRoundAttendanceComplete(
-  chunk: RoundChunk,
-  coverage: Record<number, { marked: number; total: number }>
-): boolean {
-  if (!chunk.sessions.length) return false;
-  return chunk.sessions.every((s) => {
-    if (s.status !== "completed") return false;
-    const c = coverage[s.id];
-    return Boolean(c && c.total > 0 && c.marked >= c.total);
-  });
-}
-
-/** Show rounds up through the first incomplete one (gate next round). */
-function visibleRoundChunks(
-  chunks: RoundChunk[],
-  coverage: Record<number, { marked: number; total: number }>
-): RoundChunk[] {
-  const out: RoundChunk[] = [];
-  for (const chunk of chunks) {
-    out.push(chunk);
-    if (!isRoundAttendanceComplete(chunk, coverage)) break;
-  }
-  return out;
-}
 
 const StudentDueRowItem = memo(function StudentDueRowItem({
   due,

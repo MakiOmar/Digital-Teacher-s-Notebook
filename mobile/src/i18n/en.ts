@@ -323,6 +323,8 @@ export const en = {
   backupProgressWrite: "Writing file...",
   about: "About",
   aboutText: "Digital Teacher Notebook — a local app for tutoring groups, fees, and attendance with no server.",
+  appVersion: "Version {version}",
+  appVersionWithBuild: "Version {version} (build {build})",
   quickActions: "Quick actions",
   qaStudents: "Students",
   qaWeeklySchedule: "Weekly schedule",

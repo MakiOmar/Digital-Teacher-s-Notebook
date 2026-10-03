@@ -352,6 +352,8 @@ export const ar = {
   about: "عن التطبيق",
   aboutText:
     "دفتر المعلم الرقمي — تطبيق محلي لإدارة مجموعات التدريس والاشتراكات والحضور بدون سيرفر.",
+  appVersion: "الإصدار {version}",
+  appVersionWithBuild: "الإصدار {version} (بناء {build})",
 
   // Home dashboard
   quickActions: "إجراءات سريعة",

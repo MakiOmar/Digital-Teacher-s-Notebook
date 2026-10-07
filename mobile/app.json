@@ -2,7 +2,7 @@
   "expo": {
     "name": "دفتر المعلم الرقمي",
     "slug": "tutoring-manager",
-    "version": "1.0.6",
+    "version": "1.0.7",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "tutoringmanager",
@@ -29,7 +29,7 @@
     },
     "android": {
       "package": "com.itqandev.digitalteachernotebook",
-      "versionCode": 9,
+      "versionCode": 10,
       "supportsRtl": true,
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [

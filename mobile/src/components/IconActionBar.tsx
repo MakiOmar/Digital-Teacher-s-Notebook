@@ -123,7 +123,11 @@ export function OverflowMenuButton({
                     onPress={() => {
                       close();
                       // Defer so the modal can dismiss before navigation/alerts.
-                      requestAnimationFrame(() => a.onPress());
+                      requestAnimationFrame(() =>
+                        actionsRef.current
+                          .find((latest) => latest.key === a.key)
+                          ?.onPress()
+                      );
                     }}
                     accessibilityLabel={a.label}
                     style={({ pressed }) => [

@@ -40,7 +40,14 @@ export function useHeaderToolbar(opts: {
     .map((a) => `${a.key}:${a.disabled ? 1 : 0}:${a.label}`)
     .join("|");
   const filterKey = filter
-    ? filter.fields.map((f) => `${f.key}=${f.value}`).join("|")
+    ? filter.fields
+        .map(
+          (f) =>
+            `${f.key}=${f.value}:${f.label}:${f.options
+              .map((o) => `${o.value}/${o.label}`)
+              .join(",")}`
+        )
+        .join("|")
     : "";
 
   useLayoutEffect(() => {

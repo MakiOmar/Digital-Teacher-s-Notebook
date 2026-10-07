@@ -116,11 +116,17 @@ export default function GroupFormScreen() {
       return;
     }
     if (!selectedDays.length) {
-      await dialog.alert({ title: t("error"), message: t("scheduleDays") });
+      await dialog.alert({
+        title: t("error"),
+        message: t("fieldSelectRequired", { field: t("scheduleDays") }),
+      });
       return;
     }
     if (!startDate) {
-      await dialog.alert({ title: t("error"), message: t("groupStartDate") });
+      await dialog.alert({
+        title: t("error"),
+        message: t("fieldSelectRequired", { field: t("groupStartDate") }),
+      });
       return;
     }
     if (endDate.trim() && endDate.trim() < startDate) {

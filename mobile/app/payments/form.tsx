@@ -198,7 +198,12 @@ export default function PaymentFormScreen() {
 
   async function onSave() {
     if (!studentId || (!editId && !roundId)) {
-      await dialog.alert({ title: t("error"), message: t("required") });
+      await dialog.alert({
+        title: t("error"),
+        message: t("fieldSelectRequired", {
+          field: !studentId ? t("studentLabel") : t("monthUnit"),
+        }),
+      });
       return;
     }
     const amountNum = Number(amount.replace(",", "."));
@@ -339,7 +344,9 @@ export default function PaymentFormScreen() {
               {/* Step 3: month/round via Apply modal */}
               <Text style={styles.label}>{t("selectRound")}</Text>
               {!studentId ? (
-                <Text style={styles.hint}>{t("required")}</Text>
+                <Text style={styles.hint}>
+                  {t("fieldSelectRequired", { field: t("studentLabel") })}
+                </Text>
               ) : !rounds.length ? (
                 <Text style={styles.hint}>{t("noOpenRound")}</Text>
               ) : (

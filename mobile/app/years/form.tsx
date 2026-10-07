@@ -82,7 +82,10 @@ export default function YearFormScreen() {
 
   async function onSave() {
     if (!name.trim()) {
-      await dialog.alert({ title: t("error"), message: t("required") });
+      await dialog.alert({
+        title: t("error"),
+        message: t("fieldRequired", { field: t("yearName") }),
+      });
       return;
     }
     if (sem1Start > sem1End) {

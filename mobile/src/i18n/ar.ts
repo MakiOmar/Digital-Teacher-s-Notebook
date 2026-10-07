@@ -25,6 +25,9 @@ export const ar = {
   error: "حدث خطأ",
   success: "تم بنجاح",
   required: "هذا الحقل مطلوب",
+  fieldRequired: "يرجى إدخال «{field}»",
+  fieldSelectRequired: "يرجى اختيار «{field}»",
+  studentLabel: "الطالب",
 
   // Dashboard
   totalCollected: "إجمالي التحصيل",

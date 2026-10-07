@@ -180,7 +180,10 @@ export default function StudentFormScreen() {
 
   async function onSave(addAnother: boolean) {
     if (!name.trim()) {
-      await dialog.alert({ title: t("error"), message: t("required") });
+      await dialog.alert({
+        title: t("error"),
+        message: t("fieldRequired", { field: t("studentName") }),
+      });
       return;
     }
     const feeVal =

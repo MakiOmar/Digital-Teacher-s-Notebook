@@ -51,6 +51,14 @@ export function useHeaderToolbar(opts: {
       return;
     }
 
+    // headerRight is only rebuilt when actionKeys change, so route presses
+    // through the ref or onPress would see stale form state.
+    const liveActions: IconAction[] = actionsRef.current.map((action) => ({
+      ...action,
+      onPress: () =>
+        actionsRef.current.find((a) => a.key === action.key)?.onPress(),
+    }));
+
     navigation.setOptions({
       headerRight: () => (
         <View style={styles.cluster}>
@@ -65,8 +73,8 @@ export function useHeaderToolbar(opts: {
               showSummary={false}
             />
           ) : null}
-          {actionsRef.current.length ? (
-            <OverflowMenuButton actions={actionsRef.current} />
+          {liveActions.length ? (
+            <OverflowMenuButton actions={liveActions} />
           ) : null}
         </View>
       ),

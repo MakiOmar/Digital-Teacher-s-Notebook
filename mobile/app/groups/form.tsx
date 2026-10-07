@@ -109,7 +109,10 @@ export default function GroupFormScreen() {
 
   async function onSave() {
     if (!name.trim()) {
-      await dialog.alert({ title: t("error"), message: t("required") });
+      await dialog.alert({
+        title: t("error"),
+        message: t("fieldRequired", { field: t("groupName") }),
+      });
       return;
     }
     if (!selectedDays.length) {

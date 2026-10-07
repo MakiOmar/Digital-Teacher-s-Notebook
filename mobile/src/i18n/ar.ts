@@ -149,6 +149,16 @@ export const ar = {
   roundsTab: "الأشهر",
   roundsGateHint:
     "لن يظهر الشهر التالي إلا بعد تسجيل حضور كل الطلاب وإنهاء جميع حصص الشهر الحالي.",
+  scheduleGapsMessage: "{missing} حصة من الجدول الأسبوعي غير موجودة في هذه المجموعة.",
+  scheduleGapsBlocked:
+    "منها {blocked} تتعارض مع مواعيد: {groups}، ولن تُضاف إلا بعد تغيير الموعد.",
+  scheduleGapsFill: "إضافة الحصص الناقصة",
+  scheduleGapsFillConfirm:
+    "ستُضاف الحصص الناقصة فقط، دون حذف أو تعديل أي حصة موجودة. المتابعة؟",
+  scheduleGapsFillDone: "تمت إضافة {created} حصة",
+  scheduleConflictsSkippedTitle: "حصص لم تُضف",
+  scheduleConflictsSkipped:
+    "لم تُضف {count} حصة لأنها تتعارض مع مواعيد: {groups}. غيّر الموعد أو أوقف المجموعة الأخرى، ثم اضغط «إضافة الحصص الناقصة» في صفحة المجموعة.",
   noGroups: "لا توجد مجموعات بعد",
   groupDetails: "تفاصيل المجموعة",
   addStudentsToGroup: "إضافة طلاب",

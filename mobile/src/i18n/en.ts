@@ -135,6 +135,16 @@ export const en = {
   roundsTab: "Months",
   roundsGateHint:
     "The next month appears only after attendance is recorded for all students and every class in the current month is completed.",
+  scheduleGapsMessage: "{missing} classes from the weekly schedule are missing in this group.",
+  scheduleGapsBlocked:
+    "{blocked} of them clash with: {groups}, and won’t be added until the time changes.",
+  scheduleGapsFill: "Add missing classes",
+  scheduleGapsFillConfirm:
+    "Only the missing classes will be added. No existing class will be deleted or changed. Continue?",
+  scheduleGapsFillDone: "Added {created} classes",
+  scheduleConflictsSkippedTitle: "Classes not added",
+  scheduleConflictsSkipped:
+    "{count} classes weren’t added because they clash with: {groups}. Change the time or pause the other group, then tap “Add missing classes” on the group page.",
   noGroups: "No groups yet",
   groupDetails: "Group details",
   addStudentsToGroup: "Add students",

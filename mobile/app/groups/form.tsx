@@ -184,7 +184,16 @@ export default function GroupFormScreen() {
 
       if (activeYear && groupId) {
         try {
-          await generateSessionsForGroup(groupId);
+          const generated = await generateSessionsForGroup(groupId);
+          if (generated.skippedConflicts > 0) {
+            await dialog.alert({
+              title: t("scheduleConflictsSkippedTitle"),
+              message: t("scheduleConflictsSkipped", {
+                count: generated.skippedConflicts,
+                groups: generated.conflictGroups.join("، "),
+              }),
+            });
+          }
         } catch {
           // patterns/year may still be incomplete
         }

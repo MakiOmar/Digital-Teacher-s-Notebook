@@ -45,7 +45,12 @@ import {
   formatRoundTitle,
   todayDateOnly,
 } from "@/src/utils/date";
-import { generateSessionsForGroup } from "@/src/services/schedule";
+import {
+  fillScheduleGaps,
+  findScheduleGaps,
+  generateSessionsForGroup,
+  type ScheduleGaps,
+} from "@/src/services/schedule";
 import { createManualGroupSession } from "@/src/services/sessions";
 import { getRoundDues } from "@/src/services/rounds";
 import {
@@ -72,6 +77,7 @@ type ContentTab = "students" | "rounds";
 
 type ListRowItem =
   | { kind: "meta" }
+  | { kind: "scheduleGaps" }
   | { kind: "tabs" }
   | { kind: "studentsTitle" }
   | { kind: "studentEmpty" }
@@ -170,6 +176,8 @@ export default function GroupDetailsScreen() {
   const [customStart, setCustomStart] = useState("16:00");
   const [customEnd, setCustomEnd] = useState("18:00");
   const [customBusy, setCustomBusy] = useState(false);
+  const [gaps, setGaps] = useState<ScheduleGaps | null>(null);
+  const [fillingGaps, setFillingGaps] = useState(false);
 
   useEffect(() => {
     navigation.setOptions({
@@ -186,6 +194,7 @@ export default function GroupDetailsScreen() {
       setDues(await getRoundDues(groupId));
       setCoverage(await getSessionAttendanceCoverage(groupId));
       setRoundStars(await listRoundStarsForGroup(groupId));
+      setGaps(await findScheduleGaps(groupId));
     } finally {
       setLoading(false);
     }
@@ -215,7 +224,9 @@ export default function GroupDetailsScreen() {
   }, [unlockedRounds]);
 
   const listData = useMemo((): ListRowItem[] => {
-    const rows: ListRowItem[] = [{ kind: "meta" }, { kind: "tabs" }];
+    const rows: ListRowItem[] = [{ kind: "meta" }];
+    if (gaps && gaps.missing > 0) rows.push({ kind: "scheduleGaps" });
+    rows.push({ kind: "tabs" });
     if (contentTab === "students") {
       rows.push({ kind: "studentsTitle" });
       if (!dues.length) {
@@ -255,6 +266,7 @@ export default function GroupDetailsScreen() {
     unlockedRounds,
     group?.classes_per_round,
     roundStars,
+    gaps,
   ]);
 
   useFocusEffect(
@@ -302,6 +314,31 @@ export default function GroupDetailsScreen() {
       });
     }
   }
+
+  const onFillGaps = useCallback(async () => {
+    const ok = await dialog.confirm({
+      title: t("scheduleGapsFill"),
+      message: t("scheduleGapsFillConfirm"),
+    });
+    if (!ok) return;
+    setFillingGaps(true);
+    try {
+      const result = await fillScheduleGaps(groupId);
+      dialog.toast(
+        t("scheduleGapsFillDone", { created: result.created }),
+        "success"
+      );
+      bump();
+      await load();
+    } catch (e) {
+      await dialog.alert({
+        title: t("error"),
+        message: userFacingErrorMessage(e),
+      });
+    } finally {
+      setFillingGaps(false);
+    }
+  }, [dialog, groupId, bump, load]);
 
   function openCustomSession() {
     const first = patterns[0];
@@ -395,6 +432,36 @@ export default function GroupDetailsScreen() {
               },
             ]}
           />
+        );
+      }
+      if (item.kind === "scheduleGaps") {
+        if (!gaps) return null;
+        const fillable = gaps.missing - gaps.blocked;
+        return (
+          <View style={styles.gapsCard}>
+            <Text style={styles.gapsText}>
+              {t("scheduleGapsMessage", { missing: gaps.missing })}
+            </Text>
+            {gaps.blocked > 0 ? (
+              <Text style={styles.gapsText}>
+                {t("scheduleGapsBlocked", {
+                  blocked: gaps.blocked,
+                  groups: gaps.conflictGroups.join("، "),
+                })}
+              </Text>
+            ) : null}
+            {fillable > 0 ? (
+              <Pressable
+                onPress={() => void onFillGaps()}
+                disabled={fillingGaps}
+                style={styles.gapsButton}
+              >
+                <Text style={styles.gapsButtonText}>
+                  {fillingGaps ? t("loading") : t("scheduleGapsFill")}
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
         );
       }
       if (item.kind === "tabs") {
@@ -499,6 +566,9 @@ export default function GroupDetailsScreen() {
       expandedRound,
       contentTab,
       styles,
+      gaps,
+      fillingGaps,
+      onFillGaps,
     ]
   );
 
@@ -506,6 +576,8 @@ export default function GroupDetailsScreen() {
     switch (item.kind) {
       case "meta":
         return "meta";
+      case "scheduleGaps":
+        return "scheduleGaps";
       case "tabs":
         return "tabs";
       case "studentsTitle":
@@ -701,6 +773,35 @@ function createStyles(colors: AppColors) {
     fontSize: 13,
     lineHeight: 20,
     color: colors.text,
+  },
+  gapsCard: {
+    borderWidth: 1,
+    borderColor: colors.partialBorder,
+    backgroundColor: colors.partial,
+    borderRadius: radii.md,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginBottom: spacing.md,
+    gap: spacing.xs,
+  },
+  gapsText: {
+    ...rtlText,
+    fontSize: 13,
+    lineHeight: 20,
+    color: colors.text,
+  },
+  gapsButton: {
+    alignSelf: "flex-start",
+    marginTop: spacing.xs,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: radii.md,
+    backgroundColor: colors.warning,
+  },
+  gapsButtonText: {
+    ...rtlText,
+    color: "#fff",
+    fontWeight: "800",
   },
   modalBackdrop: {
     flex: 1,
